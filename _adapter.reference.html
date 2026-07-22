@@ -1,0 +1,101 @@
+<script>
+/* ============================================================================
+   OGTrack API Adapter (Phase A migration shim)
+   ----------------------------------------------------------------------------
+   Bridges the existing Firestore-era frontend to the new Azure SQL multi-tenant
+   backend WITHOUT rewriting all 111 fetch() calls. It transparently:
+     1. Detects the tenant slug from the URL (e.g. /ogtrack -> "ogtrack").
+     2. Rewrites  /api/<x>  ->  /api/<slug>/<x>  on every request.
+     3. Remaps the few paths whose shape changed (accounting -> /acc/,
+        HR -> /hr/).  Messaging keeps its /api/<slug>/conversations shape.
+     4. Attaches the JWT as  Authorization: Bearer <token>  automatically.
+   Configure OGTRACK_API_BASE below to point at your backend.
+   ============================================================================ */
+(function () {
+  // Where the backend lives. Local dev default; in production set this to your
+  // deployed API origin (e.g. https://ogtrack-api.azurewebsites.net).
+  window.OGTRACK_API_BASE =
+    (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+      ? 'http://localhost:3000'
+      : (window.OGTRACK_API_BASE || location.origin);
+
+  // ── Tenant slug detection ────────────────────────────────────────────────
+  // URL pattern is  /<slug>  (e.g. /ogtrack, /cajo). Falls back to 'ogtrack'
+  // when opened at the bare root during local testing.
+  function detectSlug() {
+    const seg = location.pathname.split('/').filter(Boolean)[0];
+    // Ignore known non-tenant first segments if you ever add any (e.g. assets).
+    if (seg && !seg.includes('.')) return seg.toLowerCase();
+    return window.OGTRACK_DEFAULT_SLUG || 'ogtrack';
+  }
+  window.OGTRACK_SLUG = detectSlug();
+
+  // ── Token storage ─────────────────────────────────────────────────────────
+  window.OGTRACK_getToken = () => localStorage.getItem('og_token') || null;
+  window.OGTRACK_setToken = (t) => { if (t) localStorage.setItem('og_token', t); };
+  window.OGTRACK_clearToken = () => localStorage.removeItem('og_token');
+
+  // ── Path rewriting ─────────────────────────────────────────────────────────
+  // Given an original app path like '/api/bugs' or '/api/eod-reports', return
+  // the new tenant-scoped path on the backend.
+  function rewriteApiPath(path) {
+    const slug = window.OGTRACK_SLUG;
+
+    // Accounting endpoints moved under /acc
+    const ACC = ['/clients', '/time-entries', '/eod-reports', '/eod-routes'];
+    // HR endpoints moved under /hr
+    const HR = ['/jobs', '/candidates', '/interviews'];
+
+    // strip leading '/api'
+    let rest = path.replace(/^\/api/, ''); // e.g. '/bugs', '/eod-reports/123'
+
+    // Company (masteradmin) calls stay platform-level, NOT tenant-scoped.
+    if (rest.startsWith('/companies')) return '/api' + rest;
+
+    // Leave requests: frontend calls /api/leave, backend nests them under the
+    // attendance module at /attendance/leave.
+    if (rest === '/leave' || rest.startsWith('/leave?') || rest.startsWith('/leave/')) {
+      return `/api/${slug}/attendance${rest}`;
+    }
+
+    // Determine namespace remap by matching the first path segment.
+    const firstSeg = '/' + (rest.split('/').filter(Boolean)[0] || '');
+    if (ACC.includes(firstSeg)) {
+      return `/api/${slug}/acc${rest}`;
+    }
+    if (HR.includes(firstSeg)) {
+      return `/api/${slug}/hr${rest}`;
+    }
+    // Everything else: users, projects, bugs, sprints, stories, sub-tickets,
+    // roles, attendance, leave, conversations, upload — straight slug prefix.
+    return `/api/${slug}${rest}`;
+  }
+
+  // ── fetch() interception ───────────────────────────────────────────────────
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = function (input, init = {}) {
+    try {
+      let url = typeof input === 'string' ? input : (input && input.url) || '';
+
+      // Only touch our own /api/... calls; leave CDN / external URLs alone.
+      if (url.startsWith('/api/') || url === '/api') {
+        const newPath = rewriteApiPath(url);
+        url = window.OGTRACK_API_BASE + newPath;
+
+        // Attach auth + ensure headers object exists.
+        init = { ...init };
+        init.headers = new Headers(init.headers || {});
+        const token = window.OGTRACK_getToken();
+        if (token && !init.headers.has('Authorization')) {
+          init.headers.set('Authorization', 'Bearer ' + token);
+        }
+        return _origFetch(url, init);
+      }
+    } catch (e) {
+      // If anything goes wrong in rewriting, fall through to original fetch.
+      console.warn('[OGTrack adapter] fetch rewrite failed:', e);
+    }
+    return _origFetch(input, init);
+  };
+})();
+</script>
