@@ -34,14 +34,22 @@
       : (window.OGTRACK_API_BASE || 'https://og-track-backend-c9ergsc8fchygmez.canadacentral-01.azurewebsites.net');
 
   // ── Tenant slug detection ────────────────────────────────────────────────
-  // URL pattern is  /<slug>  (e.g. /ogtrack, /cajo). Falls back to 'ogtrack'
-  // when opened at the bare root during local testing.
+  // URL pattern is  /<slug>  (e.g. /ogtrack, /cajo). Bare root (no slug at
+  // all) shows the company-picker directory instead of defaulting to any
+  // one company — window.OGTRACK_HAS_SLUG_IN_URL records which case this is.
   function detectSlug() {
     const seg = location.pathname.split('/').filter(Boolean)[0];
-    // Ignore known non-tenant first segments if you ever add any (e.g. assets).
-    if (seg && !seg.includes('.')) return seg.toLowerCase();
+    if (seg && !seg.includes('.')) {
+      window.OGTRACK_HAS_SLUG = true;
+      return seg.toLowerCase();
+    }
+    window.OGTRACK_HAS_SLUG = false;
     return window.OGTRACK_DEFAULT_SLUG || 'ogtrack';
   }
+  // True once a real slug segment is in the URL (e.g. /cajo). False at the
+  // bare root — that's when the company picker shows instead of any one
+  // tenant's login page.
+  window.OGTRACK_HAS_SLUG = !!(location.pathname.split('/').filter(Boolean)[0]);
   window.OGTRACK_SLUG = detectSlug();
 
   // ── Token storage ─────────────────────────────────────────────────────────
@@ -121,6 +129,7 @@
 // has to finish before the parser reaches them. It's a small, same-origin,
 // one-time JSON fetch, so the blocking cost is negligible.
 (function () {
+  if (!window.OGTRACK_HAS_SLUG) return; // bare root — company picker handles this case instead
   try {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', window.OGTRACK_API_BASE + '/api/companies/by-slug/' + encodeURIComponent(window.OGTRACK_SLUG), false);
@@ -1409,6 +1418,16 @@ body { transition: background .3s ease, color .3s ease; }
 <canvas id="bg-hex-canvas"></canvas>
 
 <!-- AUTH -->
+<!-- COMPANY DIRECTORY (shown at the bare root — no tenant slug in the URL) -->
+<div id="directory-screen" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:9997;overflow-y:auto;padding:48px 20px;">
+  <div style="max-width:900px;margin:0 auto;text-align:center">
+    <div style="font-size:26px;font-weight:700;color:var(--red);margin-bottom:6px">OGTrack</div>
+    <div style="font-size:14px;color:var(--g3);margin-bottom:32px">Pick your company to sign in</div>
+    <div id="directory-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;text-align:left">
+      <div class="empty-state">Loading companies…</div>
+    </div>
+  </div>
+</div>
 <!-- LOADING SCREEN (shows while checking auth state) -->
 <div id="loading-screen" style="position:fixed;inset:0;background:#111;z-index:9998;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
   <div id="ls-brand" style="display:flex;flex-direction:column;align-items:center;gap:16px">
@@ -1423,6 +1442,15 @@ body { transition: background .3s ease, color .3s ease; }
 </div>
 <script>
 (function(){
+  // Bare root, no company slug — the picker screen (built later in the main
+  // script, once the DOM further down exists) handles this instead. Hide the
+  // splash/loading screens immediately so there's no flash of generic
+  // OGTrack branding before the picker takes over.
+  if(!window.OGTRACK_HAS_SLUG){
+    const sp=document.getElementById('splash-screen'); if(sp) sp.style.display='none';
+    const ls=document.getElementById('loading-screen'); if(ls) ls.style.display='none';
+    return;
+  }
   // Tenant white-label: brand the loading screen text/logo, but keep the
   // hex reveal animation — just recolor it with this company's palette
   // instead of skipping it (skipping made the hex pattern vanish entirely,
@@ -4793,7 +4821,9 @@ function toggleTheme() {
 })();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-if(currentUser){
+if(!window.OGTRACK_HAS_SLUG){
+  showCompanyDirectory();
+} else if(currentUser){
   (async()=>{
     try{
       await loadAll();
@@ -5327,6 +5357,33 @@ function hideLoading(showAuth=false){
   } else {
     ls.classList.add('hide');
     setTimeout(()=>{ ls.style.display='none'; if(showAuth) document.getElementById('auth-screen').style.display='flex'; }, 320);
+  }
+}
+
+// ── Company Directory (bare-root landing page) ──────────────────────────────
+async function showCompanyDirectory(){
+  ['splash-screen','onboarding-screen','loading-screen','auth-screen'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  document.getElementById('directory-screen').style.display='block';
+
+  const grid=document.getElementById('directory-grid');
+  try{
+    const companies=await fetch('/api/companies/directory').then(r=>r.json());
+    if(!companies.length){
+      grid.innerHTML='<div class="empty-state">No companies yet.</div>';
+      return;
+    }
+    grid.innerHTML=companies.map(c=>`
+      <a href="/${encodeURIComponent(c.slug)}" style="text-decoration:none;color:inherit;background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px;transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+        ${c.logo
+          ? `<img src="${c.logo}" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:10px">`
+          : `<div style="width:56px;height:56px;border-radius:10px;background:${(c.primaryColor||'#C0392B')}22;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:${c.primaryColor||'#C0392B'}">${(c.name||'?').charAt(0).toUpperCase()}</div>`}
+        <div style="font-weight:600;font-size:14px;text-align:center">${c.name}</div>
+      </a>`).join('');
+  }catch(e){
+    grid.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load the company list.</div>';
   }
 }
 

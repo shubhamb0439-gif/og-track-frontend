@@ -1,0 +1,6 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/masteradmin.html", "/images/*.{png,jpg,gif,svg,ico}", "/css/*", "/js/*"]
+  }
+}
