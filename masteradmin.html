@@ -241,6 +241,10 @@
         <label>Database Name * <span style="font-weight:400;color:var(--g3)">(Azure SQL DB name)</span></label>
         <input type="text" id="cm-db" placeholder="OGTrack_Acme"/>
       </div>
+      <div class="field" id="cm-region-field">
+        <label>Region <span style="font-weight:400;color:var(--g3)">(which Azure SQL server this company's database is created on)</span></label>
+        <select id="cm-region"></select>
+      </div>
       <div id="cm-admin-fields" class="field-row">
         <div class="field">
           <label>Admin Name <span style="font-weight:400;color:var(--g3)">(first login for this company)</span></label>
@@ -436,7 +440,7 @@ function renderCompanies() {
       <td><code style="background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px">${esc(c.slug)}</code></td>
       <td><code style="font-size:11px;color:var(--g3)">${esc(c.db_name)}</code></td>
       <td><div class="mod-chips">${modules}</div></td>
-      <td><span class="badge ${c.status}">${c.status}</span></td>
+      <td><span class="badge ${c.status}">${c.status}</span> ${c.sql_region?`<span class="mod-chip" style="font-size:10px">${esc(c.sql_region)}</span>`:''}</td>
       <td>${provStatus}</td>
       <td>
         <div class="action-btns">
@@ -521,7 +525,7 @@ function handleModuleDependency(key, checked) {
   }
 }
 
-function openCompanyModal(id) {
+async function openCompanyModal(id) {
   editingCompanyId = id || null;
   const company = id ? companies.find(c=>c.id===id) : null;
   document.getElementById('company-modal-title').textContent = company ? 'Edit Company' : 'New Company';
@@ -534,6 +538,7 @@ function openCompanyModal(id) {
   document.getElementById('cm-admin-fields').style.display = company ? 'none' : 'flex';
   document.getElementById('cm-admin-name').value = '';
   document.getElementById('cm-admin-email').value = '';
+  await populateRegionField(company);
   document.getElementById('cm-status').value = company?.status || 'active';
   document.getElementById('cm-color').value = company?.primary_color || '#C0392B';
   document.getElementById('cm-logo').value = company?.logo_url || '';
@@ -546,6 +551,29 @@ function openCompanyModal(id) {
   buildModuleCheckboxes(company?.enabled_modules || defaultModules);
   document.getElementById('company-modal').classList.add('open');
   setTimeout(()=>document.getElementById('cm-name').focus(), 100);
+}
+
+let _sqlRegionsCache = null;
+async function populateRegionField(company) {
+  const field = document.getElementById('cm-region-field');
+  if (!_sqlRegionsCache) {
+    try {
+      const r = await authFetch('/api/masteradmin/sql-regions');
+      _sqlRegionsCache = r.ok ? await r.json() : [{ key: 'default', label: 'Default' }];
+    } catch (e) { _sqlRegionsCache = [{ key: 'default', label: 'Default' }]; }
+  }
+  if (company) {
+    // Region is fixed at creation time — a database can't be moved between
+    // servers just by changing this dropdown, so show it read-only.
+    const regionLabel = (_sqlRegionsCache.find(r => r.key === company.sql_region) || {}).label || company.sql_region || 'Default';
+    field.innerHTML = `
+      <label>Region</label>
+      <input type="text" value="${regionLabel}" disabled style="background:var(--g5)"/>`;
+  } else {
+    field.innerHTML = `
+      <label>Region <span style="font-weight:400;color:var(--g3)">(which Azure SQL server this company's database is created on)</span></label>
+      <select id="cm-region">${_sqlRegionsCache.map(r=>`<option value="${r.key}">${r.label}</option>`).join('')}</select>`;
+  }
 }
 
 async function uploadCompanyLogo(input) {
@@ -604,7 +632,7 @@ async function saveCompany() {
       if (!slug || !db_name) { showToast('Slug and database name are required','error'); return; }
       if (!admin_email) { showToast('Admin email is required — it becomes this company\'s first login','error'); return; }
       const r = await authFetch('/api/masteradmin/companies', {
-        method:'POST', body: JSON.stringify({ name, slug, db_name, primary_color, logo_url, enabled_modules, admin_name, admin_email }),
+        method:'POST', body: JSON.stringify({ name, slug, db_name, primary_color, logo_url, enabled_modules, admin_name, admin_email, sql_region: document.getElementById('cm-region').value }),
       });
       if (!r.ok) { const d=await r.json(); throw new Error(d.error); }
       showToast('Company created — check the Log for the admin\'s temp password once provisioning finishes ✓','success');
