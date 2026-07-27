@@ -8846,10 +8846,10 @@ function addMfgBomLine(componentItemId,quantityPerUnit){
   const itemOptions=componentItems.map(i=>`<option value="${i.id}" ${componentItemId===i.id?'selected':''}>${esc(i.name)}</option>`).join('');
   const row=document.createElement('div');
   row.id=`mfg-bom-line-${idx}`;
-  row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;max-width:100%';
   row.innerHTML=`
-    <select id="mfg-bom-line-item-${idx}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:6px">${itemOptions||'<option value="">— No Parts/Components yet. Add some in Inventory. —</option>'}</select>
-    <input type="number" id="mfg-bom-line-qty-${idx}" placeholder="Qty per unit" value="${quantityPerUnit||''}" style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px">
+    <select id="mfg-bom-line-item-${idx}" style="flex:2 1 200px;min-width:0;max-width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box">${itemOptions||'<option value="">— No Parts/Components yet. Add some in Inventory. —</option>'}</select>
+    <input type="number" id="mfg-bom-line-qty-${idx}" placeholder="Qty per unit" value="${quantityPerUnit||''}" style="flex:1 1 100px;min-width:0;max-width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box">
     <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('mfg-bom-line-${idx}').remove()">✕</button>`;
   document.getElementById('mfg-bom-lines').appendChild(row);
 }
