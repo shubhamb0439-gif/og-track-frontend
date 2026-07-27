@@ -8825,12 +8825,12 @@ async function openMfgBomModal(id){
   document.getElementById('mfg-b-name').value=b?.name||'';
   document.getElementById('mfg-b-notes').value=b?.notes||'';
   const prodSel=document.getElementById('mfg-b-product');
-  // Products are usually inv_items with group='product', but allow any item
-  // (nested BOMs: a sub-assembly item can be a "product" of one BOM and a
-  // component in another).
-  prodSel.innerHTML=invItems.length
-    ? invItems.map(i=>`<option value="${i.id}" ${b&&b.productItemId===i.id?'selected':''}>${esc(i.name)} (${esc(i.group)})</option>`).join('')
-    : `<option value="">— Add items in Inventory first —</option>`;
+  // Only items classified as Product belong here — Components/Parts get
+  // built INTO a product, they aren't the thing a BOM produces.
+  const productItems=invItems.filter(i=>i.group==='product');
+  prodSel.innerHTML=productItems.length
+    ? productItems.map(i=>`<option value="${i.id}" ${b&&b.productItemId===i.id?'selected':''}>${esc(i.name)}</option>`).join('')
+    : `<option value="">— No items classified as "Product" yet. Edit an item in Inventory and set its Group. —</option>`;
 
   document.getElementById('mfg-bom-lines').innerHTML='';
   mfgBomLineIdx=0;
@@ -8840,12 +8840,15 @@ async function openMfgBomModal(id){
 }
 function addMfgBomLine(componentItemId,quantityPerUnit){
   const idx=mfgBomLineIdx++;
-  const itemOptions=invItems.map(i=>`<option value="${i.id}" ${componentItemId===i.id?'selected':''}>${esc(i.name)}</option>`).join('');
+  // Only Parts/Components belong here — Products are what a BOM produces,
+  // not what it consumes.
+  const componentItems=invItems.filter(i=>i.group==='part'||i.group==='component');
+  const itemOptions=componentItems.map(i=>`<option value="${i.id}" ${componentItemId===i.id?'selected':''}>${esc(i.name)}</option>`).join('');
   const row=document.createElement('div');
   row.id=`mfg-bom-line-${idx}`;
   row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
   row.innerHTML=`
-    <select id="mfg-bom-line-item-${idx}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:6px">${itemOptions||'<option value="">— Add items in Inventory first —</option>'}</select>
+    <select id="mfg-bom-line-item-${idx}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:6px">${itemOptions||'<option value="">— No Parts/Components yet. Add some in Inventory. —</option>'}</select>
     <input type="number" id="mfg-bom-line-qty-${idx}" placeholder="Qty per unit" value="${quantityPerUnit||''}" style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px">
     <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('mfg-bom-line-${idx}').remove()">✕</button>`;
   document.getElementById('mfg-bom-lines').appendChild(row);
