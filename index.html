@@ -1843,12 +1843,52 @@ body { transition: background .3s ease, color .3s ease; }
       <div class="form-row full"><div class="form-group"><label>Current Stock</label><input type="text" id="inv-adj-current" readonly style="background:var(--g5)"></div></div>
       <div class="form-row">
         <div class="form-group"><label>Adjustment *</label><input type="number" id="inv-adj-delta" placeholder="e.g. 5 or -3"></div>
+        <div class="form-group" id="inv-adj-cost-wrap"><label>Unit Cost <span style="font-weight:400;color:var(--g3)">(only for positive adjustments — this becomes the new lot's cost)</span></label><input type="number" id="inv-adj-cost" placeholder="Defaults to current avg cost if blank"></div>
       </div>
+      <div class="form-row full" id="inv-adj-lotref-wrap"><div class="form-group"><label>Lot Reference <span style="font-weight:400;color:var(--g3)">(optional — e.g. matching a historical batch code)</span></label><input type="text" id="inv-adj-lotref" placeholder="e.g. 23NOV0001"></div></div>
       <div class="form-row full"><div class="form-group"><label>Reason</label><input type="text" id="inv-adj-reason" placeholder="Physical count correction, damage, etc."></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('inv-adjust-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveInvStockAdjust()">Apply Adjustment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory: Lots Viewer Modal -->
+<div class="modal-overlay" id="inv-lots-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="inv-lots-title">Stock Lots</h2><button class="modal-close" onclick="closeModal('inv-lots-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Lot Ref</th><th>Received</th><th>Qty Remaining</th><th>Qty Received</th><th>Unit Cost</th><th>Source</th></tr></thead>
+          <tbody id="inv-lots-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('inv-lots-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory: Issue Stock Modal -->
+<div class="modal-overlay" id="inv-issue-modal">
+  <div class="modal">
+    <div class="modal-header"><h2>Issue Stock</h2><button class="modal-close" onclick="closeModal('inv-issue-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row full"><div class="form-group"><label>Item</label><input type="text" id="inv-issue-name" readonly style="background:var(--g5)"></div></div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantity *</label><input type="number" id="inv-issue-qty" placeholder="e.g. 5"></div>
+        <div class="form-group"><label>Date</label><input type="date" id="inv-issue-date"></div>
+      </div>
+      <div class="form-row full"><div class="form-group"><label>Details</label><input type="text" id="inv-issue-details" placeholder="e.g. Invoice 117/Cajo OY/Bluebird, or 'scrap', or a customer name"></div></div>
+      <div style="font-size:12px;color:var(--g3);margin-top:6px">Draws from the oldest stock lot(s) first (FIFO) — for consumption that isn't a manufacturing build (sales, scrap, samples, etc.)</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('inv-issue-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveInvIssue()">Issue Stock</button>
     </div>
   </div>
 </div>
@@ -8334,6 +8374,8 @@ function renderInventory(){
           <td>
             <button class="btn-sm btn-ghost" onclick="openInvItemModal('${i.id}')">Edit</button>
             <button class="btn-sm btn-ghost" onclick="openInvAdjustModal('${i.id}')">Adjust Stock</button>
+            <button class="btn-sm btn-ghost" onclick="openInvLotsModal('${i.id}')">Lots</button>
+            <button class="btn-sm btn-ghost" onclick="openInvIssueModal('${i.id}')">Issue Stock</button>
             <button class="btn-sm btn-ghost" onclick="deleteInvItem('${i.id}')">Delete</button>
           </td>
         </tr>`).join('');
@@ -8475,6 +8517,8 @@ function openInvAdjustModal(id){
   document.getElementById('inv-adj-name').value=i.name;
   document.getElementById('inv-adj-current').value=i.stock+' '+(i.unit||'');
   document.getElementById('inv-adj-delta').value='';
+  document.getElementById('inv-adj-cost').value='';
+  document.getElementById('inv-adj-lotref').value='';
   document.getElementById('inv-adj-reason').value='';
   document.getElementById('inv-adjust-modal').dataset.itemId=id;
   document.getElementById('inv-adjust-modal').classList.add('open');
@@ -8484,11 +8528,64 @@ async function saveInvStockAdjust(){
   const delta=Number(document.getElementById('inv-adj-delta').value);
   if(!delta){ showToast('Enter a non-zero adjustment amount','error'); return; }
   const reason=document.getElementById('inv-adj-reason').value.trim()||null;
+  const unitCostRaw=document.getElementById('inv-adj-cost').value;
+  const lotRef=document.getElementById('inv-adj-lotref').value.trim()||null;
+  const payload={delta,reason,lotRef};
+  if(delta>0 && unitCostRaw!=='') payload.unitCost=Number(unitCostRaw);
   try{
-    const r=await fetch(`/api/inventory/items/${id}/adjust-stock`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({delta,reason})});
+    const r=await fetch(`/api/inventory/items/${id}/adjust-stock`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('inv-adjust-modal');
     showToast('Stock adjusted ✓','success');
+    await loadInvData();
+    renderView();
+  }catch(e){ showToast(e.message,'error'); }
+}
+
+// ── Lots & Issue Stock ───────────────────────────────────────────────────────
+async function openInvLotsModal(id){
+  const i=invItems.find(i=>i.id===id);
+  document.getElementById('inv-lots-title').textContent='Stock Lots — '+(i?.name||'');
+  document.getElementById('inv-lots-tbody').innerHTML='<tr><td colspan="6" class="empty-state">Loading…</td></tr>';
+  document.getElementById('inv-lots-modal').classList.add('open');
+  try{
+    const lots=await fetch(`/api/inventory/items/${id}/lots`).then(r=>r.json());
+    document.getElementById('inv-lots-tbody').innerHTML=!lots.length
+      ? '<tr><td colspan="6" class="empty-state">No lots yet.</td></tr>'
+      : lots.map(l=>`<tr>
+          <td>${esc(l.lotRef||'—')}</td>
+          <td>${l.receivedDate?new Date(l.receivedDate).toLocaleDateString():'—'}</td>
+          <td><strong>${l.quantityRemaining}</strong></td>
+          <td>${l.quantityReceived}</td>
+          <td>₹${Number(l.unitCost).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+          <td style="text-transform:capitalize">${esc(l.source)}</td>
+        </tr>`).join('');
+  }catch(e){ document.getElementById('inv-lots-tbody').innerHTML='<tr><td colspan="6" class="empty-state" style="color:var(--red)">Could not load lots.</td></tr>'; }
+}
+function openInvIssueModal(id){
+  const i=invItems.find(i=>i.id===id);
+  if(!i) return;
+  document.getElementById('inv-issue-name').value=i.name+' (Stock: '+i.stock+')';
+  document.getElementById('inv-issue-qty').value='';
+  document.getElementById('inv-issue-details').value='';
+  document.getElementById('inv-issue-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('inv-issue-modal').dataset.itemId=id;
+  document.getElementById('inv-issue-modal').classList.add('open');
+}
+async function saveInvIssue(){
+  const id=document.getElementById('inv-issue-modal').dataset.itemId;
+  const quantity=Number(document.getElementById('inv-issue-qty').value);
+  if(!quantity||quantity<=0){ showToast('Enter a valid quantity','error'); return; }
+  const payload={
+    quantity,
+    issueDate:document.getElementById('inv-issue-date').value||undefined,
+    details:document.getElementById('inv-issue-details').value.trim()||null,
+  };
+  try{
+    const r=await fetch(`/api/inventory/items/${id}/issue`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    closeModal('inv-issue-modal');
+    showToast('Stock issued ✓','success');
     await loadInvData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
