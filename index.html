@@ -31,7 +31,7 @@
   window.OGTRACK_API_BASE =
     (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
       ? 'http://localhost:3000'
-      : (window.OGTRACK_API_BASE || 'https://og-track-backend-c9ergsc8fchygmez.centralindia-01.azurewebsites.net');
+      : (window.OGTRACK_API_BASE || 'https://og-track-backend-c9ergsc8fchygmez.canadacentral-01.azurewebsites.net');
 
   // ── Tenant slug detection ────────────────────────────────────────────────
   // URL pattern is  /<slug>  (e.g. /ogtrack, /cajo). Bare root (no slug at
@@ -1889,9 +1889,12 @@ body { transition: background .3s ease, color .3s ease; }
       <div id="inv-pod-meta" style="margin-bottom:12px;font-size:13px;color:var(--g3)"></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Item</th><th>Ordered</th><th>Received</th><th>Unit Cost</th><th>Line Total</th></tr></thead>
+          <thead><tr><th>Item</th><th>Ordered</th><th>Received</th><th>Unit Cost</th><th>Freight</th><th>Import</th><th>Landed/Unit</th><th>Line Total</th></tr></thead>
           <tbody id="inv-pod-lines"></tbody>
         </table>
+      </div>
+      <div class="form-row full" id="inv-pod-invoice-wrap" style="margin-top:14px">
+        <div class="form-group"><label>Vendor's Invoice Number <span style="font-weight:400;color:var(--g3)">(fill in once goods actually arrive)</span></label><input type="text" id="inv-pod-invoice" placeholder="e.g. ACS/26-27/12"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -8511,11 +8514,13 @@ function addInvPoLine(){
   const itemOptions=invItems.map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('');
   const row=document.createElement('div');
   row.id=`inv-po-line-${idx}`;
-  row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
   row.innerHTML=`
-    <select id="inv-po-line-item-${idx}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:6px">${itemOptions||'<option value="">— Add an item first —</option>'}</select>
-    <input type="number" id="inv-po-line-qty-${idx}" placeholder="Qty" style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px" oninput="updateInvPoTotal()">
-    <input type="number" id="inv-po-line-cost-${idx}" placeholder="Unit Cost" style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px" oninput="updateInvPoTotal()">
+    <select id="inv-po-line-item-${idx}" style="flex:2;min-width:140px;padding:6px;border:1px solid var(--border);border-radius:6px">${itemOptions||'<option value="">— Add an item first —</option>'}</select>
+    <input type="number" id="inv-po-line-qty-${idx}" placeholder="Qty" style="flex:1;min-width:60px;padding:6px;border:1px solid var(--border);border-radius:6px" oninput="updateInvPoTotal()">
+    <input type="number" id="inv-po-line-cost-${idx}" placeholder="Unit Cost" style="flex:1;min-width:80px;padding:6px;border:1px solid var(--border);border-radius:6px" oninput="updateInvPoTotal()">
+    <input type="number" id="inv-po-line-freight-${idx}" placeholder="Freight" title="Delivery charges for this line" style="flex:1;min-width:80px;padding:6px;border:1px solid var(--border);border-radius:6px" oninput="updateInvPoTotal()">
+    <input type="number" id="inv-po-line-import-${idx}" placeholder="Import Charges" title="Import duty for this line" style="flex:1;min-width:100px;padding:6px;border:1px solid var(--border);border-radius:6px" oninput="updateInvPoTotal()">
     <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('inv-po-line-${idx}').remove();updateInvPoTotal()">✕</button>`;
   document.getElementById('inv-po-lines').appendChild(row);
 }
@@ -8525,9 +8530,11 @@ function updateInvPoTotal(){
     const idx=row.id.split('-').pop();
     const qty=Number(document.getElementById(`inv-po-line-qty-${idx}`)?.value||0);
     const cost=Number(document.getElementById(`inv-po-line-cost-${idx}`)?.value||0);
-    total+=qty*cost;
+    const freight=Number(document.getElementById(`inv-po-line-freight-${idx}`)?.value||0);
+    const imp=Number(document.getElementById(`inv-po-line-import-${idx}`)?.value||0);
+    total+=(qty*cost)+freight+imp;
   });
-  document.getElementById('inv-po-total').textContent='Total: ₹'+total.toLocaleString('en-IN');
+  document.getElementById('inv-po-total').textContent='Total (incl. freight & import): ₹'+total.toLocaleString('en-IN');
 }
 async function saveInvPurchase(){
   const poNumber=document.getElementById('inv-po-number').value.trim();
@@ -8539,7 +8546,9 @@ async function saveInvPurchase(){
     const itemId=document.getElementById(`inv-po-line-item-${idx}`)?.value;
     const qty=Number(document.getElementById(`inv-po-line-qty-${idx}`)?.value||0);
     const cost=Number(document.getElementById(`inv-po-line-cost-${idx}`)?.value||0);
-    if(itemId&&qty>0) lines.push({itemId,quantityOrdered:qty,unitCost:cost});
+    const freight=Number(document.getElementById(`inv-po-line-freight-${idx}`)?.value||0);
+    const imp=Number(document.getElementById(`inv-po-line-import-${idx}`)?.value||0);
+    if(itemId&&qty>0) lines.push({itemId,quantityOrdered:qty,unitCost:cost,freightCost:freight,importCharges:imp});
   });
   if(!lines.length){ showToast('Add at least one line item with a quantity','error'); return; }
   const payload={
@@ -8568,24 +8577,33 @@ async function openInvPoDetail(id){
       Vendor: <strong>${esc(invVendorName(p.vendorId))}</strong> &nbsp;·&nbsp;
       Status: <strong style="text-transform:capitalize">${esc(p.status)}</strong> &nbsp;·&nbsp;
       Order Date: ${p.orderDate?new Date(p.orderDate).toLocaleDateString():'—'}
+      ${p.invoiceNumber?` &nbsp;·&nbsp; Invoice: <strong>${esc(p.invoiceNumber)}</strong>`:''}
       ${p.notes?`<div style="margin-top:6px">${esc(p.notes)}</div>`:''}`;
     document.getElementById('inv-pod-lines').innerHTML=(p.items||[]).map(l=>`<tr>
         <td>${esc(invItemName(l.itemId))}</td>
         <td>${l.quantityOrdered}</td>
         <td>${l.quantityReceived}</td>
         <td>₹${Number(l.unitCost).toLocaleString('en-IN')}</td>
-        <td>₹${(l.quantityOrdered*l.unitCost).toLocaleString('en-IN')}</td>
+        <td>₹${Number(l.freightCost||0).toLocaleString('en-IN')}</td>
+        <td>₹${Number(l.importCharges||0).toLocaleString('en-IN')}</td>
+        <td>₹${Number(l.effectiveUnitCost).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+        <td>₹${(l.quantityOrdered*l.effectiveUnitCost).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
       </tr>`).join('');
+    const receivable=(p.status==='pending'||p.status==='partial');
     const receiveBtn=document.getElementById('inv-pod-receive-btn');
-    receiveBtn.style.display=(p.status==='pending'||p.status==='partial')?'inline-block':'none';
+    receiveBtn.style.display=receivable?'inline-block':'none';
+    document.getElementById('inv-pod-invoice-wrap').style.display=receivable?'block':'none';
+    document.getElementById('inv-pod-invoice').value=p.invoiceNumber||'';
     document.getElementById('inv-po-detail-modal').classList.add('open');
   }catch(e){ showToast('Could not load purchase order','error'); }
 }
 async function receiveInvPurchase(){
   if(!invPoDetailId) return;
   if(!confirm('Mark this purchase order as fully received? This will add the ordered quantities to stock.')) return;
+  const invoiceNumber=document.getElementById('inv-pod-invoice').value.trim()||null;
   try{
-    const r=await fetch(`/api/inventory/purchases/${invPoDetailId}/receive`,{method:'POST'});
+    const r=await fetch(`/api/inventory/purchases/${invPoDetailId}/receive`,{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({invoiceNumber})});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('inv-po-detail-modal');
     showToast('Purchase received — stock updated ✓','success');
