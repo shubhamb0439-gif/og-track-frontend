@@ -5260,7 +5260,7 @@ async function showQrDisplayPage(){
       <div style="color:#fff;font-size:24px;font-weight:700">${esc(ctx?.name||'OGTrack')}</div>
     </div>
     <div style="background:#fff;border-radius:20px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
-      <canvas id="qr-display-canvas" width="320" height="320"></canvas>
+      <img id="qr-display-canvas" width="320" height="320" alt="QR code to scan" style="display:block">
     </div>
     <div style="color:#fff;font-size:18px;font-weight:600;text-align:center">Scan with your phone camera<br>to clock in or out</div>
     <div style="color:rgba(255,255,255,.65);font-size:13px" id="qr-display-refresh">Refreshing…</div>
@@ -5272,19 +5272,16 @@ async function showQrDisplayPage(){
 }
 async function _refreshQrDisplay(){
   const refreshEl=document.getElementById('qr-display-refresh');
-  const canvas=document.getElementById('qr-display-canvas');
+  const img=document.getElementById('qr-display-canvas');
   try{
     const r=await fetch('/api/attendance/qr-token');
     const d=await r.json();
     if(!r.ok||!d.token) throw new Error(d.error||'No token returned');
-    if(!window.QRCode){
-      if(refreshEl) refreshEl.textContent='Loading QR library… (retrying)';
-      return; // the setInterval will retry; the library may still be loading on first paint
-    }
-    QRCode.toCanvas(canvas, d.token, { width: 320, margin: 1 }, (err)=>{
-      if(err){ if(refreshEl) refreshEl.textContent='Could not render QR code: '+err.message; }
-      else if(refreshEl){ refreshEl.textContent='Code refreshes automatically every 30 seconds'; }
-    });
+    // Image-based QR generation — no JS library/CDN dependency, just a PNG
+    // served directly from a URL, so there's nothing that can fail to "load
+    // in time" the way a script-based library could.
+    img.src='https://api.qrserver.com/v1/create-qr-code/?size=320x320&data='+encodeURIComponent(d.token);
+    if(refreshEl) refreshEl.textContent='Code refreshes automatically every 30 seconds';
   }catch(e){
     if(refreshEl) refreshEl.textContent='Could not load a fresh code — '+e.message;
   }
