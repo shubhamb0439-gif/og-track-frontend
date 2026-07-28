@@ -37,10 +37,17 @@
   // URL pattern is  /<slug>  (e.g. /ogtrack, /cajo). Bare root (no slug at
   // all) shows the company-picker directory instead of defaulting to any
   // one company — window.OGTRACK_HAS_SLUG_IN_URL records which case this is.
+  // A second segment of "careers" (optionally followed by a job id) is the
+  // public careers page — /slug/careers or /slug/careers/JOB123.
   function detectSlug() {
-    const seg = location.pathname.split('/').filter(Boolean)[0];
+    const parts = location.pathname.split('/').filter(Boolean);
+    const seg = parts[0];
     if (seg && !seg.includes('.')) {
       window.OGTRACK_HAS_SLUG = true;
+      if (parts[1] === 'careers') {
+        window.OGTRACK_IS_CAREERS_PAGE = true;
+        window.OGTRACK_CAREERS_JOB_ID = parts[2] || null;
+      }
       return seg.toLowerCase();
     }
     window.OGTRACK_HAS_SLUG = false;
@@ -149,6 +156,7 @@
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>if(typeof io==='undefined')window.io=()=>({on:()=>{},emit:()=>{}});</script>
 <style>
 /* ── LIGHT THEME (default) ── */
@@ -1428,6 +1436,19 @@ body { transition: background .3s ease, color .3s ease; }
     </div>
   </div>
 </div>
+<!-- PUBLIC CAREERS PAGE — /slug/careers or /slug/careers/JOBID -->
+<div id="careers-screen" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:9997;overflow-y:auto;">
+  <div style="max-width:720px;margin:0 auto;padding:48px 20px 80px">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:32px">
+      <img id="careers-logo" src="" alt="" style="display:none;width:48px;height:48px;object-fit:contain;border-radius:10px">
+      <div>
+        <div id="careers-company-name" style="font-size:22px;font-weight:700;color:var(--red)">Careers</div>
+        <div style="font-size:13px;color:var(--g3)">Open positions</div>
+      </div>
+    </div>
+    <div id="careers-content"><div class="empty-state">Loading open positions…</div></div>
+  </div>
+</div>
 <!-- LOADING SCREEN (shows while checking auth state) -->
 <div id="loading-screen" style="position:fixed;inset:0;background:#111;z-index:9998;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
   <div id="ls-brand" style="display:flex;flex-direction:column;align-items:center;gap:16px">
@@ -1736,7 +1757,7 @@ body { transition: background .3s ease, color .3s ease; }
 <!-- CRM: Add Lead Modal -->
 <div class="modal-overlay" id="crm-lead-modal">
   <div class="modal">
-    <div class="modal-header"><h2>Add Lead</h2><button class="modal-close" onclick="closeModal('crm-lead-modal')">×</button></div>
+    <div class="modal-header"><h2 id="crm-lead-modal-title">Add Lead</h2><button class="modal-close" onclick="closeModal('crm-lead-modal')">×</button></div>
     <div class="modal-body">
       <div class="form-row">
         <div class="form-group"><label>Contact Name *</label><input type="text" id="crm-f-name" placeholder="Jane Doe"></div>
@@ -1757,7 +1778,7 @@ body { transition: background .3s ease, color .3s ease; }
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('crm-lead-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveCrmLead()">Add Lead</button>
+      <button class="btn btn-primary" id="crm-lead-save-btn" onclick="saveCrmLead()">Add Lead</button>
     </div>
   </div>
 </div>
@@ -2668,6 +2689,12 @@ async function launchApp(){
     _modal.id='qr-scanner-modal';_modal.className='qr-modal-bg';
     _modal.innerHTML="<div class=\"qr-modal-header\">\\n  <div><div class=\"qr-modal-title\">📷 QR Attendance Scanner</div></div>\\n  <button class=\"qr-modal-close\" onclick=\"closeQrScanner()\">✕</button>\\n</div>\\n<div class=\"qr-scanner-wrap\">\\n  <video id=\"qr-video\" playsinline muted autoplay></video>\\n  <div class=\"qr-scan-frame\"><div class=\"qr-scan-box\">\\n    <div class=\"qr-scan-corner tl\"></div><div class=\"qr-scan-corner tr\"></div>\\n    <div class=\"qr-scan-corner bl\"></div><div class=\"qr-scan-corner br\"></div>\\n    <div class=\"qr-scan-line\"></div>\\n  </div></div>\\n</div>\\n<div class=\"qr-modal-status\">\\n  <div class=\"qr-modal-hint\" id=\"qr-hint\">Point your camera at the QR code on the screen</div>\\n  <div class=\"qr-modal-result\" id=\"qr-result\"></div>\\n</div>";
     document.body.appendChild(_modal);
+  }
+  if(!document.getElementById('qr-display-modal')){
+    const _dmodal=document.createElement('div');
+    _dmodal.id='qr-display-modal';_dmodal.className='qr-modal-bg';
+    _dmodal.innerHTML="<div class=\"qr-modal-header\">\n  <div><div class=\"qr-modal-title\">📺 Scan to Clock In / Out</div></div>\n  <button class=\"qr-modal-close\" onclick=\"closeQrDisplay()\">✕</button>\n</div>\n<div style=\"flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;gap:20px\">\n  <canvas id=\"qr-display-canvas\" width=\"320\" height=\"320\"></canvas>\n  <div style=\"font-size:15px;color:#333;font-weight:600\">Open your phone camera and scan this code</div>\n  <div style=\"font-size:12px;color:#999\" id=\"qr-display-refresh\">Refreshing…</div>\n</div>";
+    document.body.appendChild(_dmodal);
   }
 }
 
@@ -4864,7 +4891,9 @@ function toggleTheme() {
 })();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-if(!window.OGTRACK_HAS_SLUG){
+if(window.OGTRACK_IS_CAREERS_PAGE){
+  showCareersPage();
+} else if(!window.OGTRACK_HAS_SLUG){
   showCompanyDirectory();
 } else if(currentUser){
   (async()=>{
@@ -4993,6 +5022,7 @@ async function renderAttendance(){
         ${!clockedIn&&!clockedOut?`<button class="btn btn-primary" onclick="doClockIn()">Clock In</button>`:''}
         ${clockedIn?`<button class="btn btn-ghost" style="border-color:var(--red);color:var(--red)" onclick="doClockOut()">Clock Out</button>`:''}
         ${clockedOut?`<div style="font-size:12px;color:var(--g3)">Have a good day! 👋</div>`:''}
+        ${isManager?`<button class="btn-sm btn-ghost" onclick="openQrDisplay()">📺 Display QR for Clock In/Out</button>`:''}
       </div>
     </div>
 
@@ -5215,6 +5245,38 @@ if(typeof BarcodeDetector==='undefined'&&!window.jsQR){
   document.head.appendChild(s);
 }
 
+// ── QR Display screen (for a shared office screen/tablet) ──────────────────────
+let _qrDisplayInterval=null;
+function openQrDisplay(){
+  const modal=document.getElementById('qr-display-modal');
+  if(!modal)return;
+  modal.classList.add('open');
+  _refreshQrDisplay();
+  clearInterval(_qrDisplayInterval);
+  _qrDisplayInterval=setInterval(_refreshQrDisplay,20000); // refresh well before the 30s token expiry
+}
+function closeQrDisplay(){
+  const modal=document.getElementById('qr-display-modal');
+  if(modal)modal.classList.remove('open');
+  clearInterval(_qrDisplayInterval);
+}
+async function _refreshQrDisplay(){
+  const refreshEl=document.getElementById('qr-display-refresh');
+  try{
+    const r=await fetch('/api/attendance/qr-token');
+    const d=await r.json();
+    const canvas=document.getElementById('qr-display-canvas');
+    if(canvas && window.QRCode && d.token){
+      QRCode.toCanvas(canvas, d.token, { width: 320, margin: 1 }, (err)=>{
+        if(err && refreshEl) refreshEl.textContent='Could not render QR code';
+      });
+    }
+    if(refreshEl) refreshEl.textContent='Code refreshes automatically every 30 seconds';
+  }catch(e){
+    if(refreshEl) refreshEl.textContent='Could not load a fresh code — check your connection';
+  }
+}
+
 async function doClockIn(){
   try{
     const r=await fetch('/api/attendance/clockin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentUser.id,userName:currentUser.name})});
@@ -5427,6 +5489,146 @@ async function showCompanyDirectory(){
       </a>`).join('');
   }catch(e){
     grid.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load the company list.</div>';
+  }
+}
+
+// ── Public Careers Page ─────────────────────────────────────────────────────
+async function showCareersPage(){
+  ['splash-screen','onboarding-screen','loading-screen','auth-screen','directory-screen'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  document.getElementById('careers-screen').style.display='block';
+
+  const ctx=window.COMPANY_CONTEXT;
+  document.getElementById('careers-company-name').textContent=(ctx?.name||'Careers')+' — Careers';
+  if(ctx?.primaryColor) document.getElementById('careers-company-name').style.color=ctx.primaryColor;
+  if(ctx?.logo){
+    const logoEl=document.getElementById('careers-logo');
+    logoEl.src=ctx.logo; logoEl.style.display='block';
+  }
+
+  if(window.OGTRACK_CAREERS_JOB_ID){
+    renderCareersJobDetail(window.OGTRACK_CAREERS_JOB_ID);
+  }else{
+    renderCareersJobList();
+  }
+}
+
+async function renderCareersJobList(){
+  const el=document.getElementById('careers-content');
+  try{
+    const jobs=await fetch('/api/jobs/public').then(r=>r.json());
+    if(!Array.isArray(jobs)||!jobs.length){
+      el.innerHTML='<div class="empty-state">No open positions right now — check back soon.</div>';
+      return;
+    }
+    const slug=window.OGTRACK_SLUG;
+    el.innerHTML=jobs.map(j=>`
+      <a href="/${slug}/careers/${j.id}" style="text-decoration:none;color:inherit;display:block;background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
+        <div style="font-size:17px;font-weight:700">${esc(j.title)}</div>
+        <div style="font-size:13px;color:var(--g3);margin-top:4px">${[j.department,j.location,j.employmentType,j.workMode].filter(Boolean).map(esc).join(' · ')}</div>
+        ${j.experience?`<div style="font-size:12px;color:var(--g3);margin-top:6px">Experience: ${esc(j.experience)}</div>`:''}
+      </a>`).join('');
+  }catch(e){
+    el.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load open positions.</div>';
+  }
+}
+
+async function renderCareersJobDetail(jobId){
+  const el=document.getElementById('careers-content');
+  el.innerHTML='<div class="empty-state">Loading…</div>';
+  try{
+    const jobs=await fetch('/api/jobs/public').then(r=>r.json());
+    const job=(jobs||[]).find(j=>j.id===jobId);
+    if(!job){
+      el.innerHTML='<div class="empty-state">This position is no longer available. <a href="/'+window.OGTRACK_SLUG+'/careers">← Back to all openings</a></div>';
+      return;
+    }
+    const skillsHtml=(job.skills||[]).length
+      ? `<div style="margin-top:10px">${job.skills.map(s=>`<span class="mod-chip" style="margin-right:6px">${esc(s)}</span>`).join('')}</div>` : '';
+    el.innerHTML=`
+      <a href="/${window.OGTRACK_SLUG}/careers" style="font-size:13px;color:var(--g3);text-decoration:none">← Back to all openings</a>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:14px">
+        <div style="font-size:20px;font-weight:700">${esc(job.title)}</div>
+        <div style="font-size:13px;color:var(--g3);margin-top:4px">${[job.department,job.location,job.employmentType,job.workMode].filter(Boolean).map(esc).join(' · ')}</div>
+        ${job.experience?`<div style="font-size:13px;color:var(--g3);margin-top:4px">Experience: ${esc(job.experience)}</div>`:''}
+        ${job.salaryRange?`<div style="font-size:13px;color:var(--g3);margin-top:4px">Salary: ${esc(job.salaryRange)}</div>`:''}
+        ${skillsHtml}
+        <div style="margin-top:16px;white-space:pre-wrap;font-size:14px;line-height:1.6">${esc(job.description||'')}</div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:20px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:14px">Apply for this role</div>
+        <div id="careers-apply-error" style="display:none;color:var(--red);font-size:13px;margin-bottom:10px"></div>
+        <div id="careers-apply-success" style="display:none;background:#e8f8f0;color:#1e7e4d;padding:12px;border-radius:8px;font-size:14px"></div>
+        <div id="careers-apply-form">
+          <div class="form-row">
+            <div class="form-group"><label>Full Name *</label><input type="text" id="cap-name" placeholder="Jane Doe"></div>
+            <div class="form-group"><label>Email *</label><input type="email" id="cap-email" placeholder="jane@example.com"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Phone</label><input type="text" id="cap-phone" placeholder="+91…"></div>
+            <div class="form-group"><label>Years of Experience</label><input type="number" id="cap-exp" placeholder="3"></div>
+          </div>
+          <div class="form-row full"><div class="form-group"><label>Education</label><input type="text" id="cap-edu" placeholder="B.Tech, XYZ University"></div></div>
+          <div class="form-row full"><div class="form-group"><label>Key Skills <span style="font-weight:400;color:var(--g3)">(comma separated)</span></label><input type="text" id="cap-skills" placeholder="Python, SQL, Communication"></div></div>
+          <div class="form-row full"><div class="form-group"><label>Cover Letter</label><textarea id="cap-cover" placeholder="Tell us why you're a great fit…" rows="4"></textarea></div></div>
+          <div class="form-row full"><div class="form-group"><label>Resume <span style="font-weight:400;color:var(--g3)">(PDF or Word)</span></label><input type="file" id="cap-resume" accept=".pdf,.doc,.docx"></div></div>
+          <button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="submitCareersApplication('${job.id}')" id="cap-submit-btn">Submit Application</button>
+        </div>
+      </div>`;
+  }catch(e){
+    el.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load this position.</div>';
+  }
+}
+
+async function submitCareersApplication(jobId){
+  const errEl=document.getElementById('careers-apply-error');
+  const name=document.getElementById('cap-name').value.trim();
+  const email=document.getElementById('cap-email').value.trim();
+  if(!name||!email){
+    errEl.textContent='Name and email are required.';
+    errEl.style.display='block';
+    return;
+  }
+  errEl.style.display='none';
+  const btn=document.getElementById('cap-submit-btn');
+  btn.disabled=true; btn.textContent='Submitting…';
+
+  try{
+    let resumeUrl=null;
+    const fileInput=document.getElementById('cap-resume');
+    if(fileInput.files && fileInput.files[0]){
+      const form=new FormData();
+      form.append('file', fileInput.files[0]);
+      const upRes=await fetch('/api/upload',{method:'POST',body:form});
+      const upData=await upRes.json();
+      if(!upRes.ok) throw new Error(upData.error||'Resume upload failed');
+      resumeUrl=upData.url;
+    }
+    const payload={
+      jobId,
+      name, email,
+      phone: document.getElementById('cap-phone').value.trim()||null,
+      experienceYears: document.getElementById('cap-exp').value||null,
+      education: document.getElementById('cap-edu').value.trim()||null,
+      skills: document.getElementById('cap-skills').value.trim()||null,
+      coverLetter: document.getElementById('cap-cover').value.trim()||null,
+      resumeUrl,
+    };
+    const r=await fetch('/api/candidates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||'Could not submit application');
+
+    document.getElementById('careers-apply-form').style.display='none';
+    const successEl=document.getElementById('careers-apply-success');
+    successEl.textContent='✅ Application submitted! We will be in touch if there is a match.';
+    successEl.style.display='block';
+  }catch(e){
+    errEl.textContent=e.message;
+    errEl.style.display='block';
+    btn.disabled=false; btn.textContent='Submit Application';
   }
 }
 
@@ -8139,6 +8341,7 @@ function renderCrm(){
       <td>${esc(assignedUserName(c.assignedTo))}</td>
       <td>
         <button class="btn-sm btn-primary" onclick="openCrmSaleModal('${c.id}','${esc(c.name)}')">🛒 New Sale</button>
+        <button class="btn-sm btn-ghost" onclick="openCrmLeadModal('${c.id}')">Edit</button>
         <button class="btn-sm btn-ghost" onclick="deleteCrmContact('${c.id}')">Delete</button>
       </td>
     </tr>`).join('');
@@ -8150,6 +8353,7 @@ function renderCrm(){
       <td>${esc(assignedUserName(c.assignedTo))}</td>
       <td>
         <button class="btn-sm btn-ghost" onclick="setCrmStage('${c.id}','lead')">↺ Reopen as Lead</button>
+        <button class="btn-sm btn-ghost" onclick="openCrmLeadModal('${c.id}')">Edit</button>
         <button class="btn-sm btn-ghost" onclick="deleteCrmContact('${c.id}')">Delete</button>
       </td>
     </tr>`).join('');
@@ -8172,6 +8376,7 @@ function renderCrm(){
         `:`
           <button class="btn-sm btn-primary" onclick="openCrmSaleModal('${c.id}','${esc(c.name)}')">🛒 Convert (New Sale)</button>
         `}
+        <button class="btn-sm btn-ghost" onclick="openCrmLeadModal('${c.id}')">Edit</button>
         <button class="btn-sm btn-ghost" onclick="markCrmLost('${c.id}')">Mark Lost</button>
       </td>
     </tr>`).join('');
@@ -8202,10 +8407,20 @@ function assignedUserName(userId){
   return u ? u.name : '—';
 }
 
-function openCrmLeadModal(){
-  ['crm-f-name','crm-f-company','crm-f-email','crm-f-phone','crm-f-source','crm-f-estvalue','crm-f-notes'].forEach(id=>{ document.getElementById(id).value=''; });
+function openCrmLeadModal(id){
+  const c = id ? crmContacts.find(c=>c.id===id) : null;
+  document.getElementById('crm-lead-modal-title').textContent = c ? 'Edit Contact' : 'Add Lead';
+  document.getElementById('crm-lead-save-btn').textContent = c ? 'Save Changes' : 'Add Lead';
+  document.getElementById('crm-lead-modal').dataset.editId = c ? c.id : '';
+  document.getElementById('crm-f-name').value = c?.name || '';
+  document.getElementById('crm-f-company').value = c?.companyName || '';
+  document.getElementById('crm-f-email').value = c?.email || '';
+  document.getElementById('crm-f-phone').value = c?.phone || '';
+  document.getElementById('crm-f-source').value = c?.source || '';
+  document.getElementById('crm-f-estvalue').value = c?.estimatedValue ?? '';
+  document.getElementById('crm-f-notes').value = c?.notes || '';
   const sel=document.getElementById('crm-f-assigned');
-  sel.innerHTML='<option value="">— Unassigned —</option>'+(allUsers||[]).filter(u=>u.status==='active').map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  sel.innerHTML='<option value="">— Unassigned —</option>'+(allUsers||[]).filter(u=>u.status==='active').map(u=>`<option value="${u.id}" ${c?.assignedTo===u.id?'selected':''}>${esc(u.name)}</option>`).join('');
   document.getElementById('crm-lead-modal').classList.add('open');
 }
 
@@ -8223,11 +8438,14 @@ async function saveCrmLead(){
     notes: document.getElementById('crm-f-notes').value.trim()||null,
   };
   try{
-    const r=await fetch('/api/crm/contacts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const editId=document.getElementById('crm-lead-modal').dataset.editId;
+    const r=editId
+      ? await fetch(`/api/crm/contacts/${editId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      : await fetch('/api/crm/contacts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('crm-lead-modal');
-    showToast('Lead added ✓','success');
-    crmTab='lead';
+    showToast(editId?'Contact updated ✓':'Lead added ✓','success');
+    if(!editId) crmTab='lead';
     await loadCrmData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
