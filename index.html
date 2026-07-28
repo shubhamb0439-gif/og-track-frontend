@@ -48,6 +48,9 @@
         window.OGTRACK_IS_CAREERS_PAGE = true;
         window.OGTRACK_CAREERS_JOB_ID = parts[2] || null;
       }
+      if (parts[1] === 'attendance' && parts[2] === 'qr') {
+        window.OGTRACK_IS_QR_DISPLAY_PAGE = true;
+      }
       return seg.toLowerCase();
     }
     window.OGTRACK_HAS_SLUG = false;
@@ -1438,14 +1441,12 @@ body { transition: background .3s ease, color .3s ease; }
 </div>
 <!-- PUBLIC CAREERS PAGE — /slug/careers or /slug/careers/JOBID -->
 <div id="careers-screen" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:9997;overflow-y:auto;">
-  <div style="max-width:720px;margin:0 auto;padding:48px 20px 80px">
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:32px">
-      <img id="careers-logo" src="" alt="" style="display:none;width:48px;height:48px;object-fit:contain;border-radius:10px">
-      <div>
-        <div id="careers-company-name" style="font-size:22px;font-weight:700;color:var(--red)">Careers</div>
-        <div style="font-size:13px;color:var(--g3)">Open positions</div>
-      </div>
-    </div>
+  <div id="careers-hero" style="background:linear-gradient(135deg,var(--red) 0%,#1a1a2e 100%);padding:56px 20px 64px;text-align:center;color:#fff">
+    <img id="careers-logo" src="" alt="" style="display:none;width:64px;height:64px;object-fit:contain;border-radius:14px;background:#fff;padding:6px;margin:0 auto 16px">
+    <div id="careers-company-name" style="font-size:28px;font-weight:800;letter-spacing:-0.5px">Careers</div>
+    <div style="font-size:15px;color:rgba(255,255,255,.8);margin-top:6px">Join our team — see what's open right now</div>
+  </div>
+  <div style="max-width:720px;margin:-32px auto 0;padding:0 20px 80px;position:relative">
     <div id="careers-content"><div class="empty-state">Loading open positions…</div></div>
   </div>
 </div>
@@ -2689,12 +2690,6 @@ async function launchApp(){
     _modal.id='qr-scanner-modal';_modal.className='qr-modal-bg';
     _modal.innerHTML="<div class=\"qr-modal-header\">\\n  <div><div class=\"qr-modal-title\">📷 QR Attendance Scanner</div></div>\\n  <button class=\"qr-modal-close\" onclick=\"closeQrScanner()\">✕</button>\\n</div>\\n<div class=\"qr-scanner-wrap\">\\n  <video id=\"qr-video\" playsinline muted autoplay></video>\\n  <div class=\"qr-scan-frame\"><div class=\"qr-scan-box\">\\n    <div class=\"qr-scan-corner tl\"></div><div class=\"qr-scan-corner tr\"></div>\\n    <div class=\"qr-scan-corner bl\"></div><div class=\"qr-scan-corner br\"></div>\\n    <div class=\"qr-scan-line\"></div>\\n  </div></div>\\n</div>\\n<div class=\"qr-modal-status\">\\n  <div class=\"qr-modal-hint\" id=\"qr-hint\">Point your camera at the QR code on the screen</div>\\n  <div class=\"qr-modal-result\" id=\"qr-result\"></div>\\n</div>";
     document.body.appendChild(_modal);
-  }
-  if(!document.getElementById('qr-display-modal')){
-    const _dmodal=document.createElement('div');
-    _dmodal.id='qr-display-modal';_dmodal.className='qr-modal-bg';
-    _dmodal.innerHTML="<div class=\"qr-modal-header\">\n  <div><div class=\"qr-modal-title\">📺 Scan to Clock In / Out</div></div>\n  <button class=\"qr-modal-close\" onclick=\"closeQrDisplay()\">✕</button>\n</div>\n<div style=\"flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff;gap:20px\">\n  <canvas id=\"qr-display-canvas\" width=\"320\" height=\"320\"></canvas>\n  <div style=\"font-size:15px;color:#333;font-weight:600\">Open your phone camera and scan this code</div>\n  <div style=\"font-size:12px;color:#999\" id=\"qr-display-refresh\">Refreshing…</div>\n</div>";
-    document.body.appendChild(_dmodal);
   }
 }
 
@@ -4891,7 +4886,9 @@ function toggleTheme() {
 })();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-if(window.OGTRACK_IS_CAREERS_PAGE){
+if(window.OGTRACK_IS_QR_DISPLAY_PAGE){
+  showQrDisplayPage();
+} else if(window.OGTRACK_IS_CAREERS_PAGE){
   showCareersPage();
 } else if(!window.OGTRACK_HAS_SLUG){
   showCompanyDirectory();
@@ -5022,7 +5019,7 @@ async function renderAttendance(){
         ${!clockedIn&&!clockedOut?`<button class="btn btn-primary" onclick="doClockIn()">Clock In</button>`:''}
         ${clockedIn?`<button class="btn btn-ghost" style="border-color:var(--red);color:var(--red)" onclick="doClockOut()">Clock Out</button>`:''}
         ${clockedOut?`<div style="font-size:12px;color:var(--g3)">Have a good day! 👋</div>`:''}
-        ${isManager?`<button class="btn-sm btn-ghost" onclick="openQrDisplay()">📺 Display QR for Clock In/Out</button>`:''}
+        ${isManager?`<a class="btn-sm btn-ghost" href="/${window.OGTRACK_SLUG}/attendance/qr" target="_blank" style="text-decoration:none">📺 Open QR Display Page ↗</a>`:''}
       </div>
     </div>
 
@@ -5245,35 +5242,51 @@ if(typeof BarcodeDetector==='undefined'&&!window.jsQR){
   document.head.appendChild(s);
 }
 
-// ── QR Display screen (for a shared office screen/tablet) ──────────────────────
+// ── QR Display Page (standalone — /slug/attendance/qr, for an office screen/tablet) ──
 let _qrDisplayInterval=null;
-function openQrDisplay(){
-  const modal=document.getElementById('qr-display-modal');
-  if(!modal)return;
-  modal.classList.add('open');
+async function showQrDisplayPage(){
+  ['splash-screen','onboarding-screen','loading-screen','auth-screen','directory-screen','careers-screen'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const ctx=window.COMPANY_CONTEXT;
+  const primary=ctx?.primaryColor||'#C0392B';
+  const screen=document.createElement('div');
+  screen.id='qr-display-screen';
+  screen.style.cssText=`position:fixed;inset:0;background:linear-gradient(160deg,${primary} 0%,#1a1a2e 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;font-family:inherit;`;
+  screen.innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px">
+      ${ctx?.logo?`<img src="${ctx.logo}" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:12px;background:#fff;padding:4px">`:''}
+      <div style="color:#fff;font-size:24px;font-weight:700">${esc(ctx?.name||'OGTrack')}</div>
+    </div>
+    <div style="background:#fff;border-radius:20px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+      <canvas id="qr-display-canvas" width="320" height="320"></canvas>
+    </div>
+    <div style="color:#fff;font-size:18px;font-weight:600;text-align:center">Scan with your phone camera<br>to clock in or out</div>
+    <div style="color:rgba(255,255,255,.65);font-size:13px" id="qr-display-refresh">Refreshing…</div>
+  `;
+  document.body.appendChild(screen);
   _refreshQrDisplay();
   clearInterval(_qrDisplayInterval);
   _qrDisplayInterval=setInterval(_refreshQrDisplay,20000); // refresh well before the 30s token expiry
 }
-function closeQrDisplay(){
-  const modal=document.getElementById('qr-display-modal');
-  if(modal)modal.classList.remove('open');
-  clearInterval(_qrDisplayInterval);
-}
 async function _refreshQrDisplay(){
   const refreshEl=document.getElementById('qr-display-refresh');
+  const canvas=document.getElementById('qr-display-canvas');
   try{
     const r=await fetch('/api/attendance/qr-token');
     const d=await r.json();
-    const canvas=document.getElementById('qr-display-canvas');
-    if(canvas && window.QRCode && d.token){
-      QRCode.toCanvas(canvas, d.token, { width: 320, margin: 1 }, (err)=>{
-        if(err && refreshEl) refreshEl.textContent='Could not render QR code';
-      });
+    if(!r.ok||!d.token) throw new Error(d.error||'No token returned');
+    if(!window.QRCode){
+      if(refreshEl) refreshEl.textContent='Loading QR library… (retrying)';
+      return; // the setInterval will retry; the library may still be loading on first paint
     }
-    if(refreshEl) refreshEl.textContent='Code refreshes automatically every 30 seconds';
+    QRCode.toCanvas(canvas, d.token, { width: 320, margin: 1 }, (err)=>{
+      if(err){ if(refreshEl) refreshEl.textContent='Could not render QR code: '+err.message; }
+      else if(refreshEl){ refreshEl.textContent='Code refreshes automatically every 30 seconds'; }
+    });
   }catch(e){
-    if(refreshEl) refreshEl.textContent='Could not load a fresh code — check your connection';
+    if(refreshEl) refreshEl.textContent='Could not load a fresh code — '+e.message;
   }
 }
 
@@ -5501,11 +5514,10 @@ async function showCareersPage(){
   document.getElementById('careers-screen').style.display='block';
 
   const ctx=window.COMPANY_CONTEXT;
-  document.getElementById('careers-company-name').textContent=(ctx?.name||'Careers')+' — Careers';
-  if(ctx?.primaryColor) document.getElementById('careers-company-name').style.color=ctx.primaryColor;
+  document.getElementById('careers-company-name').textContent=(ctx?.name||'OGTrack')+' Careers';
   if(ctx?.logo){
     const logoEl=document.getElementById('careers-logo');
-    logoEl.src=ctx.logo; logoEl.style.display='block';
+    logoEl.src=ctx.logo; logoEl.style.display='inline-block';
   }
 
   if(window.OGTRACK_CAREERS_JOB_ID){
@@ -5520,16 +5532,20 @@ async function renderCareersJobList(){
   try{
     const jobs=await fetch('/api/jobs/public').then(r=>r.json());
     if(!Array.isArray(jobs)||!jobs.length){
-      el.innerHTML='<div class="empty-state">No open positions right now — check back soon.</div>';
+      el.innerHTML='<div style="background:#fff;border-radius:14px;padding:40px;text-align:center;color:var(--g3);box-shadow:0 8px 24px rgba(0,0,0,.06)">No open positions right now — check back soon.</div>';
       return;
     }
     const slug=window.OGTRACK_SLUG;
-    el.innerHTML=jobs.map(j=>`
-      <a href="/${slug}/careers/${j.id}" style="text-decoration:none;color:inherit;display:block;background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.08)'" onmouseout="this.style.boxShadow='none'">
-        <div style="font-size:17px;font-weight:700">${esc(j.title)}</div>
-        <div style="font-size:13px;color:var(--g3);margin-top:4px">${[j.department,j.location,j.employmentType,j.workMode].filter(Boolean).map(esc).join(' · ')}</div>
-        ${j.experience?`<div style="font-size:12px;color:var(--g3);margin-top:6px">Experience: ${esc(j.experience)}</div>`:''}
-      </a>`).join('');
+    el.innerHTML=`
+      <div style="font-size:13px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px">${jobs.length} open position${jobs.length===1?'':'s'}</div>
+      ${jobs.map(j=>`
+      <a href="/${slug}/careers/${j.id}" style="text-decoration:none;color:inherit;display:block;background:#fff;border-radius:14px;padding:22px 24px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,.05);border-left:4px solid var(--red);transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 10px 28px rgba(0,0,0,.10)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='0 4px 14px rgba(0,0,0,.05)';this.style.transform='none'">
+        <div style="font-size:18px;font-weight:700">${esc(j.title)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+          ${[j.department,j.location,j.employmentType,j.workMode].filter(Boolean).map(v=>`<span style="font-size:12px;background:#f4f5f7;color:#555;padding:4px 10px;border-radius:20px;font-weight:500">${esc(v)}</span>`).join('')}
+        </div>
+        ${j.experience?`<div style="font-size:12px;color:var(--g3);margin-top:10px">Experience: ${esc(j.experience)}</div>`:''}
+      </a>`).join('')}`;
   }catch(e){
     el.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load open positions.</div>';
   }
@@ -5546,20 +5562,24 @@ async function renderCareersJobDetail(jobId){
       return;
     }
     const skillsHtml=(job.skills||[]).length
-      ? `<div style="margin-top:10px">${job.skills.map(s=>`<span class="mod-chip" style="margin-right:6px">${esc(s)}</span>`).join('')}</div>` : '';
+      ? `<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px">${job.skills.map(s=>`<span style="font-size:12px;background:var(--red);color:#fff;padding:4px 10px;border-radius:20px;font-weight:600">${esc(s)}</span>`).join('')}</div>` : '';
     el.innerHTML=`
       <a href="/${window.OGTRACK_SLUG}/careers" style="font-size:13px;color:var(--g3);text-decoration:none">← Back to all openings</a>
-      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:14px">
-        <div style="font-size:20px;font-weight:700">${esc(job.title)}</div>
-        <div style="font-size:13px;color:var(--g3);margin-top:4px">${[job.department,job.location,job.employmentType,job.workMode].filter(Boolean).map(esc).join(' · ')}</div>
-        ${job.experience?`<div style="font-size:13px;color:var(--g3);margin-top:4px">Experience: ${esc(job.experience)}</div>`:''}
-        ${job.salaryRange?`<div style="font-size:13px;color:var(--g3);margin-top:4px">Salary: ${esc(job.salaryRange)}</div>`:''}
+      <div style="background:#fff;border-radius:14px;padding:28px;margin-top:14px;box-shadow:0 4px 14px rgba(0,0,0,.05)">
+        <div style="font-size:22px;font-weight:800">${esc(job.title)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+          ${[job.department,job.location,job.employmentType,job.workMode].filter(Boolean).map(v=>`<span style="font-size:12px;background:#f4f5f7;color:#555;padding:4px 10px;border-radius:20px;font-weight:500">${esc(v)}</span>`).join('')}
+        </div>
+        <div style="display:flex;gap:20px;margin-top:12px;font-size:13px;color:var(--g3)">
+          ${job.experience?`<div>💼 ${esc(job.experience)}</div>`:''}
+          ${job.salaryRange?`<div>💰 ${esc(job.salaryRange)}</div>`:''}
+        </div>
         ${skillsHtml}
-        <div style="margin-top:16px;white-space:pre-wrap;font-size:14px;line-height:1.6">${esc(job.description||'')}</div>
+        <div style="margin-top:18px;white-space:pre-wrap;font-size:14px;line-height:1.7;color:#333">${esc(job.description||'')}</div>
       </div>
 
-      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;margin-top:20px">
-        <div style="font-size:16px;font-weight:700;margin-bottom:14px">Apply for this role</div>
+      <div style="background:#fff;border-radius:14px;padding:28px;margin-top:20px;box-shadow:0 4px 14px rgba(0,0,0,.05)">
+        <div style="font-size:17px;font-weight:800;margin-bottom:16px">Apply for this role</div>
         <div id="careers-apply-error" style="display:none;color:var(--red);font-size:13px;margin-bottom:10px"></div>
         <div id="careers-apply-success" style="display:none;background:#e8f8f0;color:#1e7e4d;padding:12px;border-radius:8px;font-size:14px"></div>
         <div id="careers-apply-form">
@@ -5575,7 +5595,7 @@ async function renderCareersJobDetail(jobId){
           <div class="form-row full"><div class="form-group"><label>Key Skills <span style="font-weight:400;color:var(--g3)">(comma separated)</span></label><input type="text" id="cap-skills" placeholder="Python, SQL, Communication"></div></div>
           <div class="form-row full"><div class="form-group"><label>Cover Letter</label><textarea id="cap-cover" placeholder="Tell us why you're a great fit…" rows="4"></textarea></div></div>
           <div class="form-row full"><div class="form-group"><label>Resume <span style="font-weight:400;color:var(--g3)">(PDF or Word)</span></label><input type="file" id="cap-resume" accept=".pdf,.doc,.docx"></div></div>
-          <button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="submitCareersApplication('${job.id}')" id="cap-submit-btn">Submit Application</button>
+          <button class="btn btn-primary" style="margin-top:14px;width:100%;padding:13px;font-size:15px;border-radius:10px" onclick="submitCareersApplication('${job.id}')" id="cap-submit-btn">Submit Application</button>
         </div>
       </div>`;
   }catch(e){
