@@ -1970,78 +1970,74 @@ body { transition: background .3s ease, color .3s ease; }
   <div class="modal">
     <div class="modal-header"><h2 id="mfg-bom-modal-title">New BOM</h2><button class="modal-close" onclick="closeModal('mfg-bom-modal')">×</button></div>
     <div class="modal-body">
-      <input type="hidden" id="mfg-b-id">
-      <div class="form-row">
-        <div class="form-group"><label>BOM Name *</label><input type="text" id="mfg-b-name" placeholder="Standard Bicycle BOM"></div>
-        <div class="form-group"><label>Product *</label><select id="mfg-b-product"></select></div>
-      </div>
-      <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="mfg-b-notes"></textarea></div></div>
-      <div style="margin-top:8px">
-        <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Components (per 1 unit of product)</label>
-        <div id="mfg-bom-lines" style="margin-top:8px"></div>
-        <button class="btn-sm btn-ghost" style="margin-top:6px" onclick="addMfgBomLine()">+ Add Component</button>
-      </div>
+      <div class="form-row full"><div class="form-group"><label>BOM Name *</label><input type="text" id="mfg-b-name" placeholder="Standard Bicycle BOM"></div></div>
+      <div class="form-row full"><div class="form-group"><label>Finished Good *</label><select id="mfg-b-product"></select>
+        <div style="font-size:12px;color:var(--g3);margin-top:4px">The Component or Product this BOM's recipe produces.</div>
+      </div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('mfg-bom-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveMfgBom()">Save BOM</button>
+      <button class="btn btn-primary" onclick="saveMfgBomNew()">Create BOM</button>
     </div>
   </div>
 </div>
 
-<!-- Manufacturing: Assembly (Build) Modal -->
-<div class="modal-overlay" id="mfg-assembly-modal">
+<!-- Manufacturing: Add Component Modal -->
+<div class="modal-overlay" id="mfg-add-component-modal">
   <div class="modal">
-    <div class="modal-header"><h2>Build Product</h2><button class="modal-close" onclick="closeModal('mfg-assembly-modal')">×</button></div>
+    <div class="modal-header"><h2>Add Component</h2><button class="modal-close" onclick="closeModal('mfg-add-component-modal')">×</button></div>
     <div class="modal-body">
+      <div class="form-row full"><div class="form-group"><label>Search</label>
+        <input type="text" id="mfg-comp-search" placeholder="Search by item name or ID…" oninput="mfgRenderComponentOptions(this.value)">
+      </div></div>
+      <div class="form-row full"><div class="form-group"><label>Part *</label><select id="mfg-comp-part"></select>
+        <div style="font-size:12px;color:var(--g3);margin-top:4px">Only raw Parts are shown here — Finished Goods can't be BOM components.</div>
+      </div></div>
+      <div class="form-row full"><div class="form-group"><label>Quantity Required *</label><input type="number" id="mfg-comp-qty" min="0" step="0.01" placeholder="e.g. 2"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('mfg-add-component-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMfgAddComponent()">Add Component</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manufacturing: Create Assembly Modal -->
+<div class="modal-overlay" id="mfg-assembly-modal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h2>Create Assembly</h2><button class="modal-close" onclick="closeModal('mfg-assembly-modal')">×</button></div>
+    <div class="modal-body" style="max-height:75vh;overflow-y:auto">
       <input type="hidden" id="mfg-a-bomid">
-      <div class="form-row full"><div class="form-group"><label>BOM</label><input type="text" id="mfg-a-bomname" readonly style="background:var(--g5)"></div></div>
-      <div class="form-row">
-        <div class="form-group"><label>Quantity to Build *</label><input type="number" id="mfg-a-qty" value="1" min="1" oninput="checkMfgAssemblyStock();renderMfgSerialRows();"></div>
-      </div>
-      <div class="form-row full"><div class="form-group"><label>Notes</label><input type="text" id="mfg-a-notes"></div></div>
-      <div id="mfg-a-check-result" style="margin-top:10px"></div>
-      <div style="margin-top:10px">
-        <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Per-unit serial numbers (optional)</label>
-        <div style="font-size:12px;color:var(--g3);margin:4px 0 8px">Leave blank to build without serials, or fill in one per unit for full traceability.</div>
-        <div id="mfg-a-serial-rows"></div>
-      </div>
+      <div class="form-row full"><div class="form-group"><label>Select BOM *</label>
+        <select id="mfg-a-bom-select" onchange="onMfgAssemblyBomOrQtyChange()"></select>
+      </div></div>
+      <div class="form-row full"><div class="form-group"><label>Assembly Name *</label><input type="text" id="mfg-a-name" placeholder="e.g., Batch #001"></div></div>
+      <div class="form-row full"><div class="form-group"><label>Quantity *</label><input type="number" id="mfg-a-qty" value="1" min="1" oninput="onMfgAssemblyBomOrQtyChange()"></div></div>
+      <div class="form-row full"><div class="form-group"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="mfg-a-for-po" style="width:auto"> This assembly is for a Purchase Order</label></div></div>
+      <div id="mfg-a-vendor-check"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('mfg-assembly-modal')">Cancel</button>
-      <button class="btn btn-primary" id="mfg-a-build-btn" onclick="saveMfgAssembly()">Build</button>
+      <button class="btn btn-primary" onclick="saveMfgAssembly()">Create</button>
     </div>
   </div>
 </div>
 
-<!-- Manufacturing: Traceability Lookup Modal -->
-<div class="modal-overlay" id="mfg-trace-modal">
+<!-- Manufacturing: Edit Assembly Modal -->
+<div class="modal-overlay" id="mfg-assembly-edit-modal">
   <div class="modal">
-    <div class="modal-header"><h2>Trace Unit by Serial Number</h2><button class="modal-close" onclick="closeModal('mfg-trace-modal')">×</button></div>
+    <div class="modal-header"><h2>Edit Assembly</h2><button class="modal-close" onclick="closeModal('mfg-assembly-edit-modal')">×</button></div>
     <div class="modal-body">
-      <div class="form-row full">
-        <div class="form-group"><label>Serial Number</label>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="mfg-trace-serial" placeholder="e.g. SN-0001" onkeydown="if(event.key==='Enter')lookupMfgTrace()" style="flex:1">
-            <button class="btn btn-primary" onclick="lookupMfgTrace()">Trace</button>
-          </div>
-        </div>
-      </div>
-      <div id="mfg-trace-result" style="margin-top:12px"></div>
+      <div class="form-row full"><div class="form-group"><label>Assembly Name</label><input type="text" id="mfg-ae-name"></div></div>
+      <div class="form-row full"><div class="form-group"><label>Quantity</label><input type="number" id="mfg-ae-qty" min="1">
+        <div style="font-size:12px;color:var(--g3);margin-top:4px">Increasing consumes more component stock; decreasing returns it (only unsold units can be removed).</div>
+      </div></div>
+      <div class="form-row full"><div class="form-group"><label>Customer PO Number</label><input type="text" id="mfg-ae-po" placeholder="Optional"></div></div>
+      <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="mfg-ae-notes"></textarea></div></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('mfg-trace-modal')">Close</button>
-    </div>
-  </div>
-</div>
-
-<!-- Manufacturing: Assembly Units List Modal -->
-<div class="modal-overlay" id="mfg-units-modal">
-  <div class="modal">
-    <div class="modal-header"><h2 id="mfg-units-modal-title">Units</h2><button class="modal-close" onclick="closeModal('mfg-units-modal')">×</button></div>
-    <div class="modal-body" id="mfg-units-body"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('mfg-units-modal')">Close</button>
+      <button class="btn btn-ghost" onclick="closeModal('mfg-assembly-edit-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMfgAssemblyEdit()">Save Changes</button>
     </div>
   </div>
 </div>
@@ -2815,8 +2811,8 @@ function buildSidebar(){
   if(BUILTIN_ROLES.includes(role)){
     const items={
       masteradmin:      [['companies','Companies','#C0392B'],['company_modules','Modules','#8E44AD'],['admin','User Management','#D0D0D0'],['messages','Messages','#E74C3C']],
-      superadmin:       [['ceo_dashboard','Exec Dashboard','#C0392B'],['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},['manufacturing','Manufacturing','#8E44AD'],['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
-      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},['manufacturing','Manufacturing','#8E44AD'],['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      superadmin:       [['ceo_dashboard','Exec Dashboard','#C0392B'],['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       tester:           [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['bugs','All Bugs','#7F7F7F'],['mybugs','My Bugs','#D0D0D0'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       developer:        [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['mybugs','My Bugs','#7F7F7F'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       accounts_manager: [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','Clients','#8E44AD'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Reports','#F39C12'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
@@ -2829,7 +2825,7 @@ function buildSidebar(){
     // Respect company-level module restrictions (tenant white-label)
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules&&role!=='masteradmin'){
       const allowed=window.COMPANY_CONTEXT.modules;
-      const groupModuleKey={sales_crm:'crm',inventory_group:'inventory'};
+      const groupModuleKey={sales_crm:'crm',inventory_group:'inventory',manufacturing_group:'manufacturing'};
       navItems=navItems.filter(item=> item&&item.group ? allowed.includes(groupModuleKey[item.group]||item.group) : allowed.includes(item[0]));
       // Append custom modules as external links
       (window.COMPANY_CONTEXT.customModules||[]).forEach(m=>{
@@ -2854,7 +2850,6 @@ function buildSidebar(){
       bugs:['bugs','All Bugs','#7F7F7F'],
       mybugs:['mybugs','My Bugs','#D0D0D0'],
       projects:['projects','Projects','#7F7F7F'],
-      manufacturing:['manufacturing','Manufacturing','#8E44AD'],
       attendance:['attendance','Attendance','#27AE60'],
       history:['history','History','#4A4A4A'],
       messages:['messages','Messages','#E74C3C'],
@@ -2874,6 +2869,13 @@ function buildSidebar(){
     if(perms.includes('inventory')){
       navItems.push({group:'inventory_group',label:'Inventory',color:'#D35400',children:[
         ['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases'],
+      ]});
+    }
+    // Manufacturing is likewise one permission key ('manufacturing') unlocking
+    // a BOM/Assembly/Traceability dropdown.
+    if(perms.includes('manufacturing')){
+      navItems.push({group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[
+        ['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability'],
       ]});
     }
     if(!navItems.length) navItems=[['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']];
@@ -2912,6 +2914,10 @@ function buildSidebar(){
     inv_items:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="2.5" y="4" width="13" height="11" rx="1"/><path d="M2.5 8h13M6 4V2.5h6V4"/></svg>`,
     inv_purchases:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M2 3h2l2 9h8l2-6H5"/><circle cx="7" cy="15" r="1"/><circle cx="13" cy="15" r="1"/></svg>`,
     manufacturing:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/></svg>`,
+    manufacturing_group:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/></svg>`,
+    mfg_bom:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="2.5" y="2" width="13" height="14" rx="1"/><line x1="5" y1="6" x2="13" y2="6"/><line x1="5" y1="9" x2="13" y2="9"/><line x1="5" y1="12" x2="10" y2="12"/></svg>`,
+    mfg_assembly:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="2" y="7" width="5" height="5"/><rect x="11" y="7" width="5" height="5"/><path d="M7 9.5h4"/><path d="M9 2v5M9 11v5"/></svg>`,
+    mfg_traceability:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>`,
     sales:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M2 3h2l2 9h8l2-6H5"/><circle cx="7" cy="15" r="1"/><circle cx="13" cy="15" r="1"/></svg>`,
     deliveries:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="1" y="6" width="9" height="7"/><path d="M10 8h4l3 3v2h-7z"/><circle cx="4.5" cy="15" r="1.4"/><circle cx="13" cy="15" r="1.4"/></svg>`,
   };
@@ -3048,7 +3054,7 @@ function showView(v){
   document.querySelectorAll('.nav-group').forEach(g=>{
     if(g.querySelector('#nav-'+v)) g.classList.add('open');
   });
-  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',sales:'Sales',deliveries:'Deliveries'}[v]||v;
+  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries'}[v]||v;
   document.getElementById('filter-bar').style.display=(v==='bugs'||v==='mybugs')?'flex':'none';
   // Animate content area on tab switch
   const ca = document.getElementById('content-area');
@@ -3097,7 +3103,9 @@ function renderView(){
   if(currentView==='inv_vendors')   return renderInvVendors();
   if(currentView==='inv_items')     return renderInvItems();
   if(currentView==='inv_purchases') return renderInvPurchases();
-  if(currentView==='manufacturing') return renderManufacturing();
+  if(currentView==='mfg_bom')          return renderMfgBom();
+  if(currentView==='mfg_assembly')     return renderMfgAssembly();
+  if(currentView==='mfg_traceability') return renderMfgTraceability();
   if(currentView==='sales')         return renderSales();
   if(currentView==='deliveries')    return renderDeliveries();
   renderBugTable();
@@ -9953,13 +9961,16 @@ async function deleteInvPurchase(id){
   }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Manufacturing (BOMs / Assemblies) ───────────────────────────────────────────
-// ── Manufacturing (BOMs / Assemblies) ───────────────────────────────────────────
+// ── Manufacturing (BOM / Assembly / Traceability) ────────────────────────────
 let mfgBoms=[];
 let mfgAssemblies=[];
 let mfgLoaded=false;
-let mfgTab='boms';        // 'boms' | 'assemblies'
 let mfgBomLineIdx=0;
+let mfgSelectedBomId=null;      // which BOM is selected in the left/right BOM Builder layout
+let mfgExpandedAssemblies=new Set();
+let mfgAssemblyDetailCache={};  // assemblyId -> full detail incl. componentsUsed
+let mfgAssemblySearch='';
+let mfgVendorCheckCache={};     // `${bomId}:${qty}` -> vendor-check response
 
 async function loadMfgData(){
   try{
@@ -9969,134 +9980,124 @@ async function loadMfgData(){
     ]);
   }catch(e){ mfgBoms=[]; mfgAssemblies=[]; }
   mfgLoaded=true;
-  // Manufacturing always needs the inventory item list (for names + stock) —
-  // load it too if it hasn't been already (e.g. user never opened Inventory this session).
   if(!invLoaded) await loadInvData();
 }
 
 function mfgBomName(id){ const b=mfgBoms.find(b=>b.id===id); return b?b.name:'—'; }
+function mfgBomRecord(id){ return mfgBoms.find(b=>b.id===id); }
+function mfgCreatedByName(userId){
+  if(!userId) return '—';
+  const u=(allUsers||[]).find(u=>u.id===userId);
+  return u ? u.name : '—';
+}
 
-function renderManufacturing(){
+const MFG_ICONS={
+  edit:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 2.5l4.5 4.5L6 16.5H1.5V12L11 2.5z"/></svg>`,
+  delete:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 5h12M7 5V3.5a1 1 0 011-1h2a1 1 0 011 1V5M4.5 5l.7 9.5a1 1 0 001 .9h5.6a1 1 0 001-.9L14.5 5"/></svg>`,
+  copy:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="6" y="6" width="9" height="9" rx="1"/><path d="M3 12V3a1 1 0 011-1h9"/></svg>`,
+  check:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="2" y="2" width="14" height="14" rx="2"/><polyline points="5,9 8,12 13,6"/></svg>`,
+  chevronDown:`<svg width="14" height="14" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="5,7 9,11 13,7"/></svg>`,
+  chevronRight:`<svg width="14" height="14" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="7,5 11,9 7,13"/></svg>`,
+};
+function mfgIconBtn(icon,title,onclick,extraStyle){
+  return `<button title="${esc(title)}" onclick="${onclick}" style="background:none;border:none;cursor:pointer;padding:5px;border-radius:6px;color:var(--g3);display:inline-flex;align-items:center;justify-content:center;${extraStyle||''}" onmouseover="this.style.background='var(--g5)'" onmouseout="this.style.background='none'">${MFG_ICONS[icon]}</button>`;
+}
+
+// ── BOM Builder (left panel: BOM list, right panel: its components) ──────────
+function renderMfgBom(){
   const ca=document.getElementById('content-area');
   if(!mfgLoaded){
-    ca.innerHTML='<div class="loading">Loading Manufacturing...</div>';
-    loadMfgData().then(()=>{ if(currentView==='manufacturing') renderView(); });
+    ca.innerHTML='<div class="loading">Loading BOM Builder...</div>';
+    loadMfgData().then(()=>{ if(currentView==='mfg_bom') renderView(); });
     return;
   }
-  const tabs=[['boms','BOMs'],['assemblies','Assemblies']];
-  const tabBar=tabs.map(([key,label])=>{
-    const count = key==='boms'?mfgBoms.length:mfgAssemblies.length;
-    return `<button class="btn-sm ${mfgTab===key?'btn-primary':'btn-ghost'}" style="margin-right:8px" onclick="mfgTab='${key}';renderManufacturing();">${label} (${count})</button>`;
-  }).join('') + `<button class="btn-sm btn-ghost" onclick="openMfgTraceModal()">🔍 Trace Serial</button>`;
+  const selected=mfgSelectedBomId?mfgBomRecord(mfgSelectedBomId):null;
+  const bomListHtml = !mfgBoms.length
+    ? '<div class="empty-state" style="padding:16px 0">No BOMs yet.</div>'
+    : mfgBoms.map(b=>`
+      <div onclick="mfgSelectBom('${b.id}')" style="padding:12px 14px;border:1px solid ${mfgSelectedBomId===b.id?'#27AE60':'var(--border)'};background:${mfgSelectedBomId===b.id?'#27AE6011':'transparent'};border-radius:8px;margin-bottom:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:600">${esc(b.name)}</div>
+          <div style="font-size:12px;color:var(--g3)">Produces: ${esc(invItemName(b.productItemId))}</div>
+        </div>
+        ${mfgIconBtn('delete','Delete BOM',`event.stopPropagation();deleteMfgBom('${b.id}')`,'color:var(--red)')}
+      </div>`).join('');
 
-  if(mfgTab==='boms'){
-    const rows = !mfgBoms.length
-      ? `<tr><td colspan="4" class="empty-state">No BOMs yet. Products need a recipe before you can build them.</td></tr>`
-      : mfgBoms.map(b=>`<tr>
-          <td><strong>${esc(b.name)}</strong></td>
-          <td>${esc(invItemName(b.productItemId))}</td>
-          <td>${esc(b.notes||'—')}</td>
-          <td>
-            <button class="btn-sm btn-primary" onclick="openMfgAssemblyModal('${b.id}')">🔧 Build</button>
-            <button class="btn-sm btn-ghost" onclick="openMfgBomModal('${b.id}')">Edit</button>
-            <button class="btn-sm btn-ghost" onclick="deleteMfgBom('${b.id}')">Delete</button>
-          </td>
-        </tr>`).join('');
-    ca.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-        <div>${tabBar}</div>
-        <button class="btn btn-primary" onclick="openMfgBomModal()">+ New BOM</button>
-      </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>BOM Name</th><th>Produces</th><th>Notes</th><th>Actions</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>`;
-    return;
-  }
+  const componentsHtml = !selected
+    ? '<div class="empty-state" style="padding:40px 0;text-align:center">Select a BOM to view components</div>'
+    : (async()=>{})() /* placeholder, replaced below */;
 
-  // assemblies tab
-  const rows = !mfgAssemblies.length
-    ? `<tr><td colspan="5" class="empty-state">No builds recorded yet.</td></tr>`
-    : mfgAssemblies.map(a=>`<tr>
-        <td>${esc(a.assemblyNumber||'—')}</td>
-        <td>${esc(invItemName(a.productItemId))}</td>
-        <td>${esc(mfgBomName(a.bomId))}</td>
-        <td>${a.quantityBuilt}</td>
-        <td>${a.createdAt?new Date(a.createdAt).toLocaleDateString():'—'}</td>
-        <td>${esc(a.notes||'—')}</td>
-        <td><button class="btn-sm btn-ghost" onclick="openMfgUnitsModal('${a.id}')">Units</button></td>
-      </tr>`).join('');
   ca.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div>${tabBar}</div>
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Assembly #</th><th>Product</th><th>BOM Used</th><th>Qty Built</th><th>Date</th><th>Notes</th><th>Units</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
-    <div style="margin-top:14px;font-size:12px;color:var(--g3)">💡 To build more of something, go to the <b>BOMs</b> tab and click <b>🔧 Build</b> on its recipe. Click <b>Units</b> to see per-unit serials and traceability.</div>`;
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:16px">BOM Builder</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+      <div style="background:var(--g5);border-radius:12px;padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h2 style="font-size:16px;font-weight:700">BOMs</h2>
+          <button class="btn btn-primary" onclick="openMfgBomModal()">+ New BOM</button>
+        </div>
+        ${bomListHtml}
+      </div>
+      <div style="background:var(--g5);border-radius:12px;padding:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h2 style="font-size:16px;font-weight:700">Components</h2>
+          ${selected?`<button class="btn btn-primary" onclick="openMfgAddComponentModal()">+ Add Component</button>`:''}
+        </div>
+        <div id="mfg-components-panel">${selected?'<div class="loading">Loading…</div>':'<div class="empty-state" style="padding:40px 0;text-align:center">Select a BOM to view components</div>'}</div>
+      </div>
+    </div>`;
+  if(selected) renderMfgComponentsPanel(selected);
+}
+function mfgSelectBom(id){
+  mfgSelectedBomId = mfgSelectedBomId===id ? null : id;
+  renderMfgBom();
+}
+async function renderMfgComponentsPanel(bom){
+  const panel=document.getElementById('mfg-components-panel');
+  try{
+    const full=await fetch(`/api/manufacturing/boms/${bom.id}`).then(r=>r.json());
+    const lines=full.lines||[];
+    panel.innerHTML = !lines.length
+      ? '<div class="empty-state" style="padding:20px 0">No components yet. Click "+ Add Component" to build the recipe.</div>'
+      : lines.map(l=>`
+        <div style="padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600">${esc(invItemName(l.componentItemId))}</div>
+            <div style="font-size:12px;color:var(--g3)">Quantity: ${l.quantityPerUnit}</div>
+          </div>
+          ${mfgIconBtn('delete','Remove',`removeMfgBomLine('${bom.id}','${l.id}')`,'color:var(--red)')}
+        </div>`).join('');
+  }catch(e){ panel.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load components.</div>'; }
 }
 
-// ── BOMs ─────────────────────────────────────────────────────────────────────
-async function openMfgBomModal(id){
-  const b = id ? mfgBoms.find(b=>b.id===id) : null;
-  let lines=[];
-  if(b){
-    try{ const full=await fetch(`/api/manufacturing/boms/${id}`).then(r=>r.json()); lines=full.lines||[]; }catch(e){}
-  }
-  document.getElementById('mfg-bom-modal-title').textContent=b?'Edit BOM':'New BOM';
-  document.getElementById('mfg-b-id').value=b?b.id:'';
-  document.getElementById('mfg-b-name').value=b?.name||'';
-  document.getElementById('mfg-b-notes').value=b?.notes||'';
-  const prodSel=document.getElementById('mfg-b-product');
-  // Only items classified as Product belong here — Components/Parts get
-  // built INTO a product, they aren't the thing a BOM produces.
-  const productItems=invItems.filter(i=>i.group==='product');
-  prodSel.innerHTML=productItems.length
-    ? productItems.map(i=>`<option value="${i.id}" ${b&&b.productItemId===i.id?'selected':''}>${esc(i.name)}</option>`).join('')
-    : `<option value="">— No items classified as "Product" yet. Edit an item in Inventory and set its Group. —</option>`;
-
-  document.getElementById('mfg-bom-lines').innerHTML='';
-  mfgBomLineIdx=0;
-  if(lines.length){ lines.forEach(l=>addMfgBomLine(l.componentItemId,l.quantityPerUnit)); }
-  else { addMfgBomLine(); }
+function openMfgBomModal(){
+  document.getElementById('mfg-bom-modal-title').textContent='New BOM';
+  document.getElementById('mfg-b-name').value='';
+  const sel=document.getElementById('mfg-b-product');
+  // "Finished Good" per the spec = any inventory item that's a Component or
+  // Product (i.e. something you'd build, not a raw Part you'd only consume).
+  const finishedGoods=invItems.filter(i=>i.itemGroup==='Component'||i.itemGroup==='Product');
+  sel.innerHTML=finishedGoods.length
+    ? finishedGoods.map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('')
+    : '<option value="">— No Components/Products in Inventory yet —</option>';
   document.getElementById('mfg-bom-modal').classList.add('open');
 }
-function addMfgBomLine(componentItemId,quantityPerUnit){
-  const idx=mfgBomLineIdx++;
-  // Only Parts/Components belong here — Products are what a BOM produces,
-  // not what it consumes.
-  const componentItems=invItems.filter(i=>i.group==='part'||i.group==='component');
-  const itemOptions=componentItems.map(i=>`<option value="${i.id}" ${componentItemId===i.id?'selected':''}>${esc(i.name)}</option>`).join('');
-  const row=document.createElement('div');
-  row.id=`mfg-bom-line-${idx}`;
-  row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;max-width:100%';
-  row.innerHTML=`
-    <select id="mfg-bom-line-item-${idx}" style="flex:2 1 200px;min-width:0;max-width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box">${itemOptions||'<option value="">— No Parts/Components yet. Add some in Inventory. —</option>'}</select>
-    <input type="number" id="mfg-bom-line-qty-${idx}" placeholder="Qty per unit" value="${quantityPerUnit||''}" style="flex:1 1 100px;min-width:0;max-width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box">
-    <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('mfg-bom-line-${idx}').remove()">✕</button>`;
-  document.getElementById('mfg-bom-lines').appendChild(row);
-}
-async function saveMfgBom(){
-  const id=document.getElementById('mfg-b-id').value;
+async function saveMfgBomNew(){
   const name=document.getElementById('mfg-b-name').value.trim();
   const productItemId=document.getElementById('mfg-b-product').value;
-  if(!name||!productItemId){ showToast('BOM name and product are required','error'); return; }
-  const lines=[];
-  document.querySelectorAll('#mfg-bom-lines > div').forEach(row=>{
-    const idx=row.id.split('-').pop();
-    const componentItemId=document.getElementById(`mfg-bom-line-item-${idx}`)?.value;
-    const qty=Number(document.getElementById(`mfg-bom-line-qty-${idx}`)?.value||0);
-    if(componentItemId&&qty>0) lines.push({componentItemId,quantityPerUnit:qty});
-  });
-  if(!lines.length){ showToast('Add at least one component line','error'); return; }
-  const payload={ name, productItemId, notes:document.getElementById('mfg-b-notes').value.trim()||null, lines };
+  if(!name){ showToast('BOM name is required','error'); return; }
+  if(!productItemId){ showToast('Select a Finished Good','error'); return; }
   try{
-    const r=await fetch(id?`/api/manufacturing/boms/${id}`:'/api/manufacturing/boms',{
-      method:id?'PATCH':'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const r=await fetch('/api/manufacturing/boms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,productItemId,lines:[{componentItemId:productItemId,quantityPerUnit:0.0001}]})});
+    // NOTE: the backend requires at least one line to create a BOM. We seed
+    // a throwaway placeholder line here so the BOM can be created empty from
+    // the user's point of view, then immediately remove it — components are
+    // added afterward via "+ Add Component" per the new two-panel flow.
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    const saved=await r.json();
+    if(saved.lines&&saved.lines[0]) await fetch(`/api/manufacturing/boms/${saved.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:[]})});
     closeModal('mfg-bom-modal');
-    showToast('BOM saved ✓','success');
+    showToast('BOM created ✓','success');
+    mfgSelectedBomId=saved.id;
     await loadMfgData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
@@ -10106,150 +10107,341 @@ async function deleteMfgBom(id){
   try{
     const r=await fetch(`/api/manufacturing/boms/${id}`,{method:'DELETE'});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    if(mfgSelectedBomId===id) mfgSelectedBomId=null;
     await loadMfgData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Assemblies (build) ───────────────────────────────────────────────────────
-function openMfgAssemblyModal(bomId){
-  document.getElementById('mfg-a-bomid').value=bomId;
-  document.getElementById('mfg-a-bomname').value=mfgBomName(bomId)+' → '+invItemName(mfgBoms.find(b=>b.id===bomId)?.productItemId);
-  document.getElementById('mfg-a-qty').value=1;
-  document.getElementById('mfg-a-notes').value='';
-  document.getElementById('mfg-a-check-result').innerHTML='';
-  document.getElementById('mfg-assembly-modal').classList.add('open');
-  checkMfgAssemblyStock();
-  renderMfgSerialRows();
+// ── Add Component modal (Part-only dropdown + search) ────────────────────────
+function openMfgAddComponentModal(){
+  if(!mfgSelectedBomId) return;
+  document.getElementById('mfg-comp-search').value='';
+  document.getElementById('mfg-comp-qty').value='';
+  mfgRenderComponentOptions('');
+  document.getElementById('mfg-add-component-modal').classList.add('open');
 }
-function renderMfgSerialRows(){
-  const qty=Math.max(0,Number(document.getElementById('mfg-a-qty')?.value||0));
-  const wrap=document.getElementById('mfg-a-serial-rows');
-  if(!wrap) return;
-  // Preserve any serials already typed in before re-rendering the row count
-  const existing=[...wrap.querySelectorAll('input')].map(i=>i.value);
-  const capped=Math.min(qty,200); // sane UI limit
-  let html='';
-  for(let i=0;i<capped;i++){
-    html+=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-      <span style="width:60px;font-size:12px;color:var(--g3)">Unit ${i+1}</span>
-      <input type="text" id="mfg-a-serial-${i}" placeholder="Serial (optional)" value="${esc(existing[i]||'')}" style="flex:1;padding:6px;border:1px solid var(--border);border-radius:6px">
-    </div>`;
-  }
-  wrap.innerHTML=html || '<div style="font-size:12px;color:var(--g3)">Enter a quantity to add serial number fields.</div>';
-  if(qty>200){
-    wrap.innerHTML+='<div style="font-size:12px;color:var(--red);margin-top:6px">Only the first 200 units show serial fields — the rest will build without serials.</div>';
-  }
+function mfgRenderComponentOptions(search){
+  const q=(search||'').trim().toLowerCase();
+  const parts=invItems.filter(i=>i.itemGroup==='Part').filter(i=>{
+    if(!q) return true;
+    return (i.name||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q);
+  });
+  const sel=document.getElementById('mfg-comp-part');
+  sel.innerHTML = parts.length
+    ? parts.map(i=>`<option value="${i.id}">${esc(i.name)}${i.itemCode?` (${esc(i.itemCode)})`:''}</option>`).join('')
+    : '<option value="">— No matching Parts —</option>';
 }
-async function checkMfgAssemblyStock(){
-  const bomId=document.getElementById('mfg-a-bomid').value;
-  const qty=Number(document.getElementById('mfg-a-qty').value||1);
-  const resultEl=document.getElementById('mfg-a-check-result');
-  const buildBtn=document.getElementById('mfg-a-build-btn');
-  if(!bomId||qty<=0){ resultEl.innerHTML=''; return; }
-  resultEl.innerHTML='<div style="font-size:12px;color:var(--g3)">Checking stock…</div>';
+async function saveMfgAddComponent(){
+  const partId=document.getElementById('mfg-comp-part').value;
+  const qty=Number(document.getElementById('mfg-comp-qty').value);
+  if(!partId){ showToast('Select a part','error'); return; }
+  if(!qty||qty<=0){ showToast('Enter a valid quantity','error'); return; }
   try{
-    const check=await fetch(`/api/manufacturing/boms/${bomId}/check?quantity=${qty}`).then(r=>r.json());
-    resultEl.innerHTML=`
+    const full=await fetch(`/api/manufacturing/boms/${mfgSelectedBomId}`).then(r=>r.json());
+    const lines=(full.lines||[]).map(l=>({componentItemId:l.componentItemId,quantityPerUnit:l.quantityPerUnit}));
+    lines.push({componentItemId:partId,quantityPerUnit:qty});
+    const r=await fetch(`/api/manufacturing/boms/${mfgSelectedBomId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    closeModal('mfg-add-component-modal');
+    showToast('Component added ✓','success');
+    renderMfgComponentsPanel(mfgBomRecord(mfgSelectedBomId));
+  }catch(e){ showToast(e.message,'error'); }
+}
+async function removeMfgBomLine(bomId,lineId){
+  if(!confirm('Remove this component from the BOM?')) return;
+  try{
+    const full=await fetch(`/api/manufacturing/boms/${bomId}`).then(r=>r.json());
+    const lines=(full.lines||[]).filter(l=>l.id!==lineId).map(l=>({componentItemId:l.componentItemId,quantityPerUnit:l.quantityPerUnit}));
+    const r=await fetch(`/api/manufacturing/boms/${bomId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    renderMfgComponentsPanel(mfgBomRecord(bomId));
+  }catch(e){ showToast(e.message,'error'); }
+}
+
+// ── Assembly page ─────────────────────────────────────────────────────────────
+function renderMfgAssembly(){
+  const ca=document.getElementById('content-area');
+  if(!mfgLoaded){
+    ca.innerHTML='<div class="loading">Loading Assembly...</div>';
+    loadMfgData().then(()=>{ if(currentView==='mfg_assembly') renderView(); });
+    return;
+  }
+  const q=(mfgAssemblySearch||'').trim().toLowerCase();
+  const list = q
+    ? mfgAssemblies.filter(a=>[a.name,a.assemblyNumber,mfgBomName(a.bomId),invItemName(a.productItemId)].filter(Boolean).join(' ').toLowerCase().includes(q))
+    : mfgAssemblies;
+  const rows = !list.length
+    ? `<tr><td colspan="7" class="empty-state">${mfgAssemblies.length?'No assemblies match your search.':'No assemblies yet.'}</td></tr>`
+    : list.map(a=>{
+        const isOpen=mfgExpandedAssemblies.has(a.id);
+        const mainRow=`<tr>
+          <td>
+            <button onclick="toggleMfgAssemblyExpand('${a.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
+              ${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}
+            </button>
+            ${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'—'}
+          </td>
+          <td><strong>${esc(a.name||a.assemblyNumber)}</strong></td>
+          <td>${esc(mfgBomName(a.bomId))}</td>
+          <td style="text-align:center">${a.quantityBuilt}</td>
+          <td>${esc(mfgCreatedByName(a.createdBy))}</td>
+          <td>
+            ${mfgIconBtn('copy','Copy Assembly #',`navigator.clipboard.writeText('${esc(a.assemblyNumber)}');showToast('Copied ✓','success')`,'color:#2980B9')}
+            ${mfgIconBtn('check','Trace / Assign Serial',`showView('mfg_traceability');setTimeout(()=>mfgSelectAssemblyForTrace('${a.id}'),50)`,'color:#8E44AD')}
+            ${mfgIconBtn('edit','Edit',`openMfgAssemblyEditModal('${a.id}')`)}
+            ${mfgIconBtn('delete','Delete',`deleteMfgAssembly('${a.id}')`,'color:var(--red)')}
+          </td>
+        </tr>`;
+        const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:16px" id="mfg-assembly-detail-${a.id}">${mfgAssemblyDetailHtml(a)}</td></tr>`:'';
+        return mainRow+detailRow;
+      }).join('');
+  ca.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <h1 style="font-size:22px;font-weight:700">Assembly</h1>
+    </div>
+    <div style="background:var(--g5);border-radius:12px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2 style="font-size:16px;font-weight:700">Assemblies</h2>
+        <button class="btn btn-primary" onclick="openMfgAssemblyModal()">+ Add Assembly</button>
+      </div>
+      <div style="position:relative;margin-bottom:12px">
+        <input type="text" placeholder="Search assemblies..." value="${esc(mfgAssemblySearch)}" oninput="mfgAssemblySearch=this.value;renderMfgAssembly()"
+          style="width:100%;padding:9px 10px 9px 34px;border:1px solid var(--border);border-radius:8px">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g3)">
+          <svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
+        </span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Date</th><th>Assembly Name</th><th>BOM</th><th>Quantity</th><th>Created By</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  mfgExpandedAssemblies.forEach(id=>loadMfgAssemblyDetail(id));
+}
+function toggleMfgAssemblyExpand(id){
+  if(mfgExpandedAssemblies.has(id)) mfgExpandedAssemblies.delete(id);
+  else mfgExpandedAssemblies.add(id);
+  renderMfgAssembly();
+}
+function mfgAssemblyDetailHtml(assembly){
+  const cached=mfgAssemblyDetailCache[assembly.id];
+  if(!cached) return '<div style="font-size:13px;color:var(--g3)">Loading…</div>';
+  const rows=cached.componentsUsed||[];
+  return `
+    <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">📦 Components Used</div>
+    ${!rows.length ? '<div style="font-size:13px;color:var(--g3)">No component consumption recorded.</div>' : `
       <table style="width:100%;font-size:13px">
-        <thead><tr><th style="text-align:left">Component</th><th>Need</th><th>Have</th><th></th></tr></thead>
-        <tbody>${check.lines.map(l=>`<tr>
-          <td>${esc(l.componentName)}</td>
-          <td style="text-align:center">${l.required}</td>
-          <td style="text-align:center">${l.available}</td>
-          <td style="text-align:center">${l.sufficient?'✅':'❌'}</td>
+        <thead><tr><th style="text-align:left">Item ID</th><th style="text-align:left">Item Name</th><th>Qty per Unit</th><th>Total Used</th><th>Source</th></tr></thead>
+        <tbody>${rows.map(c=>`<tr>
+          <td>${esc(invItemRecord(c.componentItemId)?.itemCode||c.componentItemId)}</td>
+          <td>${esc(invItemName(c.componentItemId))}</td>
+          <td style="text-align:center">${c.quantityPerUnit}</td>
+          <td style="text-align:center">${c.totalUsed}</td>
+          <td>${esc(c.source||'Not tracked')}</td>
         </tr>`).join('')}</tbody>
-      </table>
-      ${!check.canBuild?'<div style="color:var(--red);font-weight:600;margin-top:8px">⚠ Not enough stock to build this quantity yet.</div>':''}`;
-    buildBtn.disabled=!check.canBuild;
-    buildBtn.style.opacity=check.canBuild?'1':'.5';
-  }catch(e){ resultEl.innerHTML='<div style="color:var(--red)">Could not check stock.</div>'; }
+      </table>`}`;
+}
+async function loadMfgAssemblyDetail(id){
+  try{
+    const full=await fetch(`/api/manufacturing/assemblies/${id}`).then(r=>r.json());
+    mfgAssemblyDetailCache[id]=full;
+    const el=document.getElementById('mfg-assembly-detail-'+id);
+    const asm=mfgAssemblies.find(a=>a.id===id);
+    if(el&&asm) el.innerHTML=mfgAssemblyDetailHtml(asm);
+  }catch(e){}
+}
+
+// ── Create Assembly modal (BOM select, vendor-source hints, PO checkbox) ─────
+function openMfgAssemblyModal(){
+  document.getElementById('mfg-a-bomid').value='';
+  const sel=document.getElementById('mfg-a-bom-select');
+  sel.innerHTML='<option value="">— Select BOM —</option>'+mfgBoms.map(b=>`<option value="${b.id}">${esc(mfgBomName(b.id))} → ${esc(invItemName(b.productItemId))}</option>`).join('');
+  document.getElementById('mfg-a-name').value='';
+  document.getElementById('mfg-a-qty').value=1;
+  document.getElementById('mfg-a-for-po').checked=false;
+  document.getElementById('mfg-a-vendor-check').innerHTML='';
+  document.getElementById('mfg-assembly-modal').classList.add('open');
+}
+async function onMfgAssemblyBomOrQtyChange(){
+  const bomId=document.getElementById('mfg-a-bom-select').value;
+  document.getElementById('mfg-a-bomid').value=bomId;
+  const qty=Number(document.getElementById('mfg-a-qty').value||1);
+  const resultEl=document.getElementById('mfg-a-vendor-check');
+  if(!bomId){ resultEl.innerHTML=''; return; }
+  resultEl.innerHTML='<div style="font-size:12px;color:var(--g3)">Checking component stock…</div>';
+  try{
+    const cacheKey=`${bomId}:${qty}`;
+    const data = mfgVendorCheckCache[cacheKey] || await fetch(`/api/manufacturing/boms/${bomId}/vendor-check?quantity=${qty}`).then(r=>r.json());
+    mfgVendorCheckCache[cacheKey]=data;
+    resultEl.innerHTML=`
+      <div style="font-weight:600;margin:10px 0 6px">Required Components & Vendor Sources</div>
+      ${data.lines.map(line=>{
+        const insufficient = !line.anyVendorSufficient;
+        return `<div style="padding:10px;border:1px solid ${insufficient?'#C0392B':'var(--border)'};background:${insufficient?'#C0392B15':'transparent'};border-radius:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between">
+            <strong>${esc(line.componentName)}</strong>
+            <span style="font-size:12px;color:${insufficient?'#C0392B':'var(--g3)'}">Need: ${line.required} / Total: ${line.totalAvailable}</span>
+          </div>
+          <div style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase;margin-top:6px">Vendor Source</div>
+          ${line.vendors.length
+            ? `<select style="width:100%;padding:6px;border:1px solid ${insufficient?'#C0392B':'var(--border)'};border-radius:6px;margin-top:4px;background:${insufficient?'#C0392B15':'transparent'}">
+                ${line.vendors.map(v=>`<option ${!v.sufficient?'disabled':''}>${esc(v.vendorName)} — ${v.available} available${!v.sufficient?' (insufficient)':''}</option>`).join('')}
+              </select>`
+            : `<div style="padding:8px;border:1px solid #C0392B;background:#C0392B15;border-radius:6px;margin-top:4px;color:#C0392B;font-size:13px">No vendors have adequate stock for this quantity</div>`}
+        </div>`;
+      }).join('')}`;
+  }catch(e){ resultEl.innerHTML='<div style="color:var(--red);font-size:13px">Could not check component stock.</div>'; }
 }
 async function saveMfgAssembly(){
   const bomId=document.getElementById('mfg-a-bomid').value;
   const quantityBuilt=Number(document.getElementById('mfg-a-qty').value);
-  if(!bomId||!quantityBuilt||quantityBuilt<=0){ showToast('Enter a valid quantity to build','error'); return; }
-  const notes=document.getElementById('mfg-a-notes').value.trim()||null;
-  const serialNumbers=[];
-  for(let i=0;i<Math.min(quantityBuilt,200);i++){
-    const el=document.getElementById(`mfg-a-serial-${i}`);
-    serialNumbers.push(el&&el.value.trim() ? el.value.trim() : null);
-  }
-  const hasAnySerial=serialNumbers.some(s=>s);
+  if(!bomId){ showToast('Select a BOM','error'); return; }
+  if(!quantityBuilt||quantityBuilt<=0){ showToast('Enter a valid quantity to assemble','error'); return; }
+  const name=document.getElementById('mfg-a-name').value.trim();
+  const forPo=document.getElementById('mfg-a-for-po').checked;
+  const customerPoNumber = forPo ? (prompt('Customer PO Number for this build:')||null) : null;
   try{
-    const r=await fetch('/api/manufacturing/assemblies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bomId,quantityBuilt,notes,...(hasAnySerial?{serialNumbers}:{})})});
+    const r=await fetch('/api/manufacturing/assemblies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bomId,quantityBuilt,name:name||undefined,customerPoNumber})});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('mfg-assembly-modal');
-    showToast('Build complete — stock updated ✓','success');
-    mfgTab='assemblies';
+    showToast('Assembly created ✓','success');
+    mfgAssemblyDetailCache={};
     await Promise.all([loadMfgData(),loadInvData()]);
     renderView();
   }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Traceability ──────────────────────────────────────────────────────────────
-function openMfgTraceModal(prefillSerial){
-  document.getElementById('mfg-trace-serial').value=prefillSerial||'';
-  document.getElementById('mfg-trace-result').innerHTML='';
-  document.getElementById('mfg-trace-modal').classList.add('open');
-  if(prefillSerial) lookupMfgTrace();
+// ── Edit Assembly modal (name/notes/PO + quantity, which adjusts stock) ─────
+let mfgEditAssemblyId=null;
+function openMfgAssemblyEditModal(id){
+  const a=mfgAssemblies.find(a=>a.id===id);
+  if(!a) return;
+  mfgEditAssemblyId=id;
+  document.getElementById('mfg-ae-name').value=a.name||'';
+  document.getElementById('mfg-ae-qty').value=a.quantityBuilt;
+  document.getElementById('mfg-ae-po').value=a.customerPoNumber||'';
+  document.getElementById('mfg-ae-notes').value=a.notes||'';
+  document.getElementById('mfg-assembly-edit-modal').classList.add('open');
 }
-async function lookupMfgTrace(){
-  const serial=document.getElementById('mfg-trace-serial').value.trim();
-  const resultEl=document.getElementById('mfg-trace-result');
-  if(!serial){ resultEl.innerHTML='<div style="color:var(--red)">Enter a serial number.</div>'; return; }
-  resultEl.innerHTML='<div style="font-size:12px;color:var(--g3)">Looking up…</div>';
+async function saveMfgAssemblyEdit(){
+  if(!mfgEditAssemblyId) return;
+  const payload={
+    name:document.getElementById('mfg-ae-name').value.trim()||undefined,
+    quantityBuilt:Number(document.getElementById('mfg-ae-qty').value),
+    customerPoNumber:document.getElementById('mfg-ae-po').value.trim()||null,
+    notes:document.getElementById('mfg-ae-notes').value.trim()||null,
+  };
   try{
-    const data=await fetch(`/api/manufacturing/units/${encodeURIComponent(serial)}`).then(async r=>{
-      if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
-      return r.json();
-    });
-    const asm=data.assembly, unit=data.unit, components=data.components||[];
-    resultEl.innerHTML=`
-      <div style="padding:12px;background:var(--g5);border-radius:8px;margin-bottom:10px">
-        <div><strong>Serial:</strong> ${esc(unit.serialNumber||'—')} &nbsp; <strong>Unit #:</strong> ${unit.unitNumber}</div>
-        <div><strong>Product:</strong> ${esc(invItemName(asm?.productItemId))}</div>
-        <div><strong>Assembly:</strong> ${esc(asm?.assemblyNumber||'—')} (${asm?.status||'—'})</div>
-        <div><strong>Built:</strong> ${unit.createdAt?new Date(unit.createdAt).toLocaleString():'—'}</div>
-        <div><strong>Sold:</strong> ${unit.sold?'Yes':'No'}</div>
-      </div>
-      <div style="font-weight:600;margin-bottom:6px">Components consumed for this unit</div>
-      <table style="width:100%;font-size:13px">
-        <thead><tr><th style="text-align:left">Component</th><th>Qty</th></tr></thead>
-        <tbody>${components.length ? components.map(c=>`<tr>
-          <td>${esc(invItemName(c.componentItemId))}</td>
-          <td style="text-align:center">${c.quantity}</td>
-        </tr>`).join('') : '<tr><td colspan="2" class="empty-state">No component traceability recorded for this unit.</td></tr>'}</tbody>
-      </table>`;
-  }catch(e){ resultEl.innerHTML=`<div style="color:var(--red)">${esc(e.message)}</div>`; }
+    const r=await fetch(`/api/manufacturing/assemblies/${mfgEditAssemblyId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    closeModal('mfg-assembly-edit-modal');
+    showToast('Assembly updated ✓','success');
+    mfgAssemblyDetailCache={};
+    await Promise.all([loadMfgData(),loadInvData()]);
+    renderView();
+  }catch(e){ showToast(e.message,'error'); }
+}
+async function deleteMfgAssembly(id){
+  if(!confirm('Delete this assembly? This reverses stock consumption and cannot be undone if any unit has been sold.')) return;
+  try{
+    const r=await fetch(`/api/manufacturing/assemblies/${id}/reverse`,{method:'POST'});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    showToast('Assembly reversed ✓','success');
+    mfgAssemblyDetailCache={};
+    await Promise.all([loadMfgData(),loadInvData()]);
+    renderView();
+  }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Per-assembly unit list (serials + sold status) ───────────────────────────
-let mfgUnitsModalAssemblyId=null;
-async function openMfgUnitsModal(assemblyId){
-  mfgUnitsModalAssemblyId=assemblyId;
-  const asm=mfgAssemblies.find(a=>a.id===assemblyId);
-  document.getElementById('mfg-units-modal-title').textContent=`Units — ${asm?.assemblyNumber||''}`;
-  document.getElementById('mfg-units-body').innerHTML='<div class="loading">Loading units...</div>';
-  document.getElementById('mfg-units-modal').classList.add('open');
+// ── Traceability page ─────────────────────────────────────────────────────────
+let mfgTraceSelectedAssemblyId=null;
+let mfgTraceUnits=[];
+
+function renderMfgTraceability(){
+  const ca=document.getElementById('content-area');
+  if(!mfgLoaded){
+    ca.innerHTML='<div class="loading">Loading Traceability...</div>';
+    loadMfgData().then(()=>{ if(currentView==='mfg_traceability') renderView(); });
+    return;
+  }
+  const rows = !mfgAssemblies.length
+    ? `<div class="empty-state">No assemblies yet.</div>`
+    : mfgAssemblies.map(a=>{
+        const isOpen=mfgTraceSelectedAssemblyId===a.id;
+        return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+          <div onclick="mfgSelectAssemblyForTrace('${a.id}')" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:var(--g3)">${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}</span>
+              <div>
+                <div style="font-weight:600">${esc(a.name||a.assemblyNumber)}</div>
+                <div style="font-size:12px;color:var(--g3)">BOM: ${esc(mfgBomName(a.bomId))} → ${esc(invItemName(a.productItemId))}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:600">${a.quantityBuilt} units</div>
+              <div style="font-size:12px;color:var(--g3)">${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'—'}</div>
+            </div>
+          </div>
+          ${isOpen?`<div id="mfg-trace-units-panel" style="padding:0 14px 14px;background:var(--g5)">${mfgTraceUnitsHtml()}</div>`:''}
+        </div>`;
+      }).join('');
+  ca.innerHTML=`
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Traceability</h1>
+    <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Assign serial numbers and track assembly status</div>
+    <div style="background:var(--g5);border-radius:12px;padding:16px">
+      <h2 style="font-size:16px;font-weight:700;margin-bottom:12px">Assembly Traceability</h2>
+      ${rows}
+    </div>`;
+}
+async function mfgSelectAssemblyForTrace(assemblyId){
+  mfgTraceSelectedAssemblyId = mfgTraceSelectedAssemblyId===assemblyId ? null : assemblyId;
+  if(mfgTraceSelectedAssemblyId){
+    try{
+      const full=await fetch(`/api/manufacturing/assemblies/${assemblyId}`).then(r=>r.json());
+      mfgTraceUnits=full.units||[];
+    }catch(e){ mfgTraceUnits=[]; }
+  }
+  renderMfgTraceability();
+}
+function mfgUnitStatusBadge(unit){
+  // Delivered (sold) -> green. Serial assigned but not yet delivered ->
+  // blue ("Traceable"). No serial yet -> amber ("Pending Serial").
+  let label, color;
+  if(unit.sold){ label='Delivered'; color='#27AE60'; }
+  else if(unit.serialNumber){ label='Traceable'; color='#2980B9'; }
+  else { label='Pending Serial'; color='#F39C12'; }
+  return `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color}">${label}</span>`;
+}
+function mfgTraceUnitsHtml(){
+  if(!mfgTraceUnits.length) return '<div style="font-size:13px;color:var(--g3);padding:10px 0">No units for this assembly.</div>';
+  return `
+    <table style="width:100%;font-size:13px;margin-top:8px">
+      <thead><tr><th style="text-align:left">Unit #</th><th style="text-align:left">Serial Number</th><th>Status</th><th></th></tr></thead>
+      <tbody>${mfgTraceUnits.map(u=>`<tr>
+        <td>${u.unitNumber}</td>
+        <td>
+          <input type="text" id="mfg-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…"
+            style="padding:6px;border:1px solid var(--border);border-radius:6px;width:160px">
+        </td>
+        <td style="text-align:center">${mfgUnitStatusBadge(u)}</td>
+        <td><button class="btn-sm btn-primary" onclick="saveMfgUnitSerial('${u.id}')">Save</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+async function saveMfgUnitSerial(unitId){
+  const input=document.getElementById('mfg-trace-serial-'+unitId);
+  const serialNumber=input.value.trim()||null;
   try{
-    const full=await fetch(`/api/manufacturing/assemblies/${assemblyId}`).then(r=>r.json());
-    const units=full.units||[];
-    document.getElementById('mfg-units-body').innerHTML = !units.length
-      ? '<div class="empty-state">No unit records for this assembly.</div>'
-      : `<table style="width:100%;font-size:13px">
-          <thead><tr><th style="text-align:left">Unit #</th><th style="text-align:left">Serial</th><th>Sold</th><th></th></tr></thead>
-          <tbody>${units.map(u=>`<tr>
-            <td>${u.unitNumber}</td>
-            <td>${esc(u.serialNumber||'—')}</td>
-            <td style="text-align:center">${u.sold?'✅':'—'}</td>
-            <td style="text-align:center">${u.serialNumber?`<button class="btn-sm btn-ghost" onclick="closeModal('mfg-units-modal');openMfgTraceModal('${esc(u.serialNumber)}')">Trace</button>`:''}</td>
-          </tr>`).join('')}</tbody>
-        </table>`;
-  }catch(e){ document.getElementById('mfg-units-body').innerHTML=`<div style="color:var(--red)">Could not load units.</div>`; }
+    const r=await fetch(`/api/manufacturing/units/${unitId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialNumber})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    showToast('Serial number saved ✓','success');
+    const idx=mfgTraceUnits.findIndex(u=>u.id===unitId);
+    if(idx>=0) mfgTraceUnits[idx].serialNumber=serialNumber;
+    document.getElementById('mfg-trace-units-panel').innerHTML=mfgTraceUnitsHtml();
+  }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Sales (pick specific assembled units by serial) ──────────────────────────
 let salesLoaded=false;
 let salesList=[];
 let salesUnsoldUnits=[]; // flattened list of unsold mfg_assembly_units across all assemblies, with product/serial info
