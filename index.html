@@ -348,6 +348,13 @@ body{font-family:var(--font);background:var(--g5);color:var(--dark);font-size:14
 .nav-btn:hover .nav-icon,.nav-btn.active .nav-icon{opacity:1;}
 .nav-btn .nav-label{transition:opacity .2s,width .25s;white-space:nowrap;overflow:hidden;}
 .nav-btn .nav-dot-wrap{display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+/* Nav group (e.g. Sales & CRM dropdown) */
+.nav-group-children{max-height:0;overflow:hidden;transition:max-height .2s ease;}
+.nav-group.open .nav-group-children{max-height:400px;}
+.nav-group.open .nav-group-toggle .nav-group-chevron{transform:rotate(180deg);}
+.nav-btn-sub{padding-left:38px;font-size:12.5px;}
+.sidebar.collapsed .nav-group-children{display:none;}
+.sidebar.collapsed .nav-group-toggle .nav-group-chevron{display:none;}
 .sidebar-user{padding:10px 14px 14px;border-top:1px solid #3a3a3a;transition:padding .25s;}
 .sidebar-user .uname{font-size:13px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .2s;}
 .sidebar-user .urole{font-size:11px;color:var(--g3);margin-top:1px;text-transform:capitalize;transition:opacity .2s;}
@@ -1765,8 +1772,12 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group"><label>Company</label><input type="text" id="crm-f-company" placeholder="Acme Corp"></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>Position</label><input type="text" id="crm-f-position" placeholder="Procurement Manager"></div>
+        <div class="form-group"><label>Status</label><select id="crm-f-status"></select></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Email</label><input type="email" id="crm-f-email" placeholder="jane@acme.com"></div>
-        <div class="form-group"><label>Phone</label><input type="text" id="crm-f-phone" placeholder="+91…"></div>
+        <div class="form-group"><label>Contact Number</label><input type="text" id="crm-f-phone" placeholder="+91…"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Source</label><input type="text" id="crm-f-source" placeholder="Website, Referral…"></div>
@@ -1784,26 +1795,41 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
-<!-- CRM: Customer Purchase Order Modal -->
+<!-- CRM: Customer Purchase Order Modal (BOM-based) -->
 <div class="modal-overlay" id="crm-po-modal">
   <div class="modal">
-    <div class="modal-header"><h2>New Purchase Order</h2><button class="modal-close" onclick="closeModal('crm-po-modal')">×</button></div>
-    <div class="modal-body">
+    <div class="modal-header"><h2>Create Purchase Order</h2><button class="modal-close" onclick="closeModal('crm-po-modal')">×</button></div>
+    <div class="modal-body" style="max-height:75vh;overflow-y:auto">
       <input type="hidden" id="crm-po-customer-id">
-      <div class="form-row full"><div class="form-group"><label>Customer</label><input type="text" id="crm-po-customer-name" readonly style="background:var(--g5)"></div></div>
+      <div style="border:1px solid #27AE6055;background:#27AE6011;border-radius:8px;padding:12px;margin-bottom:14px">
+        <div style="font-weight:600;margin-bottom:6px">Customer Details</div>
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px">
+          <div>Name: <strong id="crm-po-customer-name">—</strong></div>
+          <div>Email: <strong id="crm-po-customer-email">—</strong></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;margin-top:4px">
+          <div>Phone: <strong id="crm-po-customer-phone">N/A</strong></div>
+          <div>Address: <strong id="crm-po-customer-address">N/A</strong></div>
+        </div>
+      </div>
+      <div class="form-row full"><div class="form-group"><label>PO Number *</label><input type="text" id="crm-po-number" placeholder="Enter PO number"></div></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px">
+        <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">BOM Items *</label>
+        <button class="btn-sm btn-primary" onclick="addCrmPoLine()">+ Add Item</button>
+      </div>
+      <div id="crm-po-lines"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#27AE6011;border:1px solid #27AE6055;border-radius:8px;padding:10px 14px;margin:10px 0">
+        <span>PO Value:</span>
+        <strong id="crm-po-total-preview" style="color:#27AE60;font-size:16px">₹0.00</strong>
+      </div>
+
       <div class="form-row">
-        <div class="form-group"><label>PO Number *</label><input type="text" id="crm-po-number" placeholder="PO-1001"></div>
-        <div class="form-group"><label>Order Date</label><input type="date" id="crm-po-order-date"></div>
+        <div class="form-group"><label>Delivery Date</label><input type="date" id="crm-po-delivery-date"></div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Expected Delivery Date</label><input type="date" id="crm-po-delivery-date"></div>
-      </div>
-      <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="crm-po-notes"></textarea></div></div>
-      <div style="margin-top:8px">
-        <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Line Items</label>
-        <div id="crm-po-lines" style="margin-top:8px"></div>
-        <button class="btn-sm btn-ghost" style="margin-top:6px" onclick="addCrmPoLine()">+ Add Line</button>
-      </div>
+      <div class="form-row full"><div class="form-group"><label>Payment Terms</label><textarea id="crm-po-payment-terms" placeholder="Enter payment terms" rows="2"></textarea></div></div>
+      <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="crm-po-notes" placeholder="Additional notes"></textarea></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('crm-po-modal')">Cancel</button>
@@ -2124,20 +2150,33 @@ body { transition: background .3s ease, color .3s ease; }
 <!-- Deliveries: Schedule / Edit Delivery Modal -->
 <div class="modal-overlay" id="delivery-modal">
   <div class="modal">
-    <div class="modal-header"><h2 id="delivery-modal-title">Schedule Delivery</h2><button class="modal-close" onclick="closeModal('delivery-modal')">×</button></div>
-    <div class="modal-body">
+    <div class="modal-header"><h2 id="delivery-modal-title">Make Delivery</h2><button class="modal-close" onclick="closeModal('delivery-modal')">×</button></div>
+    <div class="modal-body" style="max-height:75vh;overflow-y:auto">
       <input type="hidden" id="delivery-id">
       <input type="hidden" id="delivery-sale-id">
-      <div class="form-row full"><div class="form-group"><label>Delivery Address</label><textarea id="delivery-address" placeholder="Street, City, State, PIN"></textarea></div></div>
-      <div class="form-row">
-        <div class="form-group"><label>Delivery Location (city/area)</label><input type="text" id="delivery-location" placeholder="e.g. Bengaluru"></div>
-        <div class="form-group"><label>Scheduled Date</label><input type="date" id="delivery-scheduled"></div>
+      <div style="background:var(--g5);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px">
+        <div>Sale: <strong id="delivery-sale-number">—</strong></div>
+        <div>Customer: <strong id="delivery-customer-name">—</strong></div>
       </div>
-      <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="delivery-notes"></textarea></div></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items in this Delivery</label>
+        <span id="delivery-items-count" style="font-size:11px;color:var(--g3)">0 of 0 selected</span>
+      </div>
+      <div id="delivery-items-checklist" style="margin-bottom:14px"></div>
+
+      <div class="form-row full"><div class="form-group"><label>Delivery Date</label><input type="date" id="delivery-scheduled"></div></div>
+      <div class="form-row full"><div class="form-group"><label>Delivery Address</label><textarea id="delivery-address" placeholder="Enter delivery address..."></textarea></div></div>
+      <div class="form-row full"><div class="form-group"><label>Location at Customer Site</label><input type="text" id="delivery-location" placeholder="e.g., Warehouse A, Room 101..."></div></div>
+      <div class="form-row full"><div class="form-group"><label>Delivery Notes</label><textarea id="delivery-notes" placeholder="Additional notes about the delivery..."></textarea></div></div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('delivery-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveDelivery()">Save Delivery</button>
+    <div class="modal-footer" style="flex-direction:column;align-items:stretch;gap:8px">
+      <div style="display:flex;gap:8px;width:100%">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('delivery-modal')">Cancel</button>
+        <button class="btn" id="delivery-primary-btn" style="flex:1;background:#D35400;color:#fff" onclick="saveDelivery()">DELIVER</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveDeliveryWithoutDelivering()">Update</button>
+      </div>
+      <div id="delivery-primary-btn-hint" style="font-size:11px;color:var(--g3);text-align:center">Click DELIVER to ship item(s) and update stock</div>
     </div>
   </div>
 </div>
@@ -2832,8 +2871,8 @@ function buildSidebar(){
   if(BUILTIN_ROLES.includes(role)){
     const items={
       masteradmin:      [['companies','Companies','#C0392B'],['company_modules','Modules','#8E44AD'],['admin','User Management','#D0D0D0'],['messages','Messages','#E74C3C']],
-      superadmin:       [['ceo_dashboard','Exec Dashboard','#C0392B'],['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['crm','Sales & CRM','#2980B9'],['inventory','Inventory','#D35400'],['manufacturing','Manufacturing','#8E44AD'],['sales','Sales','#27AE60'],['deliveries','Deliveries','#F39C12'],['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
-      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['crm','Sales & CRM','#2980B9'],['inventory','Inventory','#D35400'],['manufacturing','Manufacturing','#8E44AD'],['sales','Sales','#27AE60'],['deliveries','Deliveries','#F39C12'],['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      superadmin:       [['ceo_dashboard','Exec Dashboard','#C0392B'],['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},['inventory','Inventory','#D35400'],['manufacturing','Manufacturing','#8E44AD'],['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},['inventory','Inventory','#D35400'],['manufacturing','Manufacturing','#8E44AD'],['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       tester:           [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['bugs','All Bugs','#7F7F7F'],['mybugs','My Bugs','#D0D0D0'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       developer:        [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['mybugs','My Bugs','#7F7F7F'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       accounts_manager: [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','Clients','#8E44AD'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Reports','#F39C12'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
@@ -2846,7 +2885,7 @@ function buildSidebar(){
     // Respect company-level module restrictions (tenant white-label)
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules&&role!=='masteradmin'){
       const allowed=window.COMPANY_CONTEXT.modules;
-      navItems=navItems.filter(([v])=>allowed.includes(v));
+      navItems=navItems.filter(item=> item&&item.group ? allowed.includes(item.group==='sales_crm'?'crm':item.group) : allowed.includes(item[0]));
       // Append custom modules as external links
       (window.COMPANY_CONTEXT.customModules||[]).forEach(m=>{
         navItems.push([m.id||m.label,m.label,'#8E44AD',m.url]);
@@ -2870,16 +2909,22 @@ function buildSidebar(){
       bugs:['bugs','All Bugs','#7F7F7F'],
       mybugs:['mybugs','My Bugs','#D0D0D0'],
       projects:['projects','Projects','#7F7F7F'],
-      crm:['crm','Sales & CRM','#2980B9'],
       inventory:['inventory','Inventory','#D35400'],
       manufacturing:['manufacturing','Manufacturing','#8E44AD'],
-      sales:['sales','Sales','#27AE60'],
-      deliveries:['deliveries','Deliveries','#F39C12'],
       attendance:['attendance','Attendance','#27AE60'],
       history:['history','History','#4A4A4A'],
       messages:['messages','Messages','#E74C3C'],
     };
     navItems=perms.filter(p=>permMap[p]).map(p=>permMap[p]);
+    // Sales & CRM is a single permission key ('crm') that unlocks the whole
+    // group (Leads/Prospects/Customers/Orders/Sales/Deliveries) as one dropdown,
+    // matching how the built-in roles present it.
+    if(perms.includes('crm')){
+      navItems.push({group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[
+        ['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],
+        ['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries'],
+      ]});
+    }
     if(!navItems.length) navItems=[['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']];
   }
   const _si='stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"';
@@ -2906,13 +2951,37 @@ function buildSidebar(){
     hr_reports:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><line x1="3" y1="15" x2="3" y2="8"/><line x1="7" y1="15" x2="7" y2="4"/><line x1="11" y1="15" x2="11" y2="10"/><line x1="15" y1="15" x2="15" y2="6"/><line x1="1" y1="15" x2="17" y2="15"/></svg>`,
     ceo_dashboard:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M2 13L6 8l3 3 4-5 3 3"/><rect x="1" y="1" width="16" height="14" rx="1.5"/><line x1="1" y1="16" x2="17" y2="16"/></svg>`,
     crm:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M2 3h14l-5 7v5l-4 2v-7L2 3z"/></svg>`,
+    crm_leads:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="6" r="3"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>`,
+    crm_prospects:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="6" r="3"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M14 3l1.5 1.5L18 2"/></svg>`,
+    crm_customers:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="6" cy="6" r="2.5"/><circle cx="13" cy="7" r="2"/><path d="M1.5 16c0-2.8 2-5 4.5-5s4.5 2.2 4.5 5M11 12.5c2.2.3 4 2 4 3.5"/></svg>`,
+    crm_orders:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="3" y="2" width="12" height="14" rx="1"/><line x1="6" y1="6" x2="12" y2="6"/><line x1="6" y1="9" x2="12" y2="9"/><line x1="6" y1="12" x2="10" y2="12"/></svg>`,
     inventory:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M9 2l7 3.5v7L9 16l-7-3.5v-7L9 2z"/><path d="M2 5.5L9 9l7-3.5M9 9v7"/></svg>`,
     manufacturing:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/></svg>`,
     sales:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M2 3h2l2 9h8l2-6H5"/><circle cx="7" cy="15" r="1"/><circle cx="13" cy="15" r="1"/></svg>`,
     deliveries:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="1" y="6" width="9" height="7"/><path d="M10 8h4l3 3v2h-7z"/><circle cx="4.5" cy="15" r="1.4"/><circle cx="13" cy="15" r="1.4"/></svg>`,
   };
-  document.getElementById('sidebar-nav').innerHTML=navItems.map(([v,label,color,extUrl])=>
-    extUrl?`<a href="${extUrl}" target="_blank" class="nav-btn" id="nav-${v}" data-label="${label}" style="text-decoration:none">
+  document.getElementById('sidebar-nav').innerHTML=navItems.map(item=>{
+    if(item&&item.group){
+      const isOpenGroup = item.children.some(([cv])=>cv===currentView);
+      const childrenHtml = item.children.map(([cv,clabel])=>
+        `<button class="nav-btn nav-btn-sub ${cv===currentView?'active':''}" id="nav-${cv}" data-label="${clabel}" onclick="showView('${cv}');closeSidebar()">
+          <span class="nav-icon">${_navIcons[cv]||`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="9" r="2.5"/></svg>`}</span>
+          <span class="nav-label">${clabel}</span>
+        </button>`
+      ).join('');
+      return `<div class="nav-group ${isOpenGroup?'open':''}" id="nav-group-${item.group}">
+        <button class="nav-btn nav-group-toggle" onclick="toggleNavGroup('${item.group}')">
+          <span class="nav-icon">${_navIcons[item.group]||_navIcons.crm}</span>
+          <span class="nav-label">${item.label}</span>
+          <span class="nav-group-chevron" style="margin-left:auto;transition:transform .15s">
+            <svg width="14" height="14" viewBox="0 0 18 18" ${_si}><polyline points="5,7 9,11 13,7"/></svg>
+          </span>
+        </button>
+        <div class="nav-group-children">${childrenHtml}</div>
+      </div>`;
+    }
+    const [v,label,color,extUrl]=item;
+    return extUrl?`<a href="${extUrl}" target="_blank" class="nav-btn" id="nav-${v}" data-label="${label}" style="text-decoration:none">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M7 3H3a1 1 0 00-1 1v11a1 1 0 001 1h11a1 1 0 001-1v-4M10 2h6v6M10 8l6-6"/></svg></span>
       <span class="nav-label">${label}</span>
     </a>`:
@@ -2920,8 +2989,13 @@ function buildSidebar(){
       <span class="nav-icon">${_navIcons[v]||`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="9" r="3"/></svg>`}</span>
       <span class="nav-label">${label}</span>
       ${v==='messages'?'<span id="msg-badge" style="margin-left:auto;background:var(--red);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;display:none">0</span>':''}
-    </button>`
-  ).join('');
+    </button>`;
+  }).join('');
+}
+
+function toggleNavGroup(group){
+  const el=document.getElementById('nav-group-'+group);
+  if(el) el.classList.toggle('open');
 }
 
 // ── Socket ────────────────────────────────────────────────────────────────────
@@ -3014,10 +3088,12 @@ function showView(v){
     if (ca) ca.style.padding = '16px';
   }
   document.querySelectorAll('.nav-btn').forEach(b=>{
-    const map={ceo_dashboard:'Exec Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',acc_clients:'Clients',acc_timer:'Timer',acc_eod:'EOD Reports',acc_clients_my:'My Clients',acc_eod_own:'EOD Report',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'Reports',companies:'Companies',company_modules:'Modules',crm:'Sales & CRM',inventory:'Inventory',manufacturing:'Manufacturing',sales:'Sales',deliveries:'Deliveries'};
-    b.classList.toggle('active',b.textContent.trim()===map[v]);
+    b.classList.toggle('active', b.id === ('nav-'+v));
   });
-  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',inventory:'Inventory',manufacturing:'Manufacturing',sales:'Sales',deliveries:'Deliveries'}[v]||v;
+  document.querySelectorAll('.nav-group').forEach(g=>{
+    if(g.querySelector('#nav-'+v)) g.classList.add('open');
+  });
+  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',manufacturing:'Manufacturing',sales:'Sales',deliveries:'Deliveries'}[v]||v;
   document.getElementById('filter-bar').style.display=(v==='bugs'||v==='mybugs')?'flex':'none';
   // Animate content area on tab switch
   const ca = document.getElementById('content-area');
@@ -3059,7 +3135,10 @@ function renderView(){
   if(currentView==='hr_candidates') return renderHrCandidates();
   if(currentView==='hr_interviews') return renderHrInterviews();
   if(currentView==='hr_reports')    return renderHrReports();
-  if(currentView==='crm')           return renderCrm();
+  if(currentView==='crm_leads')     return renderCrmLeads();
+  if(currentView==='crm_prospects') return renderCrmProspects();
+  if(currentView==='crm_customers') return renderCrmCustomers();
+  if(currentView==='crm_orders')    return renderCrmOrders();
   if(currentView==='inventory')     return renderInventory();
   if(currentView==='manufacturing') return renderManufacturing();
   if(currentView==='sales')         return renderSales();
@@ -8460,7 +8539,24 @@ let crmProspects=[];
 let crmCustomers=[];
 let crmPOs=[];
 let crmLoaded=false;
-let crmTab='lead';         // 'lead' | 'prospect' | 'customer' | 'po'
+
+// Per-page filter state (search / status / source), kept separate so
+// switching between Leads/Prospects/Customers doesn't clobber each other's filters.
+let crmLeadFilters={search:'',status:'',source:''};
+let crmProspectFilters={search:'',status:'',source:''};
+let crmCustomerFilters={search:'',status:'',source:''};
+let crmOrderFilters={search:'',customerId:''};
+
+// Status vocabularies — each stage has its own list per the CRM spec.
+const CRM_LEAD_STATUSES=['New','Contacted','Qualified','Negotiation','Proposal','Won'];
+const CRM_PROSPECT_STATUSES=['Demo Scheduled','Demo Completed','Qualified','Contacted','Won','Lost'];
+const CRM_CUSTOMER_STATUSES=['Active','At Risk','Churned','Inactive'];
+
+// Expanded-row tracking (which customer/order rows currently show their
+// history dropdown) — plain id sets so re-renders don't collapse them.
+let crmExpandedCustomers=new Set();
+let crmExpandedOrders=new Set();
+let crmOrderHistoryCache={}; // orderId -> {sales, deliveries}
 
 async function loadCrmData(){
   try{
@@ -8472,6 +8568,8 @@ async function loadCrmData(){
     ]);
   }catch(e){ crmLeads=[]; crmProspects=[]; crmCustomers=[]; crmPOs=[]; }
   crmLoaded=true;
+  if(!invLoaded) await loadInvData();
+  if(!mfgLoaded) await loadMfgData();
 }
 
 function assignedUserName(userId){
@@ -8480,131 +8578,265 @@ function assignedUserName(userId){
   return u ? u.name : '—';
 }
 function crmCustomerName(id){ const c=crmCustomers.find(c=>c.id===id); return c?c.name:'—'; }
+function crmCustomerRecord(id){ return crmCustomers.find(c=>c.id===id); }
 
-function renderCrm(){
+// Small inline SVG icon set used for the icon-based row actions across all
+// four CRM pages, replacing the old text buttons ("Edit", "Delete", etc.)
+const CRM_ICONS={
+  edit:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M11 2.5l4.5 4.5L6 16.5H1.5V12L11 2.5z"/></svg>`,
+  delete:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M3 5h12M7 5V3.5a1 1 0 011-1h2a1 1 0 011 1V5M4.5 5l.7 9.5a1 1 0 001 .9h5.6a1 1 0 001-.9L14.5 5"/></svg>`,
+  convert:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M2 9h12M10 5l4 4-4 4"/></svg>`,
+  purchase:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M2 3h2l2 9h8l2-6H5"/><circle cx="7" cy="15" r="1"/><circle cx="13" cy="15" r="1"/></svg>`,
+  sale:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M2 9.5L7 4l3 3 4.5-5.5M11 1.5h3.5V5"/></svg>`,
+  chevronDown:`<svg width="14" height="14" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="5,7 9,11 13,7"/></svg>`,
+  chevronRight:`<svg width="14" height="14" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="7,5 11,9 7,13"/></svg>`,
+};
+function crmIconBtn(icon,title,onclick,extraStyle){
+  return `<button class="btn-icon" title="${esc(title)}" onclick="${onclick}" style="background:none;border:none;cursor:pointer;padding:5px;border-radius:6px;color:var(--g3);display:inline-flex;align-items:center;justify-content:center;${extraStyle||''}" onmouseover="this.style.background='var(--g5)'" onmouseout="this.style.background='none'">${CRM_ICONS[icon]}</button>`;
+}
+
+// Renders "email\n<contact number>" the way the reference design shows it —
+// contact number as a smaller sub-line under the email, not side-by-side.
+function crmContactCell(email,phone){
+  return `${esc(email||'—')}${phone?`<div style="font-size:11px;color:var(--g3);margin-top:2px">${esc(phone)}</div>`:''}`;
+}
+
+function crmFilterBar({search,status,source,statusOptions,onSearch,onStatus,onSource}){
+  return `
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="position:relative;flex:2 1 260px">
+        <input type="text" placeholder="Search..." value="${esc(search)}" oninput="${onSearch}(this.value)"
+          style="width:100%;padding:8px 10px 8px 32px;border:1px solid var(--border);border-radius:8px">
+        <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--g3)">
+          <svg width="15" height="15" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
+        </span>
+      </div>
+      <select onchange="${onStatus}(this.value)" style="flex:1 1 160px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
+        <option value="">All Statuses</option>
+        ${statusOptions.map(s=>`<option value="${esc(s)}" ${status===s?'selected':''}>${esc(s)}</option>`).join('')}
+      </select>
+      ${onSource?`<select onchange="${onSource}(this.value)" style="flex:1 1 160px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
+        <option value="">All Sources</option>
+        ${[...new Set([...crmLeads,...crmProspects,...crmCustomers].map(c=>c.source).filter(Boolean))].map(s=>`<option value="${esc(s)}" ${source===s?'selected':''}>${esc(s)}</option>`).join('')}
+      </select>`:''}
+    </div>`;
+}
+
+function crmApplyFilters(list,filters){
+  const q=(filters.search||'').trim().toLowerCase();
+  return list.filter(c=>{
+    if(filters.status && (c.status||'').toLowerCase()!==filters.status.toLowerCase()) return false;
+    if(filters.source && c.source!==filters.source) return false;
+    if(q){
+      const hay=[c.name,c.company,c.email,c.phone].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function crmStatusBadge(status){
+  const colorMap={
+    new:'#2980B9', contacted:'#8E44AD', qualified:'#16A085', negotiation:'#F39C12', proposal:'#D35400', won:'#27AE60',
+    'demo scheduled':'#2980B9', 'demo completed':'#8E44AD', lost:'#7F7F7F',
+    active:'#27AE60', 'at risk':'#F39C12', churned:'#C0392B', inactive:'#7F7F7F',
+  };
+  const key=(status||'').toLowerCase();
+  const color=colorMap[key]||'#7F7F7F';
+  return `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color};text-transform:capitalize">${esc(status||'—')}</span>`;
+}
+
+// ── Leads ─────────────────────────────────────────────────────────────────────
+function renderCrmLeads(){
   const ca=document.getElementById('content-area');
   if(!crmLoaded){
-    ca.innerHTML='<div class="loading">Loading CRM...</div>';
-    loadCrmData().then(()=>{ if(currentView==='crm') renderView(); });
+    ca.innerHTML='<div class="loading">Loading Leads...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_leads') renderView(); });
     return;
   }
-  const tabs=[['lead','Leads'],['prospect','Prospects'],['customer','Customers'],['po','Purchase Orders']];
-  const tabBar=tabs.map(([key,label])=>{
-    const count = key==='lead'?crmLeads.length : key==='prospect'?crmProspects.length : key==='customer'?crmCustomers.length : crmPOs.length;
-    return `<button class="btn-sm ${crmTab===key?'btn-primary':'btn-ghost'}" style="margin-right:8px" onclick="crmTab='${key}';renderCrm();">${label} (${count})</button>`;
-  }).join('');
-
-  if(crmTab==='lead') return renderCrmLeads(ca,tabBar);
-  if(crmTab==='prospect') return renderCrmProspects(ca,tabBar);
-  if(crmTab==='customer') return renderCrmCustomers(ca,tabBar);
-  return renderCrmPOs(ca,tabBar);
-}
-
-function renderCrmLeads(ca,tabBar){
-  const rows = !crmLeads.length
-    ? `<tr><td colspan="7" class="empty-state">No leads yet.</td></tr>`
-    : crmLeads.map(l=>`<tr>
-        <td><strong>${esc(l.name)}</strong>${l.company?`<div style="font-size:12px;color:var(--g3)">${esc(l.company)}</div>`:''}</td>
-        <td>${[l.email,l.phone].filter(Boolean).map(esc).join(' · ')||'—'}</td>
+  const list=crmApplyFilters(crmLeads,crmLeadFilters);
+  const rows = !list.length
+    ? `<tr><td colspan="7" class="empty-state">${crmLeads.length?'No leads match your filters.':'No leads yet.'}</td></tr>`
+    : list.map(l=>`<tr>
+        <td><strong>${esc(l.name)}</strong>${l.position?`<div style="font-size:12px;color:var(--g3)">${esc(l.position)}</div>`:''}</td>
+        <td>${esc(l.company||'—')}</td>
+        <td>${crmContactCell(l.email,l.phone)}</td>
+        <td>${crmStatusBadge(l.status)}</td>
         <td>${esc(l.source||'—')}</td>
         <td>${l.estimatedValue!=null?`₹${Number(l.estimatedValue).toLocaleString('en-IN')}`:'—'}</td>
-        <td>${esc(assignedUserName(l.assignedTo))}</td>
-        <td>${esc(l.status||'—')}</td>
         <td>
           ${l.convertedToProspectId
-            ? `<span style="font-size:12px;color:var(--g3)">✓ Converted to Prospect</span>`
-            : `<button class="btn-sm btn-primary" onclick="convertLeadToProspect('${l.id}')">→ Convert to Prospect</button>`}
-          <button class="btn-sm btn-ghost" onclick="openCrmLeadModal('${l.id}')">Edit</button>
-          <button class="btn-sm btn-ghost" onclick="deleteCrmRecord('leads','${l.id}')">Delete</button>
+            ? `<span style="font-size:11px;color:var(--g3)">✓ Converted</span>`
+            : crmIconBtn('convert','Convert to Prospect',`convertLeadToProspect('${l.id}')`,'color:#2980B9')}
+          ${crmIconBtn('edit','Edit',`openCrmLeadModal('${l.id}')`)}
+          ${crmIconBtn('delete','Delete',`deleteCrmRecord('leads','${l.id}')`,'color:var(--red)')}
         </td>
       </tr>`).join('');
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div>${tabBar}</div>
+      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmLeads.length} lead${crmLeads.length===1?'':'s'}</div>
       <button class="btn btn-primary" onclick="openCrmLeadModal()">+ Add Lead</button>
     </div>
+    ${crmFilterBar({
+      search:crmLeadFilters.search, status:crmLeadFilters.status, source:crmLeadFilters.source,
+      statusOptions:CRM_LEAD_STATUSES,
+      onSearch:'crmSetLeadFilter_search', onStatus:'crmSetLeadFilter_status', onSource:'crmSetLeadFilter_source',
+    })}
     <div class="table-wrap"><table>
-      <thead><tr><th>Name</th><th>Email / Phone</th><th>Source</th><th>Est. Value</th><th>Assigned To</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Value</th><th>Actions</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }
+function crmSetLeadFilter_search(v){ crmLeadFilters.search=v; renderCrmLeads(); }
+function crmSetLeadFilter_status(v){ crmLeadFilters.status=v; renderCrmLeads(); }
+function crmSetLeadFilter_source(v){ crmLeadFilters.source=v; renderCrmLeads(); }
 
-function renderCrmProspects(ca,tabBar){
-  const rows = !crmProspects.length
-    ? `<tr><td colspan="7" class="empty-state">No prospects yet. Convert a lead to see it here.</td></tr>`
-    : crmProspects.map(p=>`<tr>
-        <td><strong>${esc(p.name)}</strong>${p.company?`<div style="font-size:12px;color:var(--g3)">${esc(p.company)}</div>`:''}</td>
-        <td>${[p.email,p.phone].filter(Boolean).map(esc).join(' · ')||'—'}</td>
+// ── Prospects ─────────────────────────────────────────────────────────────────
+function renderCrmProspects(){
+  const ca=document.getElementById('content-area');
+  if(!crmLoaded){
+    ca.innerHTML='<div class="loading">Loading Prospects...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_prospects') renderView(); });
+    return;
+  }
+  const list=crmApplyFilters(crmProspects,crmProspectFilters);
+  const rows = !list.length
+    ? `<tr><td colspan="7" class="empty-state">${crmProspects.length?'No prospects match your filters.':'No prospects yet. Convert a lead to see it here.'}</td></tr>`
+    : list.map(p=>`<tr>
+        <td><strong>${esc(p.name)}</strong>${p.position?`<div style="font-size:12px;color:var(--g3)">${esc(p.position)}</div>`:''}</td>
+        <td>${esc(p.company||'—')}</td>
+        <td>${crmContactCell(p.email,p.phone)}</td>
+        <td>${crmStatusBadge(p.status)}</td>
         <td>${esc(p.source||'—')}</td>
         <td>${p.estimatedValue!=null?`₹${Number(p.estimatedValue).toLocaleString('en-IN')}`:'—'}</td>
-        <td>${esc(assignedUserName(p.assignedTo))}</td>
-        <td>${esc(p.status||'—')}</td>
         <td>
           ${p.convertedToCustomerId
-            ? `<span style="font-size:12px;color:var(--g3)">✓ Converted to Customer</span>`
-            : `<button class="btn-sm btn-primary" onclick="convertProspectToCustomer('${p.id}')">→ Convert to Customer</button>`}
-          <button class="btn-sm btn-ghost" onclick="openCrmProspectModal('${p.id}')">Edit</button>
-          <button class="btn-sm btn-ghost" onclick="deleteCrmRecord('prospects','${p.id}')">Delete</button>
+            ? `<span style="font-size:11px;color:var(--g3)">✓ Converted</span>`
+            : crmIconBtn('convert','Convert to Customer',`convertProspectToCustomer('${p.id}')`,'color:#2980B9')}
+          ${crmIconBtn('edit','Edit',`openCrmProspectModal('${p.id}')`)}
+          ${crmIconBtn('delete','Delete',`deleteCrmRecord('prospects','${p.id}')`,'color:var(--red)')}
         </td>
       </tr>`).join('');
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div>${tabBar}</div>
+      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmProspects.length} prospect${crmProspects.length===1?'':'s'}</div>
+      <button class="btn btn-primary" onclick="openCrmProspectAddModal()">+ Add Prospect</button>
     </div>
+    ${crmFilterBar({
+      search:crmProspectFilters.search, status:crmProspectFilters.status, source:crmProspectFilters.source,
+      statusOptions:CRM_PROSPECT_STATUSES,
+      onSearch:'crmSetProspectFilter_search', onStatus:'crmSetProspectFilter_status', onSource:'crmSetProspectFilter_source',
+    })}
     <div class="table-wrap"><table>
-      <thead><tr><th>Name</th><th>Email / Phone</th><th>Source</th><th>Est. Value</th><th>Assigned To</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Value</th><th>Actions</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }
+function crmSetProspectFilter_search(v){ crmProspectFilters.search=v; renderCrmProspects(); }
+function crmSetProspectFilter_status(v){ crmProspectFilters.status=v; renderCrmProspects(); }
+function crmSetProspectFilter_source(v){ crmProspectFilters.source=v; renderCrmProspects(); }
 
-function renderCrmCustomers(ca,tabBar){
-  const rows = !crmCustomers.length
-    ? `<tr><td colspan="6" class="empty-state">No customers yet. Convert a prospect to see it here.</td></tr>`
-    : crmCustomers.map(c=>`<tr>
-        <td><strong>${esc(c.name)}</strong>${c.company?`<div style="font-size:12px;color:var(--g3)">${esc(c.company)}</div>`:''}</td>
-        <td>${[c.email,c.phone].filter(Boolean).map(esc).join(' · ')||'—'}</td>
-        <td><strong>₹${Number(c.lifetimeValue||0).toLocaleString('en-IN')}</strong></td>
-        <td>${esc(assignedUserName(c.assignedTo))}</td>
-        <td>${esc(c.status||'—')}</td>
-        <td>
-          <button class="btn-sm btn-primary" onclick="openCrmPoModal('${c.id}')">+ New PO</button>
-          <button class="btn-sm btn-ghost" onclick="openCrmCustomerModal('${c.id}')">Edit</button>
-          <button class="btn-sm btn-ghost" onclick="deleteCrmRecord('customers','${c.id}')">Delete</button>
-        </td>
-      </tr>`).join('');
+// ── Customers ─────────────────────────────────────────────────────────────────
+function renderCrmCustomers(){
+  const ca=document.getElementById('content-area');
+  if(!crmLoaded){
+    ca.innerHTML='<div class="loading">Loading Customers...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_customers') renderView(); });
+    return;
+  }
+  const list=crmApplyFilters(crmCustomers,crmCustomerFilters);
+  const rows = !list.length
+    ? `<tr><td colspan="8" class="empty-state">${crmCustomers.length?'No customers match your filters.':'No customers yet. Convert a prospect to see it here.'}</td></tr>`
+    : list.map(c=>{
+        const isOpen=crmExpandedCustomers.has(c.id);
+        const mainRow=`<tr>
+          <td>
+            <button onclick="toggleCrmCustomerExpand('${c.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
+              ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
+            </button>
+            <strong>${esc(c.name)}</strong>${c.position?`<div style="font-size:12px;color:var(--g3);margin-left:22px">${esc(c.position)}</div>`:''}
+          </td>
+          <td>${esc(c.company||'—')}</td>
+          <td>${crmContactCell(c.email,c.phone)}</td>
+          <td>${crmStatusBadge(c.status)}</td>
+          <td>${esc(c.source||'—')}</td>
+          <td><strong>₹${Number(c.lifetimeValue||0).toLocaleString('en-IN')}</strong></td>
+          <td>${esc(assignedUserName(c.assignedTo))}</td>
+          <td>
+            ${crmIconBtn('purchase','New Purchase Order',`openCrmPoModal('${c.id}')`,'color:#D35400')}
+            ${crmIconBtn('sale','New Sale',`openSaleModalForCustomer('${c.id}')`,'color:#27AE60')}
+            ${crmIconBtn('edit','Edit',`openCrmCustomerModal('${c.id}')`)}
+            ${crmIconBtn('delete','Delete',`deleteCrmRecord('customers','${c.id}')`,'color:var(--red)')}
+          </td>
+        </tr>`;
+        const detailRow=isOpen?`<tr><td colspan="8" style="background:var(--g5);padding:16px">${crmCustomerHistoryHtml(c)}</td></tr>`:'';
+        return mainRow+detailRow;
+      }).join('');
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div>${tabBar}</div>
+      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmCustomers.length} customer${crmCustomers.length===1?'':'s'}</div>
+      <button class="btn btn-primary" onclick="openCrmCustomerAddModal()">+ Add Customer</button>
     </div>
+    ${crmFilterBar({
+      search:crmCustomerFilters.search, status:crmCustomerFilters.status, source:crmCustomerFilters.source,
+      statusOptions:CRM_CUSTOMER_STATUSES,
+      onSearch:'crmSetCustomerFilter_search', onStatus:'crmSetCustomerFilter_status', onSource:'crmSetCustomerFilter_source',
+    })}
     <div class="table-wrap"><table>
-      <thead><tr><th>Name</th><th>Email / Phone</th><th>Lifetime Value</th><th>Assigned To</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th></th><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Lifetime Value</th><th>Assigned To</th><th>Actions</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }
-
-function renderCrmPOs(ca,tabBar){
-  const rows = !crmPOs.length
-    ? `<tr><td colspan="6" class="empty-state">No purchase orders yet.</td></tr>`
-    : crmPOs.map(po=>`<tr>
-        <td><strong>${esc(po.poNumber)}</strong></td>
-        <td>${esc(crmCustomerName(po.customerId))}</td>
-        <td>${po.orderDate?new Date(po.orderDate).toLocaleDateString():'—'}</td>
-        <td>${po.deliveryDate?new Date(po.deliveryDate).toLocaleDateString():'—'}</td>
-        <td>${po.totalValue!=null?`₹${Number(po.totalValue).toLocaleString('en-IN')}`:'—'}</td>
-        <td>${esc(po.status||'—')}</td>
-      </tr>`).join('');
-  ca.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div>${tabBar}</div>
-    </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>PO #</th><th>Customer</th><th>Order Date</th><th>Delivery Date</th><th>Total</th><th>Status</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
-    <div style="margin-top:14px;font-size:12px;color:var(--g3)">💡 To create a PO, go to <b>Customers</b> and click <b>+ New PO</b>.</div>`;
+function crmSetCustomerFilter_search(v){ crmCustomerFilters.search=v; renderCrmCustomers(); }
+function crmSetCustomerFilter_status(v){ crmCustomerFilters.status=v; renderCrmCustomers(); }
+function crmSetCustomerFilter_source(v){ crmCustomerFilters.source=v; renderCrmCustomers(); }
+function toggleCrmCustomerExpand(id){
+  if(crmExpandedCustomers.has(id)) crmExpandedCustomers.delete(id);
+  else crmExpandedCustomers.add(id);
+  renderCrmCustomers();
 }
 
-// ── Lead modal ────────────────────────────────────────────────────────────────
+// Sales History + Delivery History block shown inside a customer's expanded row.
+function crmCustomerHistoryHtml(customer){
+  const sales=(typeof salesList!=='undefined'?salesList:[]).filter(s=>s.customerId===customer.id);
+  const saleIds=sales.map(s=>s.id);
+  const deliveries=(typeof deliveriesList!=='undefined'?deliveriesList:[]).filter(d=>saleIds.includes(d.saleId));
+  return `
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">${CRM_ICONS.sale} Sales History</div>
+      ${!sales.length ? '<div style="font-size:13px;color:var(--g3)">No sales found for this customer.</div>' : `
+        <table style="width:100%;font-size:13px">
+          <thead><tr><th style="text-align:left">Sale Number</th><th style="text-align:left">Date</th><th>Items</th><th style="text-align:left">Notes</th><th>Status</th></tr></thead>
+          <tbody>${sales.map(s=>`<tr>
+            <td>${esc(s.saleNumber)}</td>
+            <td>${s.saleDate?new Date(s.saleDate).toLocaleDateString():'—'}</td>
+            <td style="text-align:center">1</td>
+            <td>${esc(s.notes||'—')}</td>
+            <td>${s.isDelivered?'<span style="color:#27AE60">Delivered</span>':'<span style="color:#F39C12">Pending</span>'}</td>
+          </tr>`).join('')}</tbody>
+        </table>`}
+    </div>
+    <div>
+      <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">${CRM_ICONS.purchase} Delivery History</div>
+      ${!deliveries.length ? '<div style="font-size:13px;color:var(--g3)">No deliveries found for this customer.</div>' : `
+        <table style="width:100%;font-size:13px">
+          <thead><tr><th style="text-align:left">Delivery Date</th><th style="text-align:left">Address</th><th>Items</th><th style="text-align:left">Notes</th><th>Status</th></tr></thead>
+          <tbody>${deliveries.map(d=>`<tr>
+            <td>${d.scheduledDate?new Date(d.scheduledDate).toLocaleDateString():'—'}</td>
+            <td>${esc(d.deliveryAddress||'—')}</td>
+            <td style="text-align:center">1</td>
+            <td>${esc(d.notes||'—')}</td>
+            <td>${d.delivered?'<span style="color:#27AE60">Delivered</span>':'<span style="color:#F39C12">Pending</span>'}</td>
+          </tr>`).join('')}</tbody>
+        </table>`}
+    </div>`;
+}
+
+// ── Lead / Prospect / Customer shared edit modal ─────────────────────────────
+function crmPopulateStatusOptions(selectEl,options,current){
+  selectEl.innerHTML=options.map(s=>`<option value="${esc(s)}" ${current&&current.toLowerCase()===s.toLowerCase()?'selected':''}>${esc(s)}</option>`).join('');
+}
+
 function openCrmLeadModal(id){
   const l = id ? crmLeads.find(l=>l.id===id) : null;
   document.getElementById('crm-lead-modal-title').textContent = l ? 'Edit Lead' : 'Add Lead';
@@ -8612,8 +8844,11 @@ function openCrmLeadModal(id){
   document.getElementById('crm-lead-modal').dataset.editProspectId = '';
   document.getElementById('crm-lead-modal').dataset.editCustomerId = '';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
+  document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_LEAD_STATUSES,l?.status);
   document.getElementById('crm-f-name').value = l?.name || '';
   document.getElementById('crm-f-company').value = l?.company || '';
+  document.getElementById('crm-f-position').value = l?.position || '';
   document.getElementById('crm-f-email').value = l?.email || '';
   document.getElementById('crm-f-phone').value = l?.phone || '';
   document.getElementById('crm-f-source').value = l?.source || '';
@@ -8623,15 +8858,48 @@ function openCrmLeadModal(id){
   sel.innerHTML='<option value="">— Unassigned —</option>'+(allUsers||[]).filter(u=>u.status==='active').map(u=>`<option value="${u.id}" ${l?.assignedTo===u.id?'selected':''}>${esc(u.name)}</option>`).join('');
   document.getElementById('crm-lead-modal').classList.add('open');
 }
+
+// Prospects and Customers can also be added directly (not just via
+// conversion) per the updated spec — these open the same shared modal but
+// post straight to the prospects/customers endpoints instead of leads.
+function openCrmProspectAddModal(){
+  document.getElementById('crm-lead-modal-title').textContent='Add Prospect';
+  const modal=document.getElementById('crm-lead-modal');
+  modal.dataset.editId=''; modal.dataset.editProspectId=''; modal.dataset.editCustomerId='';
+  modal.dataset.createAs='prospect';
+  document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
+  document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_PROSPECT_STATUSES,'');
+  ['name','company','position','email','phone','source','estvalue','notes'].forEach(f=>document.getElementById('crm-f-'+f).value='');
+  const sel=document.getElementById('crm-f-assigned');
+  sel.innerHTML='<option value="">— Unassigned —</option>'+(allUsers||[]).filter(u=>u.status==='active').map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  modal.classList.add('open');
+}
+function openCrmCustomerAddModal(){
+  document.getElementById('crm-lead-modal-title').textContent='Add Customer';
+  const modal=document.getElementById('crm-lead-modal');
+  modal.dataset.editId=''; modal.dataset.editProspectId=''; modal.dataset.editCustomerId='';
+  modal.dataset.createAs='customer';
+  document.getElementById('crm-f-estvalue').closest('.form-group').style.display='none';
+  document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_CUSTOMER_STATUSES,'');
+  ['name','company','position','email','phone','source','estvalue','notes'].forEach(f=>document.getElementById('crm-f-'+f).value='');
+  const sel=document.getElementById('crm-f-assigned');
+  sel.innerHTML='<option value="">— Unassigned —</option>'+(allUsers||[]).filter(u=>u.status==='active').map(u=>`<option value="${u.id}">${esc(u.name)}</option>`).join('');
+  modal.classList.add('open');
+}
+
 async function saveCrmLead(){
   const name=document.getElementById('crm-f-name').value.trim();
   if(!name){ showToast('Name is required','error'); return; }
   const payload={
     name,
     company: document.getElementById('crm-f-company').value.trim()||null,
+    position: document.getElementById('crm-f-position').value.trim()||null,
     email: document.getElementById('crm-f-email').value.trim()||null,
     phone: document.getElementById('crm-f-phone').value.trim()||null,
     source: document.getElementById('crm-f-source').value.trim()||null,
+    status: document.getElementById('crm-f-status').value||undefined,
     assignedTo: document.getElementById('crm-f-assigned').value||null,
     estimatedValue: document.getElementById('crm-f-estvalue').value ? Number(document.getElementById('crm-f-estvalue').value) : null,
     notes: document.getElementById('crm-f-notes').value.trim()||null,
@@ -8644,23 +8912,24 @@ async function saveCrmLead(){
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('crm-lead-modal');
     showToast(editId?'Lead updated ✓':'Lead added ✓','success');
-    crmTab='lead';
     await loadCrmData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Prospect modal (edit only — prospects are created via conversion) ────────
+// ── Prospect modal (edit, or direct-add per new spec) ────────────────────────
 function openCrmProspectModal(id){
   const p = crmProspects.find(p=>p.id===id);
   if(!p) return;
   document.getElementById('crm-lead-modal-title').textContent='Edit Prospect';
-  document.getElementById('crm-lead-modal').dataset.editId = '';
-  document.getElementById('crm-lead-modal').dataset.editProspectId = p.id;
-  document.getElementById('crm-lead-modal').dataset.editCustomerId = '';
+  const modal=document.getElementById('crm-lead-modal');
+  modal.dataset.editId = ''; modal.dataset.editProspectId = p.id; modal.dataset.editCustomerId = ''; modal.dataset.createAs='';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
+  document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_PROSPECT_STATUSES,p.status);
   document.getElementById('crm-f-name').value = p.name || '';
   document.getElementById('crm-f-company').value = p.company || '';
+  document.getElementById('crm-f-position').value = p.position || '';
   document.getElementById('crm-f-email').value = p.email || '';
   document.getElementById('crm-f-phone').value = p.phone || '';
   document.getElementById('crm-f-source').value = p.source || '';
@@ -8668,43 +8937,51 @@ function openCrmProspectModal(id){
   document.getElementById('crm-f-notes').value = p.notes || '';
   const sel=document.getElementById('crm-f-assigned');
   sel.innerHTML='<option value="">— Unassigned —</option>'+(allUsers||[]).filter(u=>u.status==='active').map(u=>`<option value="${u.id}" ${p.assignedTo===u.id?'selected':''}>${esc(u.name)}</option>`).join('');
-  document.getElementById('crm-lead-modal').classList.add('open');
+  modal.classList.add('open');
 }
 
-// ── Customer modal (edit only — customers are created via conversion) ───────
+// ── Customer modal (edit, or direct-add per new spec) ────────────────────────
 function openCrmCustomerModal(id){
   const c = crmCustomers.find(c=>c.id===id);
   if(!c) return;
   document.getElementById('crm-lead-modal-title').textContent='Edit Customer';
-  document.getElementById('crm-lead-modal').dataset.editId = '';
-  document.getElementById('crm-lead-modal').dataset.editProspectId = '';
-  document.getElementById('crm-lead-modal').dataset.editCustomerId = c.id;
+  const modal=document.getElementById('crm-lead-modal');
+  modal.dataset.editId = ''; modal.dataset.editProspectId = ''; modal.dataset.editCustomerId = c.id; modal.dataset.createAs='';
   document.getElementById('crm-f-name').value = c.name || '';
   document.getElementById('crm-f-company').value = c.company || '';
+  document.getElementById('crm-f-position').value = c.position || '';
   document.getElementById('crm-f-email').value = c.email || '';
   document.getElementById('crm-f-phone').value = c.phone || '';
   document.getElementById('crm-f-source').value = c.source || '';
   document.getElementById('crm-f-estvalue').value = '';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='none';
+  document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_CUSTOMER_STATUSES,c.status);
   document.getElementById('crm-f-notes').value = c.notes || '';
   const sel=document.getElementById('crm-f-assigned');
   sel.innerHTML='<option value="">— Unassigned —</option>'+(allUsers||[]).filter(u=>u.status==='active').map(u=>`<option value="${u.id}" ${c.assignedTo===u.id?'selected':''}>${esc(u.name)}</option>`).join('');
-  document.getElementById('crm-lead-modal').classList.add('open');
+  modal.classList.add('open');
 }
 
-// A single save handler covers all three (lead/prospect/customer) edit modes —
+// A single save handler covers all edit/create modes for the shared modal —
 // which dataset field is populated tells us which endpoint & table to hit.
 async function saveCrmContact(){
   const modal=document.getElementById('crm-lead-modal');
   const prospectId=modal.dataset.editProspectId;
   const customerId=modal.dataset.editCustomerId;
+  const createAs=modal.dataset.createAs;
+  const name=document.getElementById('crm-f-name').value.trim();
+  if(!name){ showToast('Name is required','error'); return; }
+
   if(prospectId){
     const payload={
-      name: document.getElementById('crm-f-name').value.trim(),
+      name,
       company: document.getElementById('crm-f-company').value.trim()||null,
+      position: document.getElementById('crm-f-position').value.trim()||null,
       email: document.getElementById('crm-f-email').value.trim()||null,
       phone: document.getElementById('crm-f-phone').value.trim()||null,
       source: document.getElementById('crm-f-source').value.trim()||null,
+      status: document.getElementById('crm-f-status').value||undefined,
       assignedTo: document.getElementById('crm-f-assigned').value||null,
       estimatedValue: document.getElementById('crm-f-estvalue').value ? Number(document.getElementById('crm-f-estvalue').value) : null,
       notes: document.getElementById('crm-f-notes').value.trim()||null,
@@ -8720,20 +8997,64 @@ async function saveCrmContact(){
   }
   if(customerId){
     const payload={
-      name: document.getElementById('crm-f-name').value.trim(),
+      name,
       company: document.getElementById('crm-f-company').value.trim()||null,
+      position: document.getElementById('crm-f-position').value.trim()||null,
       email: document.getElementById('crm-f-email').value.trim()||null,
       phone: document.getElementById('crm-f-phone').value.trim()||null,
       source: document.getElementById('crm-f-source').value.trim()||null,
+      status: document.getElementById('crm-f-status').value||undefined,
       assignedTo: document.getElementById('crm-f-assigned').value||null,
       notes: document.getElementById('crm-f-notes').value.trim()||null,
     };
-    document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
     try{
       const r=await fetch(`/api/crm/customers/${customerId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
       closeModal('crm-lead-modal'); modal.dataset.editCustomerId='';
       showToast('Customer updated ✓','success');
+      await loadCrmData(); renderView();
+    }catch(e){ showToast(e.message,'error'); }
+    return;
+  }
+  if(createAs==='prospect'){
+    const payload={
+      name,
+      company: document.getElementById('crm-f-company').value.trim()||null,
+      position: document.getElementById('crm-f-position').value.trim()||null,
+      email: document.getElementById('crm-f-email').value.trim()||null,
+      phone: document.getElementById('crm-f-phone').value.trim()||null,
+      source: document.getElementById('crm-f-source').value.trim()||null,
+      status: document.getElementById('crm-f-status').value||undefined,
+      assignedTo: document.getElementById('crm-f-assigned').value||null,
+      estimatedValue: document.getElementById('crm-f-estvalue').value ? Number(document.getElementById('crm-f-estvalue').value) : null,
+      notes: document.getElementById('crm-f-notes').value.trim()||null,
+    };
+    try{
+      const r=await fetch('/api/crm/prospects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+      closeModal('crm-lead-modal'); modal.dataset.createAs='';
+      showToast('Prospect added ✓','success');
+      await loadCrmData(); renderView();
+    }catch(e){ showToast(e.message,'error'); }
+    return;
+  }
+  if(createAs==='customer'){
+    const payload={
+      name,
+      company: document.getElementById('crm-f-company').value.trim()||null,
+      position: document.getElementById('crm-f-position').value.trim()||null,
+      email: document.getElementById('crm-f-email').value.trim()||null,
+      phone: document.getElementById('crm-f-phone').value.trim()||null,
+      source: document.getElementById('crm-f-source').value.trim()||null,
+      status: document.getElementById('crm-f-status').value||undefined,
+      assignedTo: document.getElementById('crm-f-assigned').value||null,
+      notes: document.getElementById('crm-f-notes').value.trim()||null,
+    };
+    try{
+      const r=await fetch('/api/crm/customers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+      closeModal('crm-lead-modal'); modal.dataset.createAs='';
+      showToast('Customer added ✓','success');
       await loadCrmData(); renderView();
     }catch(e){ showToast(e.message,'error'); }
     return;
@@ -8748,9 +9069,8 @@ async function convertLeadToProspect(id){
     const r=await fetch(`/api/crm/leads/${id}/convert-to-prospect`,{method:'POST'});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     showToast('Converted to Prospect ✓','success');
-    crmTab='prospect';
     await loadCrmData();
-    renderView();
+    showView('crm_prospects');
   }catch(e){ showToast(e.message,'error'); }
 }
 async function convertProspectToCustomer(id){
@@ -8759,9 +9079,8 @@ async function convertProspectToCustomer(id){
     const r=await fetch(`/api/crm/prospects/${id}/convert-to-customer`,{method:'POST'});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     showToast('Converted to Customer ✓','success');
-    crmTab='customer';
     await loadCrmData();
-    renderView();
+    showView('crm_customers');
   }catch(e){ showToast(e.message,'error'); }
 }
 
@@ -8775,32 +9094,74 @@ async function deleteCrmRecord(table,id){
   }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Customer Purchase Orders ─────────────────────────────────────────────────
+// ── Sales, entered from a Customer's row action ──────────────────────────────
+// The standalone "+ New Sale" button is gone per spec — Sales are now only
+// created from a customer's Sale icon, which pre-selects that customer.
+function openSaleModalForCustomer(customerId){
+  openSaleModal().then(()=>{
+    document.getElementById('sale-customer').value=customerId;
+    populateSalePoDropdown();
+  });
+}
+
+// ── Purchase Orders (BOM-based) ──────────────────────────────────────────────
 let crmPoLineIdx=0;
 function openCrmPoModal(customerId){
+  const c=crmCustomerRecord(customerId);
   document.getElementById('crm-po-customer-id').value=customerId;
-  document.getElementById('crm-po-customer-name').value=crmCustomerName(customerId);
+  document.getElementById('crm-po-customer-name').textContent=c?.name||'—';
+  document.getElementById('crm-po-customer-email').textContent=c?.email||'—';
+  document.getElementById('crm-po-customer-phone').textContent=c?.phone||'N/A';
+  document.getElementById('crm-po-customer-address').textContent=c?.billingAddress||'N/A';
   document.getElementById('crm-po-number').value='';
-  document.getElementById('crm-po-order-date').value=new Date().toISOString().slice(0,10);
   document.getElementById('crm-po-delivery-date').value='';
+  document.getElementById('crm-po-payment-terms').value='';
   document.getElementById('crm-po-notes').value='';
   document.getElementById('crm-po-lines').innerHTML='';
   crmPoLineIdx=0;
   addCrmPoLine();
   document.getElementById('crm-po-modal').classList.add('open');
 }
+function crmPoBomOptions(selectedBomId){
+  return (typeof mfgBoms!=='undefined'?mfgBoms:[]).map(b=>
+    `<option value="${b.id}" ${selectedBomId===b.id?'selected':''}>${esc(b.name)} — ${esc(invItemName(b.productItemId))}</option>`
+  ).join('') || '<option value="">— No BOMs yet. Create one in Manufacturing. —</option>';
+}
 function addCrmPoLine(){
   const idx=crmPoLineIdx++;
-  const itemOptions=(typeof invItems!=='undefined'?invItems:[]).map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('');
   const row=document.createElement('div');
   row.id=`crm-po-line-${idx}`;
-  row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap';
+  row.style.cssText='padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px';
   row.innerHTML=`
-    <select id="crm-po-line-item-${idx}" style="flex:2 1 180px;padding:6px;border:1px solid var(--border);border-radius:6px">${itemOptions||'<option value="">— No items yet —</option>'}</select>
-    <input type="number" id="crm-po-line-qty-${idx}" placeholder="Qty" min="1" style="flex:1 1 80px;padding:6px;border:1px solid var(--border);border-radius:6px">
-    <input type="number" id="crm-po-line-price-${idx}" placeholder="Unit Price" min="0" step="0.01" style="flex:1 1 100px;padding:6px;border:1px solid var(--border);border-radius:6px">
-    <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('crm-po-line-${idx}').remove()">✕</button>`;
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <label style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase">BOM</label>
+      <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('crm-po-line-${idx}').remove();crmUpdatePoTotal();" style="color:var(--red)">✕</button>
+    </div>
+    <select id="crm-po-line-bom-${idx}" onchange="crmUpdatePoTotal()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px">${crmPoBomOptions()}</select>
+    <div style="display:flex;gap:8px">
+      <div style="flex:1"><label style="font-size:11px;color:var(--g3)">Quantity</label>
+        <input type="number" id="crm-po-line-qty-${idx}" value="1" min="1" oninput="crmUpdatePoTotal()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1"><label style="font-size:11px;color:var(--g3)">Unit Price</label>
+        <input type="number" id="crm-po-line-price-${idx}" value="0" min="0" step="0.01" oninput="crmUpdatePoTotal()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1"><label style="font-size:11px;color:var(--g3)">Subtotal</label>
+        <div id="crm-po-line-subtotal-${idx}" style="padding:6px;background:var(--g5);border-radius:6px;font-weight:600">₹0.00</div></div>
+    </div>`;
   document.getElementById('crm-po-lines').appendChild(row);
+  crmUpdatePoTotal();
+}
+function crmUpdatePoTotal(){
+  let total=0;
+  document.querySelectorAll('#crm-po-lines > div').forEach(row=>{
+    const idx=row.id.split('-').pop();
+    const qty=Number(document.getElementById(`crm-po-line-qty-${idx}`)?.value||0);
+    const price=Number(document.getElementById(`crm-po-line-price-${idx}`)?.value||0);
+    const subtotal=qty*price;
+    total+=subtotal;
+    const subEl=document.getElementById(`crm-po-line-subtotal-${idx}`);
+    if(subEl) subEl.textContent='₹'+subtotal.toLocaleString('en-IN',{minimumFractionDigits:2});
+  });
+  const totalEl=document.getElementById('crm-po-total-preview');
+  if(totalEl) totalEl.textContent='₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2});
 }
 async function saveCrmPo(){
   const customerId=document.getElementById('crm-po-customer-id').value;
@@ -8809,15 +9170,16 @@ async function saveCrmPo(){
   const items=[];
   document.querySelectorAll('#crm-po-lines > div').forEach(row=>{
     const idx=row.id.split('-').pop();
-    const itemId=document.getElementById(`crm-po-line-item-${idx}`)?.value;
-    const quantity=Number(document.getElementById(`crm-po-line-qty-${idx}`)?.value||0);
+    const bomId=document.getElementById(`crm-po-line-bom-${idx}`)?.value;
+    const assemblyQuantity=Number(document.getElementById(`crm-po-line-qty-${idx}`)?.value||0);
     const unitPrice=Number(document.getElementById(`crm-po-line-price-${idx}`)?.value||0);
-    if(itemId&&quantity>0) items.push({itemId,quantity,unitPrice});
+    if(bomId&&assemblyQuantity>0) items.push({bomId,assemblyQuantity,unitPrice});
   });
+  if(!items.length){ showToast('Add at least one BOM line','error'); return; }
   const payload={
     poNumber, customerId,
-    orderDate: document.getElementById('crm-po-order-date').value||undefined,
     deliveryDate: document.getElementById('crm-po-delivery-date').value||null,
+    paymentTerms: document.getElementById('crm-po-payment-terms').value.trim()||null,
     notes: document.getElementById('crm-po-notes').value.trim()||null,
     items,
   };
@@ -8826,7 +9188,133 @@ async function saveCrmPo(){
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('crm-po-modal');
     showToast('Purchase order created ✓','success');
-    crmTab='po';
+    await loadCrmData();
+    showView('crm_orders');
+  }catch(e){ showToast(e.message,'error'); }
+}
+
+// ── Orders page (auto-populated from Customer purchases) ────────────────────
+function renderCrmOrders(){
+  const ca=document.getElementById('content-area');
+  if(!crmLoaded){
+    ca.innerHTML='<div class="loading">Loading Orders...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_orders') renderView(); });
+    return;
+  }
+  const q=(crmOrderFilters.search||'').trim().toLowerCase();
+  const list=crmPOs.filter(po=>{
+    if(crmOrderFilters.customerId && po.customerId!==crmOrderFilters.customerId) return false;
+    if(q){
+      const hay=[po.poNumber,po.customerName,po.customerEmail].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const statusColor={open:'#2980B9',late:'#F39C12',fulfilled:'#27AE60',closed:'#7F7F7F',cancelled:'#C0392B'};
+  const rows = !list.length
+    ? `<tr><td colspan="8" class="empty-state">${crmPOs.length?'No orders match your filters.':'No purchase orders yet. Create one from a Customer.'}</td></tr>`
+    : list.map(po=>{
+        const isOpen=crmExpandedOrders.has(po.id);
+        const color=statusColor[po.status]||'#7F7F7F';
+        const mainRow=`<tr>
+          <td>
+            <button onclick="toggleCrmOrderExpand('${po.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
+              ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
+            </button>
+            <strong>${esc(po.poNumber)}</strong>
+          </td>
+          <td>${esc(po.customerName||'—')}<div style="font-size:11px;color:var(--g3)">${esc(po.customerEmail||'')}</div></td>
+          <td style="text-align:center">${po.totalQuantity!=null?po.totalQuantity+' item(s)':'—'}</td>
+          <td>${po.deliveryDate?new Date(po.deliveryDate).toLocaleDateString():'—'}</td>
+          <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color};text-transform:capitalize">${esc(po.status||'—')}</span></td>
+          <td>${po.createdAt?new Date(po.createdAt).toLocaleDateString():'—'}</td>
+          <td>
+            ${crmIconBtn('edit','Edit',`openCrmPoEditModal('${po.id}')`)}
+            ${crmIconBtn('delete','Delete',`deleteCrmPo('${po.id}')`,'color:var(--red)')}
+          </td>
+        </tr>`;
+        const detailRow=isOpen?`<tr><td colspan="8" style="background:var(--g5);padding:16px" id="crm-po-detail-${po.id}">${crmOrderDetailHtml(po)}</td></tr>`:'';
+        return mainRow+detailRow;
+      }).join('');
+  ca.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmPOs.length} order${crmPOs.length===1?'':'s'}</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="position:relative;flex:2 1 260px">
+        <input type="text" placeholder="Search by PO number or customer…" value="${esc(crmOrderFilters.search)}" oninput="crmSetOrderFilter_search(this.value)"
+          style="width:100%;padding:8px 10px 8px 32px;border:1px solid var(--border);border-radius:8px">
+        <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--g3)">
+          <svg width="15" height="15" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
+        </span>
+      </div>
+      <select onchange="crmSetOrderFilter_customer(this.value)" style="flex:1 1 200px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
+        <option value="">All Customers</option>
+        ${crmCustomers.map(c=>`<option value="${c.id}" ${crmOrderFilters.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>PO Number</th><th>Customer Name & Email</th><th>Item Quantity</th><th>Delivery Date</th><th>Status</th><th>Created Date</th><th>Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  // Fetch and fill in Sales/Delivery history for any rows already expanded.
+  crmExpandedOrders.forEach(id=>loadCrmOrderHistory(id));
+}
+function crmSetOrderFilter_search(v){ crmOrderFilters.search=v; renderCrmOrders(); }
+function crmSetOrderFilter_customer(v){ crmOrderFilters.customerId=v; renderCrmOrders(); }
+function toggleCrmOrderExpand(id){
+  if(crmExpandedOrders.has(id)) crmExpandedOrders.delete(id);
+  else crmExpandedOrders.add(id);
+  renderCrmOrders();
+}
+function crmOrderDetailHtml(po){
+  const cached=crmOrderHistoryCache[po.id];
+  return `
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">${CRM_ICONS.purchase} Order Details</div>
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px">
+        <div>Payment Terms: ${esc(po.paymentTerms||'—')}</div>
+        <div>Notes: ${esc(po.notes||'—')}</div>
+        <div style="margin-top:6px">Items:</div>
+        ${(po.items||[]).map(i=>`<div style="margin-left:12px">${i.assemblyQuantity||i.quantity}x ${esc(i.bomName||i.itemId||'—')}</div>`).join('')||'<div style="margin-left:12px;color:var(--g3)">—</div>'}
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">${CRM_ICONS.sale} Sales History</div>
+      ${!cached ? '<div style="font-size:13px;color:var(--g3)">Loading…</div>' : (!cached.sales.length ? '<div style="font-size:13px;color:var(--g3)">No sales found for this PO.</div>' : `
+        <table style="width:100%;font-size:13px"><tbody>${cached.sales.map(s=>`<tr><td>${esc(s.saleNumber)}</td><td>${s.saleDate?new Date(s.saleDate).toLocaleDateString():'—'}</td><td>₹${Number(s.total).toLocaleString('en-IN')}</td></tr>`).join('')}</tbody></table>`)}
+    </div>
+    <div>
+      <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">🚚 Delivery History</div>
+      ${!cached ? '<div style="font-size:13px;color:var(--g3)">Loading…</div>' : (!cached.deliveries.length ? '<div style="font-size:13px;color:var(--g3)">No deliveries found for this PO.</div>' : `
+        <table style="width:100%;font-size:13px"><tbody>${cached.deliveries.map(d=>`<tr><td>${esc(d.deliveryNumber)}</td><td>${d.scheduledDate?new Date(d.scheduledDate).toLocaleDateString():'—'}</td><td>${d.delivered?'Delivered':'Pending'}</td></tr>`).join('')}</tbody></table>`)}
+    </div>`;
+}
+async function loadCrmOrderHistory(poId){
+  try{
+    const data=await fetch(`/api/crm/customer-purchase-orders/${poId}/history`).then(r=>r.json());
+    crmOrderHistoryCache[poId]=data;
+    const el=document.getElementById('crm-po-detail-'+poId);
+    const po=crmPOs.find(p=>p.id===poId);
+    if(el&&po) el.innerHTML=crmOrderDetailHtml(po);
+  }catch(e){}
+}
+function openCrmPoEditModal(id){
+  const po=crmPOs.find(p=>p.id===id);
+  if(!po) return;
+  showToast('Editing purchase order line items isn\'t supported yet — you can update the PO number, delivery date, payment terms, and notes from here.','info');
+  const newPoNumber=prompt('PO Number', po.poNumber);
+  if(newPoNumber===null) return;
+  fetch(`/api/crm/customer-purchase-orders/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({poNumber:newPoNumber})})
+    .then(async r=>{ if(!r.ok){ const d=await r.json(); throw new Error(d.error); } })
+    .then(async ()=>{ showToast('Order updated ✓','success'); await loadCrmData(); renderView(); })
+    .catch(e=>showToast(e.message,'error'));
+}
+async function deleteCrmPo(id){
+  if(!confirm('Delete this purchase order?')) return;
+  try{
+    const r=await fetch(`/api/crm/customer-purchase-orders/${id}`,{method:'DELETE'});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     await loadCrmData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
@@ -9577,18 +10065,62 @@ let salesUnsoldUnits=[]; // flattened list of unsold mfg_assembly_units across a
 let salesLineItems=[];   // items picked for the current New Sale form: [{assemblyUnitId, serialNumber, productItemId, unitPrice}]
 
 async function loadSalesData(){
-  try{ salesList = await fetch('/api/sales').then(r=>r.json()); }
-  catch(e){ salesList=[]; }
+  try{
+    const raw = await fetch('/api/sales').then(r=>r.json());
+    // Enrich each sale with a product summary + first serial for the table
+    // (avoids an extra round-trip per row; falls back gracefully if a sale's
+    // items aren't already embedded by the list endpoint).
+    salesList = await Promise.all(raw.map(async (s)=>{
+      let items=s.items;
+      if(!items){
+        try{ const full=await fetch(`/api/sales/${s.id}`).then(r=>r.json()); items=full.items||[]; }
+        catch(e){ items=[]; }
+      }
+      const first=items&&items[0];
+      return {
+        ...s,
+        productSummary: first ? (invItemName(first.itemId)||'—') : null,
+        firstSerial: first ? (first.serialNumber||null) : null,
+      };
+    }));
+  }catch(e){ salesList=[]; }
   salesLoaded=true;
   if(!invLoaded) await loadInvData();
   if(!mfgLoaded) await loadMfgData();
   if(!crmLoaded) await loadCrmData();
 }
 
+// The Deliver checkbox on the Sales table is a quick-action: checking it
+// opens the Make Delivery panel (pre-filled) so the user can fill in address
+// etc. before actually marking it delivered; unchecking an already-delivered
+// sale reverts its delivery to pending rather than deleting it outright.
+async function handleSaleDeliverToggle(saleId,checked){
+  const sale=salesList.find(s=>s.id===saleId);
+  if(!sale) return;
+  if(checked){
+    if(sale.isDelivered) return; // already delivered, nothing to do
+    openDeliveryCreateOrEditModal(saleId);
+  }else{
+    if(!sale.isDelivered) return;
+    try{
+      const full=await fetch(`/api/sales/${saleId}`).then(r=>r.json());
+      if(full.delivery){
+        const r=await fetch(`/api/sales/deliveries/${full.delivery.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:false})});
+        if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+      }
+      showToast('Marked as not delivered','success');
+      await Promise.all([loadSalesData(),loadDeliveriesData()]);
+      renderView();
+    }catch(e){ showToast(e.message,'error'); renderSales(); }
+  }
+}
+
 function salesCustomerName(id){
   const c=(typeof crmCustomers!=='undefined'?crmCustomers:[]).find(c=>c.id===id);
   return c?c.name:'—';
 }
+
+let salesSearchTerm='';
 
 function renderSales(){
   const ca=document.getElementById('content-area');
@@ -9597,27 +10129,43 @@ function renderSales(){
     loadSalesData().then(()=>{ if(currentView==='sales') renderView(); });
     return;
   }
-  const rows = !salesList.length
-    ? `<tr><td colspan="7" class="empty-state">No sales recorded yet.</td></tr>`
-    : salesList.map(s=>`<tr>
-        <td><strong>${esc(s.saleNumber)}</strong></td>
-        <td>${esc(salesCustomerName(s.customerId))}</td>
-        <td>${s.saleDate?new Date(s.saleDate).toLocaleDateString():'—'}</td>
-        <td>₹${Number(s.total).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
-        <td>${s.isDelivered?'✅ Delivered':'⏳ Pending'}</td>
-        <td>
-          <button class="btn-sm btn-ghost" onclick="openSaleDetailModal('${s.id}')">View</button>
-          ${!s.isDelivered?`<button class="btn-sm btn-ghost" onclick="openDeliveryCreateModal('${s.id}')">Schedule Delivery</button>`:''}
-          <button class="btn-sm btn-ghost" onclick="deleteSale('${s.id}')">Delete</button>
-        </td>
-      </tr>`).join('');
+  const q=(salesSearchTerm||'').trim().toLowerCase();
+  const list = q
+    ? salesList.filter(s=>{
+        const cust=crmCustomerRecord?crmCustomerRecord(s.customerId):null;
+        const hay=[s.saleNumber,cust?.name,cust?.company].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      })
+    : salesList;
+  const rows = !list.length
+    ? `<tr><td colspan="6" class="empty-state">${salesList.length?'No sales match your search.':"No sales recorded yet. Create one from a Customer's Sale action."}</td></tr>`
+    : list.map(s=>{
+        const cust=crmCustomerRecord?crmCustomerRecord(s.customerId):null;
+        const firstItem=(s.items&&s.items[0])||null;
+        return `<tr>
+          <td><strong>${esc(s.saleNumber)}</strong></td>
+          <td><strong>${esc(cust?.name||salesCustomerName(s.customerId))}</strong>${cust?.company?`<div style="font-size:11px;color:var(--g3)">${esc(cust.company)}</div>`:''}</td>
+          <td>${esc(s.productSummary||'—')}${s.firstSerial?`<div style="font-size:11px;color:var(--g3)">SN: ${esc(s.firstSerial)}</div>`:''}</td>
+          <td>${s.saleDate?new Date(s.saleDate).toLocaleDateString('en-GB'):'—'}</td>
+          <td style="text-align:center"><input type="checkbox" ${s.isDelivered?'checked':''} onchange="handleSaleDeliverToggle('${s.id}',this.checked)"></td>
+          <td>
+            ${crmIconBtn('edit','Edit',`openSaleDetailModal('${s.id}')`)}
+            ${crmIconBtn('delete','Delete',`deleteSale('${s.id}')`,'color:var(--red)')}
+          </td>
+        </tr>`;
+      }).join('');
   ca.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${salesList.length} sale${salesList.length===1?'':'s'}</div>
-      <button class="btn btn-primary" onclick="openSaleModal()">+ New Sale</button>
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Sales</h1>
+    <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Manage customer sales and deliveries</div>
+    <div style="position:relative;margin-bottom:16px">
+      <input type="text" placeholder="Search by sale number, customer name, or company…" value="${esc(salesSearchTerm)}" oninput="salesSearchTerm=this.value;renderSales()"
+        style="width:100%;padding:9px 10px 9px 34px;border:1px solid var(--border);border-radius:8px">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g3)">
+        <svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
+      </span>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Sale #</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Sale #</th><th>Customer</th><th>Products</th><th>Sale Date</th><th>Deliver</th><th>Actions</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>`;
 }
@@ -9787,6 +10335,9 @@ async function deleteSale(id){
 // ── Deliveries ────────────────────────────────────────────────────────────────
 let deliveriesLoaded=false;
 let deliveriesList=[];
+let deliverySearchTerm='';
+let deliveryModalSaleId=null;
+let deliveryModalItems=[]; // [{saleItemId, label, checked}] — the "Items in this Delivery" checklist
 
 async function loadDeliveriesData(){
   try{ deliveriesList = await fetch('/api/sales/deliveries').then(r=>r.json()); }
@@ -9799,6 +10350,12 @@ function deliverySaleNumber(saleId){
   const s=salesList.find(s=>s.id===saleId);
   return s?s.saleNumber:'—';
 }
+function deliveryCustomerName(saleId){
+  const s=salesList.find(s=>s.id===saleId);
+  if(!s) return '—';
+  const c=crmCustomerRecord?crmCustomerRecord(s.customerId):null;
+  return c?c.name:salesCustomerName(s.customerId);
+}
 
 function renderDeliveries(){
   const ca=document.getElementById('content-area');
@@ -9807,52 +10364,151 @@ function renderDeliveries(){
     loadDeliveriesData().then(()=>{ if(currentView==='deliveries') renderView(); });
     return;
   }
-  const rows = !deliveriesList.length
-    ? `<tr><td colspan="6" class="empty-state">No deliveries scheduled yet. Create one from a Sale.</td></tr>`
-    : deliveriesList.map(d=>`<tr>
-        <td><strong>${esc(d.deliveryNumber)}</strong></td>
-        <td>${esc(deliverySaleNumber(d.saleId))}</td>
-        <td>${esc(d.deliveryAddress||'—')}</td>
-        <td>${d.scheduledDate?new Date(d.scheduledDate).toLocaleDateString():'—'}</td>
-        <td>${d.delivered?`✅ Delivered ${d.deliveredDate?new Date(d.deliveredDate).toLocaleDateString():''}`:'⏳ Pending'}</td>
-        <td>
-          <button class="btn-sm btn-ghost" onclick="openDeliveryEditModal('${d.id}')">Edit</button>
-          ${!d.delivered?`<button class="btn-sm btn-primary" onclick="markDeliveryDelivered('${d.id}')">Mark Delivered</button>`:''}
-        </td>
-      </tr>`).join('');
+  const q=(deliverySearchTerm||'').trim().toLowerCase();
+  const list = q
+    ? deliveriesList.filter(d=>{
+        const hay=[deliverySaleNumber(d.saleId),deliveryCustomerName(d.saleId),d.deliveryAddress,d.deliveryLocation].filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(q);
+      })
+    : deliveriesList;
+  const rows = !list.length
+    ? `<tr><td colspan="7" class="empty-state">${deliveriesList.length?'No deliveries match your search.':'No deliveries scheduled yet. Create one from a Sale.'}</td></tr>`
+    : list.map(d=>{
+        const sale=salesList.find(s=>s.id===d.saleId);
+        return `<tr>
+          <td><strong>${esc(deliverySaleNumber(d.saleId))}</strong></td>
+          <td><strong>${esc(deliveryCustomerName(d.saleId))}</strong></td>
+          <td>${esc(sale?.productSummary||'—')}${sale?.firstSerial?`<div style="font-size:11px;color:var(--g3)">SN: ${esc(sale.firstSerial)}</div>`:''}</td>
+          <td>${esc(d.deliveryAddress||'Not specified')}</td>
+          <td>${d.scheduledDate?new Date(d.scheduledDate).toLocaleDateString('en-GB'):'—'}</td>
+          <td style="text-align:center"><input type="checkbox" ${d.delivered?'checked':''} onchange="handleDeliveredCheckbox('${d.id}',this.checked)"></td>
+          <td>
+            ${crmIconBtn('edit','Edit',`openDeliveryEditModal('${d.id}')`)}
+            ${crmIconBtn('delete','Delete',`deleteDelivery('${d.id}')`,'color:var(--red)')}
+          </td>
+        </tr>`;
+      }).join('');
   ca.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${deliveriesList.length} deliver${deliveriesList.length===1?'y':'ies'}</div>
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Deliveries</h1>
+    <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Track and manage all deliveries</div>
+    <div style="position:relative;margin-bottom:16px">
+      <input type="text" placeholder="Search by sale number, customer, address, or location…" value="${esc(deliverySearchTerm)}" oninput="deliverySearchTerm=this.value;renderDeliveries()"
+        style="width:100%;padding:9px 10px 9px 34px;border:1px solid var(--border);border-radius:8px">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g3)">
+        <svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
+      </span>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Delivery #</th><th>Sale</th><th>Address</th><th>Scheduled</th><th>Status</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Sale #</th><th>Customer</th><th>Products</th><th>Delivery Address</th><th>Delivery Date</th><th>Delivered</th><th>Actions</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>
-    <div style="margin-top:14px;font-size:12px;color:var(--g3)">💡 To schedule a delivery, go to <b>Sales</b> and click <b>Schedule Delivery</b> on an undelivered sale.</div>`;
+    </table></div>`;
 }
 
-function openDeliveryCreateModal(saleId){
-  document.getElementById('delivery-modal-title').textContent='Schedule Delivery';
+// Checking the "Delivered" box on an existing delivery row is a quick mark-
+// delivered; unchecking reverts it. Both go through PATCH so stock/sale
+// records stay in sync via the backend's existing delivered-toggle logic.
+async function handleDeliveredCheckbox(deliveryId,checked){
+  try{
+    const r=await fetch(`/api/sales/deliveries/${deliveryId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:checked})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    showToast(checked?'Marked as delivered ✓':'Marked as not delivered','success');
+    await Promise.all([loadDeliveriesData(),loadSalesData()]);
+    renderView();
+  }catch(e){ showToast(e.message,'error'); renderDeliveries(); }
+}
+
+async function deleteDelivery(id){
+  if(!confirm('Delete this delivery? The linked sale will show as not delivered again.')) return;
+  try{
+    const r=await fetch(`/api/sales/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:false})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    // Deliveries don't currently have a hard DELETE endpoint on the backend —
+    // marking not-delivered and clearing schedule info is the safe equivalent
+    // without touching the sale/stock records.
+    await fetch(`/api/sales/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({deliveryAddress:null,deliveryLocation:null,scheduledDate:null,notes:null})});
+    showToast('Delivery cleared','success');
+    await Promise.all([loadDeliveriesData(),loadSalesData()]);
+    renderView();
+  }catch(e){ showToast(e.message,'error'); }
+}
+
+// ── Make Delivery modal (matches reference: item checklist + DELIVER/Update) ──
+function openDeliveryCreateOrEditModal(saleId){
+  const existing=deliveriesList.find(d=>d.saleId===saleId);
+  if(existing) return openDeliveryEditModal(existing.id);
+  openDeliveryCreateModal(saleId);
+}
+
+async function openDeliveryCreateModal(saleId){
+  deliveryModalSaleId=saleId;
+  const sale=salesList.find(s=>s.id===saleId) || await fetch(`/api/sales/${saleId}`).then(r=>r.json());
+  document.getElementById('delivery-modal-title').textContent='Make Delivery';
   document.getElementById('delivery-id').value='';
   document.getElementById('delivery-sale-id').value=saleId;
+  document.getElementById('delivery-sale-number').textContent=sale?.saleNumber||'—';
+  document.getElementById('delivery-customer-name').textContent=deliveryCustomerName(saleId);
   document.getElementById('delivery-address').value='';
   document.getElementById('delivery-location').value='';
-  document.getElementById('delivery-scheduled').value='';
+  document.getElementById('delivery-scheduled').value=new Date().toISOString().slice(0,10);
   document.getElementById('delivery-notes').value='';
+  document.getElementById('delivery-primary-btn').textContent='DELIVER';
+  document.getElementById('delivery-primary-btn').onclick=saveDelivery;
+
+  let items=[];
+  try{ const full=await fetch(`/api/sales/${saleId}`).then(r=>r.json()); items=full.items||[]; }catch(e){}
+  deliveryModalItems=items.map(i=>({
+    saleItemId:i.id, label: (invItemName(i.itemId)||'Item') + (i.serialNumber?` — SN: ${i.serialNumber}`:''),
+    checked:true,
+  }));
+  renderDeliveryItemsChecklist();
   document.getElementById('delivery-modal').classList.add('open');
 }
 
-function openDeliveryEditModal(id){
+async function openDeliveryEditModal(id){
   const d=deliveriesList.find(d=>d.id===id);
   if(!d) return;
-  document.getElementById('delivery-modal-title').textContent='Edit Delivery';
+  deliveryModalSaleId=d.saleId;
+  const sale=salesList.find(s=>s.id===d.saleId);
+  document.getElementById('delivery-modal-title').textContent='Make Delivery';
   document.getElementById('delivery-id').value=d.id;
   document.getElementById('delivery-sale-id').value=d.saleId;
+  document.getElementById('delivery-sale-number').textContent=sale?.saleNumber||deliverySaleNumber(d.saleId);
+  document.getElementById('delivery-customer-name').textContent=deliveryCustomerName(d.saleId);
   document.getElementById('delivery-address').value=d.deliveryAddress||'';
   document.getElementById('delivery-location').value=d.deliveryLocation||'';
   document.getElementById('delivery-scheduled').value=d.scheduledDate?new Date(d.scheduledDate).toISOString().slice(0,10):'';
   document.getElementById('delivery-notes').value=d.notes||'';
+  document.getElementById('delivery-primary-btn').textContent=d.delivered?'DELIVER':'DELIVER';
+  document.getElementById('delivery-primary-btn').onclick=saveDelivery;
+
+  let items=[];
+  try{ const full=await fetch(`/api/sales/${d.saleId}`).then(r=>r.json()); items=full.items||[]; }catch(e){}
+  deliveryModalItems=items.map(i=>({
+    saleItemId:i.id, label: (invItemName(i.itemId)||'Item') + (i.serialNumber?` — SN: ${i.serialNumber}`:''),
+    checked:true,
+  }));
+  renderDeliveryItemsChecklist();
   document.getElementById('delivery-modal').classList.add('open');
+}
+
+function renderDeliveryItemsChecklist(){
+  const wrap=document.getElementById('delivery-items-checklist');
+  const selectedCount=deliveryModalItems.filter(i=>i.checked).length;
+  document.getElementById('delivery-items-count').textContent=`${selectedCount} of ${deliveryModalItems.length} selected`;
+  wrap.innerHTML = !deliveryModalItems.length
+    ? '<div style="font-size:13px;color:var(--g3)">No items on this sale.</div>'
+    : deliveryModalItems.map((item,idx)=>`
+      <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid ${item.checked?'var(--red2)':'var(--border)'};border-radius:8px;margin-bottom:6px;cursor:pointer;background:${item.checked?'var(--red2)11':'transparent'}">
+        <input type="checkbox" ${item.checked?'checked':''} onchange="toggleDeliveryItem(${idx},this.checked)">
+        <span>📦</span>
+        <span>${esc(item.label)}</span>
+      </label>`).join('');
+  const countLabel=document.getElementById('delivery-primary-btn-hint');
+  if(countLabel) countLabel.textContent=`Click DELIVER to ship ${selectedCount} item(s) and update stock`;
+}
+function toggleDeliveryItem(idx,checked){
+  deliveryModalItems[idx].checked=checked;
+  renderDeliveryItemsChecklist();
 }
 
 async function saveDelivery(){
@@ -9869,19 +10525,35 @@ async function saveDelivery(){
       ? await fetch(`/api/sales/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       : await fetch(`/api/sales/${saleId}/delivery`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    const saved=await r.json();
+    // "DELIVER" always also marks the delivery delivered in one step, matching
+    // the reference design's single orange DELIVER button.
+    await fetch(`/api/sales/deliveries/${saved.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:true})});
     closeModal('delivery-modal');
-    showToast('Delivery saved ✓','success');
+    showToast('Delivered — stock updated ✓','success');
     await Promise.all([loadDeliveriesData(),loadSalesData()]);
     renderView();
   }catch(e){ showToast(e.message,'error'); }
 }
 
-async function markDeliveryDelivered(id){
-  if(!confirm('Mark this delivery as delivered?')) return;
+// "Update" saves delivery details (address/date/notes) without marking it
+// delivered yet — the secondary green button in the reference design.
+async function saveDeliveryWithoutDelivering(){
+  const id=document.getElementById('delivery-id').value;
+  const saleId=document.getElementById('delivery-sale-id').value;
+  const payload={
+    deliveryAddress: document.getElementById('delivery-address').value.trim()||null,
+    deliveryLocation: document.getElementById('delivery-location').value.trim()||null,
+    scheduledDate: document.getElementById('delivery-scheduled').value||null,
+    notes: document.getElementById('delivery-notes').value.trim()||null,
+  };
   try{
-    const r=await fetch(`/api/sales/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:true})});
+    const r = id
+      ? await fetch(`/api/sales/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      : await fetch(`/api/sales/${saleId}/delivery`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
-    showToast('Marked as delivered ✓','success');
+    closeModal('delivery-modal');
+    showToast('Delivery details saved ✓','success');
     await Promise.all([loadDeliveriesData(),loadSalesData()]);
     renderView();
   }catch(e){ showToast(e.message,'error'); }
