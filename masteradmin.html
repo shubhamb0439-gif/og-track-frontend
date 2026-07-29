@@ -327,9 +327,10 @@ const ALL_MODULES = [
   { key:'hr_jobs',      label:'Job Openings' },
   { key:'hr_candidates',label:'Candidates' },
   { key:'hr_interviews',label:'Interviews' },
-  { key:'crm',          label:'Sales & CRM' },
+  { key:'crm',          label:'CRM (Leads / Prospects / Customers)' },
   { key:'inventory',    label:'Inventory' },
   { key:'manufacturing',label:'Manufacturing (needs Inventory)' },
+  { key:'sales',        label:'Sales & Deliveries (needs CRM + Inventory + Manufacturing)' },
   { key:'admin',        label:'User Mgmt' },
   { key:'roles',        label:'Roles' },
 ];
@@ -507,12 +508,14 @@ function buildModuleCheckboxes(selected) {
   ).join('');
   // If manufacturing starts out checked, inventory must be locked on immediately.
   if (selected.includes('manufacturing')) handleModuleDependency('manufacturing', true);
+  if (selected.includes('sales')) handleModuleDependency('sales', true);
 }
 
 // Manufacturing's tables have foreign keys into Inventory's tables, so it
-// can never be enabled without Inventory also being enabled. This keeps
-// that true from the UI side, in addition to the backend forcing the
-// inventory schema to run anyway if it's ever missed.
+// can never be enabled without Inventory also being enabled. Sales similarly
+// depends on CRM + Inventory + Manufacturing. This keeps that true from the
+// UI side, in addition to the backend forcing the dependency schemas to run
+// anyway if they're ever missed.
 function handleModuleDependency(key, checked) {
   if (key === 'manufacturing') {
     const invBox = document.getElementById('mod-check-inventory');
@@ -522,6 +525,16 @@ function handleModuleDependency(key, checked) {
     } else {
       invBox.disabled = false;
     }
+  }
+  if (key === 'sales') {
+    ['crm', 'inventory', 'manufacturing'].forEach(dep => {
+      const box = document.getElementById('mod-check-' + dep);
+      if (!box) return;
+      if (checked) { box.checked = true; box.disabled = true; }
+      else { box.disabled = false; }
+    });
+    // Manufacturing itself depends on Inventory — keep that chain consistent
+    if (checked) handleModuleDependency('manufacturing', true);
   }
 }
 
