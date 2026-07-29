@@ -10087,14 +10087,9 @@ async function saveMfgBomNew(){
   if(!name){ showToast('BOM name is required','error'); return; }
   if(!productItemId){ showToast('Select a Finished Good','error'); return; }
   try{
-    const r=await fetch('/api/manufacturing/boms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,productItemId,lines:[{componentItemId:productItemId,quantityPerUnit:0.0001}]})});
-    // NOTE: the backend requires at least one line to create a BOM. We seed
-    // a throwaway placeholder line here so the BOM can be created empty from
-    // the user's point of view, then immediately remove it — components are
-    // added afterward via "+ Add Component" per the new two-panel flow.
+    const r=await fetch('/api/manufacturing/boms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,productItemId,lines:[]})});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     const saved=await r.json();
-    if(saved.lines&&saved.lines[0]) await fetch(`/api/manufacturing/boms/${saved.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:[]})});
     closeModal('mfg-bom-modal');
     showToast('BOM created ✓','success');
     mfgSelectedBomId=saved.id;
