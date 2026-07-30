@@ -11122,8 +11122,11 @@ let deliveryModalSaleId=null;
 let deliveryModalItems=[]; // [{saleItemId, label, checked}] — the "Items in this Delivery" checklist
 
 async function loadDeliveriesData(){
-  try{ deliveriesList = await fetch('/api/sales/deliveries').then(r=>r.json()); }
-  catch(e){ deliveriesList=[]; }
+  try{
+    const r=await fetch('/api/sales/deliveries');
+    const data=await r.json();
+    deliveriesList = (r.ok && Array.isArray(data)) ? data : [];
+  }catch(e){ deliveriesList=[]; }
   deliveriesLoaded=true;
   if(!salesLoaded) await loadSalesData();
 }
