@@ -2911,45 +2911,45 @@ function buildSidebar(){
       const moduleGate={mybugs:'bugs'}; // permission keys that map to a different module key
       perms=perms.filter(p=>alwaysOnPerms.includes(p)||allowed.includes(moduleGate[p]||p));
     }
-    const permMap={
-      dashboard:['dashboard','Dashboard','var(--red2)'],
-      bugs:['bugs','All Bugs','#7F7F7F'],
-      mybugs:['mybugs','My Bugs','#D0D0D0'],
-      projects:['projects','Projects','#7F7F7F'],
-      attendance:['attendance','Attendance','#27AE60'],
-      ops_dashboard:['ops_dashboard','Ops Dashboard','#16A085'],
-      hr_dashboard:['hr_dashboard','HR Dashboard','#C0392B'],
-      hr_jobs:['hr_jobs','Job Openings','#8E44AD'],
-      hr_candidates:['hr_candidates','Candidates','#2980B9'],
-      hr_interviews:['hr_interviews','Interviews','#F39C12'],
-      hr_reports:['hr_reports','HR Reports','#27AE60'],
-      history:['history','History','#4A4A4A'],
-      messages:['messages','Messages','#E74C3C'],
-    };
-    navItems=perms.filter(p=>permMap[p]).map(p=>permMap[p]);
-    // Sales & CRM is a single permission key ('crm') that unlocks the whole
-    // group (Leads/Prospects/Customers/Orders/Sales/Deliveries) as one dropdown,
-    // matching how the built-in roles present it.
+    // Built in a fixed, explicit order (rather than whatever order the
+    // role's stored permissions happen to be in) so the sidebar always
+    // reads top-to-bottom the same way for every role, with Messages
+    // always last. The previous version built the flat items from
+    // perms.filter(...).map(...) (order-dependent on cr.permissions) and
+    // then pushed the Sales & CRM/Inventory/Manufacturing groups on
+    // afterward unconditionally — meaning those groups always rendered
+    // after Messages/Attendance/History no matter what, which is the
+    // "tabs are off" misordering being reported.
+    navItems=[];
+    if(perms.includes('dashboard')) navItems.push(['dashboard','Dashboard','var(--red2)']);
+    if(perms.includes('ops_dashboard')) navItems.push(['ops_dashboard','Ops Dashboard','#16A085']);
+    if(perms.includes('projects')) navItems.push(['projects','Projects','#7F7F7F']);
+    if(perms.includes('bugs')) navItems.push(['bugs','All Bugs','#7F7F7F']);
+    if(perms.includes('mybugs')) navItems.push(['mybugs','My Bugs','#D0D0D0']);
+    if(perms.includes('hr_dashboard')) navItems.push(['hr_dashboard','HR Dashboard','#C0392B']);
+    if(perms.includes('hr_jobs')) navItems.push(['hr_jobs','Job Openings','#8E44AD']);
+    if(perms.includes('hr_candidates')) navItems.push(['hr_candidates','Candidates','#2980B9']);
+    if(perms.includes('hr_interviews')) navItems.push(['hr_interviews','Interviews','#F39C12']);
+    if(perms.includes('hr_reports')) navItems.push(['hr_reports','HR Reports','#27AE60']);
     if(perms.includes('crm')){
       navItems.push({group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[
         ['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],
         ['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries'],
       ]});
     }
-    // Inventory is likewise one permission key ('inventory') unlocking a
-    // Vendors/Items/Purchases dropdown.
     if(perms.includes('inventory')){
       navItems.push({group:'inventory_group',label:'Inventory',color:'#D35400',children:[
         ['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases'],
       ]});
     }
-    // Manufacturing is likewise one permission key ('manufacturing') unlocking
-    // a BOM/Assembly/Traceability dropdown.
     if(perms.includes('manufacturing')){
       navItems.push({group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[
         ['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability'],
       ]});
     }
+    if(perms.includes('attendance')) navItems.push(['attendance','Attendance','#27AE60']);
+    if(perms.includes('history')) navItems.push(['history','History','#4A4A4A']);
+    if(perms.includes('messages')) navItems.push(['messages','Messages','#E74C3C']);
     if(!navItems.length) navItems=[['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']];
   }
   const _si='stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"';
@@ -3190,6 +3190,18 @@ function renderDashboard(){
   const role=currentUser.role;
   if(role==='accounts_manager'||role==='senior_accountant'||role==='accountant'||role==='intern') return renderAccDashboard();
   if(role==='hr') return renderHrDashboard();
+  // A custom role without 'projects' has no business seeing bug/project
+  // stats on its "Dashboard" — that view was built assuming every role
+  // works within Projects/Bugs, which isn't true for e.g. a Sales/Inventory/
+  // Manufacturing-only Administrative Assistant role. Show them Ops
+  // Dashboard content instead, which is actually relevant to what they can
+  // access.
+  const BUILTIN_ROLES=['masteradmin','superadmin','manager','developer','tester','senior_accountant','accountant','accounts_manager','hr','intern'];
+  if(!BUILTIN_ROLES.includes(role)){
+    const cr=allCustomRoles.find(r=>r.id===role||r.name===role);
+    const perms=cr?.permissions||[];
+    if(!perms.includes('projects')) return renderOpsDashboard();
+  }
   let base=bugs;
   if(role==='developer') base=bugs.filter(b=>b.assignee===currentUser.name);
   if(role==='tester')    base=bugs.filter(b=>b.reporter===currentUser.name);
@@ -6493,13 +6505,18 @@ async function deleteCompany(id,name){
 // ── Master Admin: Module Manager ───────────────────────────────────────────────
 const _BUILTIN_MODULES=[
   {id:'dashboard',label:'Dashboard',desc:'Stats & overview'},
+  {id:'ops_dashboard',label:'Ops Dashboard',desc:'Consolidated Sales/Inventory/Manufacturing overview'},
   {id:'projects',label:'Projects',desc:'Project management'},
   {id:'sprints',label:'Sprints & Boards',desc:'Agile sprint planning'},
   {id:'sub_tickets',label:'Requests',desc:'Subscription/expense requests'},
   {id:'bugs',label:'Bug Tracker',desc:'All bugs view'},
+  {id:'crm',label:'Sales & CRM',desc:'Leads, Prospects, Customers, Orders'},
+  {id:'inventory',label:'Inventory',desc:'Vendors, Items, Purchases'},
+  {id:'manufacturing',label:'Manufacturing',desc:'BOM, Assembly, Traceability'},
+  {id:'sales',label:'Sales',desc:'Sales records'},
+  {id:'deliveries',label:'Deliveries',desc:'Delivery tracking'},
   {id:'attendance',label:'Attendance',desc:'Clock-in/out & QR'},
   {id:'history',label:'History',desc:'Activity history'},
-  {id:'messages',label:'Messages',desc:'Internal chat'},
   {id:'acc_clients',label:'Clients',desc:'Accounting client management'},
   {id:'acc_timer',label:'Timer',desc:'Accountant time tracking'},
   {id:'acc_eod',label:'EOD Reports',desc:'End-of-day reporting'},
@@ -6510,7 +6527,7 @@ const _BUILTIN_MODULES=[
   {id:'hr_reports',label:'HR Reports',desc:'Recruitment reporting'},
   {id:'admin',label:'User Management',desc:'Admin panel'},
   {id:'roles',label:'Role Manager',desc:'Custom roles'},
-  {id:'ops_dashboard',label:'Ops Dashboard',desc:'Consolidated Sales/Inventory/Manufacturing overview'},
+  {id:'messages',label:'Messages',desc:'Internal chat'},
 ];
 
 function renderCompanyModules(){
@@ -6556,7 +6573,15 @@ function renderCompanyModules(){
 }
 
 async function updateCompanyModules(companyId){
-  const enabled=_BUILTIN_MODULES.filter(m=>{const el=document.getElementById('mod-'+m.id);return el&&el.checked;}).map(m=>m.id);
+  const company=allCompanies.find(c=>c.id===companyId);
+  const checkedIds=_BUILTIN_MODULES.filter(m=>{const el=document.getElementById('mod-'+m.id);return el&&el.checked;}).map(m=>m.id);
+  // Merge rather than fully replace: any module key the company already had
+  // that ISN'T represented by a checkbox on this page (e.g. from an older
+  // provisioning default or a manual DB edit) stays untouched instead of
+  // being silently deleted just because this page didn't know about it.
+  const knownIds=_BUILTIN_MODULES.map(m=>m.id);
+  const existingUnknown=(company?.modules||[]).filter(m=>!knownIds.includes(m));
+  const enabled=[...new Set([...checkedIds,...existingUnknown])];
   const r=await fetch('/api/companies/'+companyId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({modules:enabled})});
   const saved=await r.json();
   allCompanies=allCompanies.map(c=>c.id===companyId?saved:c);
