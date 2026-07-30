@@ -8203,36 +8203,32 @@ function _exportHrReport(format){
 let _ceoLoaded=false;
 // ── Ops Dashboard — consolidated view across Sales & CRM / Inventory / Manufacturing ──
 let opsDashboardLoaded=false;
-async function renderOpsDashboard(){
+let opsDashboardLoading=false;
+function renderOpsDashboard(){
   const ca=document.getElementById('content-area');
-  if(!opsDashboardLoaded){
-    ca.innerHTML='<div class="loading">Loading Ops Dashboard...</div>';
-    // NOTE: loadCrmData/loadInvData/loadMfgData/loadSalesData/loadDeliveriesData
-    // each call several of each other internally (e.g. loadSalesData also
-    // calls loadInvData, loadMfgData, AND loadCrmData; loadDeliveriesData
-    // calls loadSalesData). Firing all five at once via Promise.all caused
-    // overlapping/duplicate in-flight calls to the same loaders, and if any
-    // single one hung or threw somewhere not covered by its own try/catch,
-    // the whole Promise.all never settled — leaving this page stuck on
-    // "Loading..." forever, which is exactly what was happening. Instead,
-    // load each independently with its own error boundary so one bad
-    // response can't block the rest of the dashboard from rendering.
-    const safeLoad=async(flagGetter,loader,label)=>{
-      if(flagGetter()) return;
-      try{
-        await Promise.race([
-          loader(),
-          new Promise((_,reject)=>setTimeout(()=>reject(new Error('timed out')),8000)),
-        ]);
-      }catch(e){ console.error(`Ops Dashboard: failed to load ${label}`,e); }
+
+  // Kick off data loading in the background exactly once. Each loader gets
+  // its own error boundary so one failing/slow endpoint can't block the
+  // others, and — critically — this function does NOT wait for loading to
+  // finish before rendering. It renders immediately with whatever is
+  // already in memory (all zeros/empty on first visit), then triggers a
+  // second render the moment each loader actually completes. This avoids
+  // the previous "stuck on Loading… forever" failure mode entirely: even
+  // in the worst case (a hung request), the page still shows a real
+  // dashboard shell instead of a placeholder that never resolves.
+  if(!opsDashboardLoading){
+    opsDashboardLoading=true;
+    const kick=(flagGetter,loader,label)=>{
+      if(flagGetter()) return Promise.resolve();
+      return Promise.resolve(loader())
+        .catch(e=>console.error(`Ops Dashboard: failed to load ${label}`,e))
+        .finally(()=>{ if(currentView==='ops_dashboard') renderOpsDashboard(); });
     };
-    await safeLoad(()=>crmLoaded,loadCrmData,'CRM');
-    await safeLoad(()=>invLoaded,loadInvData,'Inventory');
-    await safeLoad(()=>mfgLoaded,loadMfgData,'Manufacturing');
-    await safeLoad(()=>salesLoaded,loadSalesData,'Sales');
-    await safeLoad(()=>deliveriesLoaded,loadDeliveriesData,'Deliveries');
-    opsDashboardLoaded=true;
-    if(currentView!=='ops_dashboard') return;
+    kick(()=>crmLoaded,loadCrmData,'CRM');
+    kick(()=>invLoaded,loadInvData,'Inventory');
+    kick(()=>mfgLoaded,loadMfgData,'Manufacturing');
+    kick(()=>salesLoaded,loadSalesData,'Sales');
+    kick(()=>deliveriesLoaded,loadDeliveriesData,'Deliveries');
   }
 
   // ── Stats ──
@@ -8288,7 +8284,8 @@ async function renderOpsDashboard(){
   const posHtml=recentPOs.map(po=>rowItem(po.status==='fulfilled'?'#27AE60':'#D35400',`PO: ${po.poNumber}`,po.customerName||'',po.deliveryDate?`Due: ${new Date(po.deliveryDate).toLocaleDateString('en-GB')}`:'',`<span style="text-transform:capitalize">${esc(po.status||'')}</span>`)).join('');
 
   ca.innerHTML=`
-    <h1 style="font-size:22px;font-weight:700;margin-bottom:16px">Ops Dashboard</h1>
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Ops Dashboard</h1>
+    ${(!crmLoaded||!invLoaded||!mfgLoaded||!salesLoaded||!deliveriesLoaded)?'<div style="font-size:12px;color:var(--g3);margin-bottom:14px">Loading more data…</div>':'<div style="margin-bottom:16px"></div>'}
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
       ${statCard('Total Purchase Orders',totalPOs,iconDoc,'#2980B9')}
       ${statCard('Total Sales',totalSales,iconRupee,'#27AE60')}
