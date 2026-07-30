@@ -10859,14 +10859,23 @@ async function handleSaleDeliverToggle(saleId,checked){
   if(!sale) return;
   if(checked){
     if(sale.isDelivered) return; // already delivered, nothing to do
-    // deliveriesList may still be empty if the person never visited the
-    // Deliveries page this session — load it first so
-    // openDeliveryCreateOrEditModal can correctly tell whether this sale
-    // already has a delivery (edit) or not (create), instead of always
-    // assuming "no delivery yet" and trying to create a duplicate for a
-    // sale that already has one.
-    if(!deliveriesLoaded) await loadDeliveriesData();
-    openDeliveryCreateOrEditModal(saleId);
+    try{
+      // deliveriesList may still be empty if the person never visited the
+      // Deliveries page this session — load it first so
+      // openDeliveryCreateOrEditModal can correctly tell whether this sale
+      // already has a delivery (edit) or not (create), instead of always
+      // assuming "no delivery yet" and trying to create a duplicate for a
+      // sale that already has one.
+      if(!deliveriesLoaded) await loadDeliveriesData();
+      await openDeliveryCreateOrEditModal(saleId);
+    }catch(e){
+      // If anything above throws, the checkbox would otherwise silently
+      // stay/revert unchecked with zero feedback — show the real error and
+      // make sure the checkbox reflects reality instead of looking stuck.
+      console.error('Failed to open delivery modal',e);
+      showToast('Could not open delivery form: '+e.message,'error');
+      renderSales();
+    }
   }else{
     if(!sale.isDelivered) return;
     try{
