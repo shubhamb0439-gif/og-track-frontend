@@ -10859,6 +10859,13 @@ async function handleSaleDeliverToggle(saleId,checked){
   if(!sale) return;
   if(checked){
     if(sale.isDelivered) return; // already delivered, nothing to do
+    // deliveriesList may still be empty if the person never visited the
+    // Deliveries page this session — load it first so
+    // openDeliveryCreateOrEditModal can correctly tell whether this sale
+    // already has a delivery (edit) or not (create), instead of always
+    // assuming "no delivery yet" and trying to create a duplicate for a
+    // sale that already has one.
+    if(!deliveriesLoaded) await loadDeliveriesData();
     openDeliveryCreateOrEditModal(saleId);
   }else{
     if(!sale.isDelivered) return;
@@ -11298,9 +11305,16 @@ async function saveDelivery(){
       : await fetch(`/api/sales/${saleId}/delivery`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     const saved=await r.json();
+    if(!saved||!saved.id){ throw new Error('Delivery was saved but the server response was missing an id — cannot mark it delivered.'); }
     // "DELIVER" always also marks the delivery delivered in one step, matching
-    // the reference design's single orange DELIVER button.
-    await fetch(`/api/sales/deliveries/${saved.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:true})});
+    // the reference design's single orange DELIVER button. This second
+    // request's result was previously never checked — if it failed, the UI
+    // still showed a success toast and the checkbox looked ticked, but
+    // nothing was actually persisted, so a refresh reverted it. Now any
+    // failure here throws and is shown to the person instead of being
+    // silently swallowed.
+    const markR=await fetch(`/api/sales/deliveries/${saved.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:true})});
+    if(!markR.ok){ const d=await markR.json(); throw new Error('Delivery was created but could not be marked delivered: '+d.error); }
     closeModal('delivery-modal');
     showToast('Delivered — stock updated ✓','success');
     await Promise.all([loadDeliveriesData(),loadSalesData()]);
