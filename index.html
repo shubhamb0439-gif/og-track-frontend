@@ -11304,7 +11304,10 @@ async function saveDelivery(){
     closeModal('delivery-modal');
     showToast('Delivered — stock updated ✓','success');
     await Promise.all([loadDeliveriesData(),loadSalesData()]);
-    renderView();
+    // Once delivered, the record's home is the Deliveries page — jump there
+    // instead of staying on Sales, so the person sees it land where it
+    // actually belongs rather than just a checked box with no other change.
+    showView('deliveries');
   }catch(e){ showToast(e.message,'error'); }
 }
 
