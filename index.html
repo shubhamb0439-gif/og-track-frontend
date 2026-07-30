@@ -1793,12 +1793,23 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group"><label>Contact Number</label><input type="text" id="crm-f-phone" placeholder="+91…"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Source</label><input type="text" id="crm-f-source" placeholder="Website, Referral…"></div>
+        <div class="form-group"><label>Source</label><select id="crm-f-source">
+          <option value="">— Select —</option>
+          <option value="Website">Website</option>
+          <option value="LinkedIn">LinkedIn</option>
+          <option value="Referral">Referral</option>
+          <option value="Email">Email</option>
+          <option value="Cold Call">Cold Call</option>
+          <option value="Trade Show">Trade Show</option>
+          <option value="Advertisement">Advertisement</option>
+          <option value="Other">Other</option>
+        </select></div>
         <div class="form-group"><label>Assigned To</label><select id="crm-f-assigned"><option value="">— Unassigned —</option></select></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Estimated Value (₹)</label><input type="number" id="crm-f-estvalue" placeholder="80000"></div>
       </div>
+      <div class="form-row full" id="crm-f-address-row" style="display:none"><div class="form-group"><label>Address</label><textarea id="crm-f-address" placeholder="Street, City, State, PIN"></textarea></div></div>
       <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="crm-f-notes" placeholder="Anything relevant from the conversation so far…"></textarea></div></div>
     </div>
     <div class="modal-footer">
@@ -8519,6 +8530,23 @@ function _exportCeoReport(){
 // esc(...) call below was throwing ReferenceError until this was added.
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Sets a <select>'s value, adding the value as an extra option first if it
+// isn't already one of the standard choices — e.g. a lead/prospect/customer
+// created before the Source field became a fixed dropdown may carry a
+// free-text value like "Trade Fair Mumbai" that isn't in the standard list.
+// Without this, select.value = existingValue silently fails to match and
+// resets the field to blank, discarding real data.
+function setSelectValuePreservingLegacy(selectEl, value){
+  if(!value){ selectEl.value=''; return; }
+  const hasOption=[...selectEl.options].some(o=>o.value===value);
+  if(!hasOption){
+    const opt=document.createElement('option');
+    opt.value=value; opt.textContent=value+' (existing)';
+    selectEl.insertBefore(opt, selectEl.options[1]||null);
+  }
+  selectEl.value=value;
+}
+
 let crmLeads=[];
 let crmProspects=[];
 let crmCustomers=[];
@@ -8610,6 +8638,10 @@ function crmFilterBar({search,status,source,statusOptions,onSearch,onStatus,onSo
 function crmApplyFilters(list,filters){
   const q=(filters.search||'').trim().toLowerCase();
   return list.filter(c=>{
+    // A converted lead/prospect has moved on to the next stage — it
+    // shouldn't keep showing on the page it came from. (Customers have no
+    // further conversion, so this never applies to them.)
+    if(c.convertedToProspectId || c.convertedToCustomerId) return false;
     if(filters.status && (c.status||'').toLowerCase()!==filters.status.toLowerCase()) return false;
     if(filters.source && c.source!==filters.source) return false;
     if(q){
@@ -8632,16 +8664,11 @@ function crmStatusBadge(status){
 }
 
 // ── Leads ─────────────────────────────────────────────────────────────────────
-function renderCrmLeads(){
-  const ca=document.getElementById('content-area');
-  if(!crmLoaded){
-    ca.innerHTML='<div class="loading">Loading Leads...</div>';
-    loadCrmData().then(()=>{ if(currentView==='crm_leads') renderView(); });
-    return;
-  }
+function crmLeadsTableHtml(){
+  const activeLeads=crmLeads.filter(l=>!l.convertedToProspectId);
   const list=crmApplyFilters(crmLeads,crmLeadFilters);
   const rows = !list.length
-    ? `<tr><td colspan="7" class="empty-state">${crmLeads.length?'No leads match your filters.':'No leads yet.'}</td></tr>`
+    ? `<tr><td colspan="7" class="empty-state">${activeLeads.length?'No leads match your filters.':'No leads yet.'}</td></tr>`
     : list.map(l=>`<tr>
         <td><strong>${esc(l.name)}</strong>${l.position?`<div style="font-size:12px;color:var(--g3)">${esc(l.position)}</div>`:''}</td>
         <td>${esc(l.company||'—')}</td>
@@ -8650,16 +8677,23 @@ function renderCrmLeads(){
         <td>${esc(l.source||'—')}</td>
         <td>${l.estimatedValue!=null?`₹${Number(l.estimatedValue).toLocaleString('en-IN')}`:'—'}</td>
         <td>
-          ${l.convertedToProspectId
-            ? `<span style="font-size:11px;color:var(--g3)">✓ Converted</span>`
-            : crmIconBtn('convert','Convert to Prospect',`convertLeadToProspect('${l.id}')`,'color:#2980B9')}
           ${crmIconBtn('edit','Edit',`openCrmLeadModal('${l.id}')`)}
           ${crmIconBtn('delete','Delete',`deleteCrmRecord('leads','${l.id}')`,'color:var(--red)')}
         </td>
       </tr>`).join('');
+  return {list,rows,activeCount:activeLeads.length};
+}
+function renderCrmLeads(){
+  const ca=document.getElementById('content-area');
+  if(!crmLoaded){
+    ca.innerHTML='<div class="loading">Loading Leads...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_leads') renderView(); });
+    return;
+  }
+  const {list,rows,activeCount}=crmLeadsTableHtml();
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmLeads.length} lead${crmLeads.length===1?'':'s'}</div>
+      <div style="font-size:13px;color:var(--g3)" id="crm-leads-count">${list.length} of ${activeCount} lead${activeCount===1?'':'s'}</div>
       <button class="btn btn-primary" onclick="openCrmLeadModal()">+ Add Lead</button>
     </div>
     ${crmFilterBar({
@@ -8669,24 +8703,32 @@ function renderCrmLeads(){
     })}
     <div class="table-wrap"><table>
       <thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Value</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="crm-leads-tbody">${rows}</tbody>
     </table></div>`;
 }
-function crmSetLeadFilter_search(v){ crmLeadFilters.search=v; renderCrmLeads(); }
+// Search typing calls this instead of the full renderCrmLeads() — it only
+// patches the table body and count text, leaving the search <input> (and
+// therefore focus/cursor position) completely untouched. Re-rendering the
+// whole page's innerHTML on every keystroke destroys and recreates the
+// input element, which is why the previous version required clicking back
+// into the box after every single character.
+function crmRerenderLeadsTableOnly(){
+  const {list,rows,activeCount}=crmLeadsTableHtml();
+  const tbody=document.getElementById('crm-leads-tbody');
+  const countEl=document.getElementById('crm-leads-count');
+  if(tbody) tbody.innerHTML=rows;
+  if(countEl) countEl.textContent=`${list.length} of ${activeCount} lead${activeCount===1?'':'s'}`;
+}
+function crmSetLeadFilter_search(v){ crmLeadFilters.search=v; crmRerenderLeadsTableOnly(); }
 function crmSetLeadFilter_status(v){ crmLeadFilters.status=v; renderCrmLeads(); }
 function crmSetLeadFilter_source(v){ crmLeadFilters.source=v; renderCrmLeads(); }
 
 // ── Prospects ─────────────────────────────────────────────────────────────────
-function renderCrmProspects(){
-  const ca=document.getElementById('content-area');
-  if(!crmLoaded){
-    ca.innerHTML='<div class="loading">Loading Prospects...</div>';
-    loadCrmData().then(()=>{ if(currentView==='crm_prospects') renderView(); });
-    return;
-  }
+function crmProspectsTableHtml(){
+  const activeProspects=crmProspects.filter(p=>!p.convertedToCustomerId);
   const list=crmApplyFilters(crmProspects,crmProspectFilters);
   const rows = !list.length
-    ? `<tr><td colspan="7" class="empty-state">${crmProspects.length?'No prospects match your filters.':'No prospects yet. Convert a lead to see it here.'}</td></tr>`
+    ? `<tr><td colspan="7" class="empty-state">${activeProspects.length?'No prospects match your filters.':'No prospects yet. Convert a lead to see it here.'}</td></tr>`
     : list.map(p=>`<tr>
         <td><strong>${esc(p.name)}</strong>${p.position?`<div style="font-size:12px;color:var(--g3)">${esc(p.position)}</div>`:''}</td>
         <td>${esc(p.company||'—')}</td>
@@ -8695,16 +8737,23 @@ function renderCrmProspects(){
         <td>${esc(p.source||'—')}</td>
         <td>${p.estimatedValue!=null?`₹${Number(p.estimatedValue).toLocaleString('en-IN')}`:'—'}</td>
         <td>
-          ${p.convertedToCustomerId
-            ? `<span style="font-size:11px;color:var(--g3)">✓ Converted</span>`
-            : crmIconBtn('convert','Convert to Customer',`convertProspectToCustomer('${p.id}')`,'color:#2980B9')}
           ${crmIconBtn('edit','Edit',`openCrmProspectModal('${p.id}')`)}
           ${crmIconBtn('delete','Delete',`deleteCrmRecord('prospects','${p.id}')`,'color:var(--red)')}
         </td>
       </tr>`).join('');
+  return {list,rows,activeCount:activeProspects.length};
+}
+function renderCrmProspects(){
+  const ca=document.getElementById('content-area');
+  if(!crmLoaded){
+    ca.innerHTML='<div class="loading">Loading Prospects...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_prospects') renderView(); });
+    return;
+  }
+  const {list,rows,activeCount}=crmProspectsTableHtml();
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmProspects.length} prospect${crmProspects.length===1?'':'s'}</div>
+      <div style="font-size:13px;color:var(--g3)" id="crm-prospects-count">${list.length} of ${activeCount} prospect${activeCount===1?'':'s'}</div>
       <button class="btn btn-primary" onclick="openCrmProspectAddModal()">+ Add Prospect</button>
     </div>
     ${crmFilterBar({
@@ -8714,21 +8763,22 @@ function renderCrmProspects(){
     })}
     <div class="table-wrap"><table>
       <thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Value</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="crm-prospects-tbody">${rows}</tbody>
     </table></div>`;
 }
-function crmSetProspectFilter_search(v){ crmProspectFilters.search=v; renderCrmProspects(); }
+function crmRerenderProspectsTableOnly(){
+  const {list,rows,activeCount}=crmProspectsTableHtml();
+  const tbody=document.getElementById('crm-prospects-tbody');
+  const countEl=document.getElementById('crm-prospects-count');
+  if(tbody) tbody.innerHTML=rows;
+  if(countEl) countEl.textContent=`${list.length} of ${activeCount} prospect${activeCount===1?'':'s'}`;
+}
+function crmSetProspectFilter_search(v){ crmProspectFilters.search=v; crmRerenderProspectsTableOnly(); }
 function crmSetProspectFilter_status(v){ crmProspectFilters.status=v; renderCrmProspects(); }
 function crmSetProspectFilter_source(v){ crmProspectFilters.source=v; renderCrmProspects(); }
 
 // ── Customers ─────────────────────────────────────────────────────────────────
-function renderCrmCustomers(){
-  const ca=document.getElementById('content-area');
-  if(!crmLoaded){
-    ca.innerHTML='<div class="loading">Loading Customers...</div>';
-    loadCrmData().then(()=>{ if(currentView==='crm_customers') renderView(); });
-    return;
-  }
+function crmCustomersTableHtml(){
   const list=crmApplyFilters(crmCustomers,crmCustomerFilters);
   const rows = !list.length
     ? `<tr><td colspan="8" class="empty-state">${crmCustomers.length?'No customers match your filters.':'No customers yet. Convert a prospect to see it here.'}</td></tr>`
@@ -8736,10 +8786,14 @@ function renderCrmCustomers(){
         const isOpen=crmExpandedCustomers.has(c.id);
         const mainRow=`<tr>
           <td>
-            <button onclick="toggleCrmCustomerExpand('${c.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
-              ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
-            </button>
-            <strong>${esc(c.name)}</strong>${c.position?`<div style="font-size:12px;color:var(--g3);margin-left:22px">${esc(c.position)}</div>`:''}
+            <div style="display:flex;align-items:flex-start;gap:2px">
+              <button onclick="toggleCrmCustomerExpand('${c.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);flex-shrink:0;line-height:0">
+                ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
+              </button>
+              <div>
+                <strong>${esc(c.name)}</strong>${c.position?`<div style="font-size:12px;color:var(--g3)">${esc(c.position)}</div>`:''}
+              </div>
+            </div>
           </td>
           <td>${esc(c.company||'—')}</td>
           <td>${crmContactCell(c.email,c.phone)}</td>
@@ -8757,9 +8811,19 @@ function renderCrmCustomers(){
         const detailRow=isOpen?`<tr><td colspan="8" style="background:var(--g5);padding:16px">${crmCustomerHistoryHtml(c)}</td></tr>`:'';
         return mainRow+detailRow;
       }).join('');
+  return {list,rows};
+}
+function renderCrmCustomers(){
+  const ca=document.getElementById('content-area');
+  if(!crmLoaded){
+    ca.innerHTML='<div class="loading">Loading Customers...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_customers') renderView(); });
+    return;
+  }
+  const {list,rows}=crmCustomersTableHtml();
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmCustomers.length} customer${crmCustomers.length===1?'':'s'}</div>
+      <div style="font-size:13px;color:var(--g3)" id="crm-customers-count">${list.length} of ${crmCustomers.length} customer${crmCustomers.length===1?'':'s'}</div>
       <button class="btn btn-primary" onclick="openCrmCustomerAddModal()">+ Add Customer</button>
     </div>
     ${crmFilterBar({
@@ -8769,10 +8833,17 @@ function renderCrmCustomers(){
     })}
     <div class="table-wrap"><table>
       <thead><tr><th></th><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Lifetime Value</th><th>Assigned To</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="crm-customers-tbody">${rows}</tbody>
     </table></div>`;
 }
-function crmSetCustomerFilter_search(v){ crmCustomerFilters.search=v; renderCrmCustomers(); }
+function crmRerenderCustomersTableOnly(){
+  const {list,rows}=crmCustomersTableHtml();
+  const tbody=document.getElementById('crm-customers-tbody');
+  const countEl=document.getElementById('crm-customers-count');
+  if(tbody) tbody.innerHTML=rows;
+  if(countEl) countEl.textContent=`${list.length} of ${crmCustomers.length} customer${crmCustomers.length===1?'':'s'}`;
+}
+function crmSetCustomerFilter_search(v){ crmCustomerFilters.search=v; crmRerenderCustomersTableOnly(); }
 function crmSetCustomerFilter_status(v){ crmCustomerFilters.status=v; renderCrmCustomers(); }
 function crmSetCustomerFilter_source(v){ crmCustomerFilters.source=v; renderCrmCustomers(); }
 function toggleCrmCustomerExpand(id){
@@ -8830,13 +8901,14 @@ function openCrmLeadModal(id){
   document.getElementById('crm-lead-modal').dataset.editCustomerId = '';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  document.getElementById('crm-f-address-row').style.display='none';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_LEAD_STATUSES,l?.status);
   document.getElementById('crm-f-name').value = l?.name || '';
   document.getElementById('crm-f-company').value = l?.company || '';
   document.getElementById('crm-f-position').value = l?.position || '';
   document.getElementById('crm-f-email').value = l?.email || '';
   document.getElementById('crm-f-phone').value = l?.phone || '';
-  document.getElementById('crm-f-source').value = l?.source || '';
+  setSelectValuePreservingLegacy(document.getElementById('crm-f-source'), l?.source || '');
   document.getElementById('crm-f-estvalue').value = l?.estimatedValue ?? '';
   document.getElementById('crm-f-notes').value = l?.notes || '';
   const sel=document.getElementById('crm-f-assigned');
@@ -8854,6 +8926,7 @@ function openCrmProspectAddModal(){
   modal.dataset.createAs='prospect';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  document.getElementById('crm-f-address-row').style.display='none';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_PROSPECT_STATUSES,'');
   ['name','company','position','email','phone','source','estvalue','notes'].forEach(f=>document.getElementById('crm-f-'+f).value='');
   const sel=document.getElementById('crm-f-assigned');
@@ -8867,6 +8940,8 @@ function openCrmCustomerAddModal(){
   modal.dataset.createAs='customer';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='none';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  document.getElementById('crm-f-address-row').style.display='';
+  document.getElementById('crm-f-address').value='';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_CUSTOMER_STATUSES,'');
   ['name','company','position','email','phone','source','estvalue','notes'].forEach(f=>document.getElementById('crm-f-'+f).value='');
   const sel=document.getElementById('crm-f-assigned');
@@ -8895,10 +8970,16 @@ async function saveCrmLead(){
       ? await fetch(`/api/crm/leads/${editId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       : await fetch('/api/crm/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    const saved=await r.json();
     closeModal('crm-lead-modal');
-    showToast(editId?'Lead updated ✓':'Lead added ✓','success');
     await loadCrmData();
-    renderView();
+    if(saved.autoConvertedToProspect){
+      showToast(`"${saved.autoConvertedToProspect.name}" marked Qualified — moved to Prospects ✓`,'success');
+      showView('crm_prospects');
+    }else{
+      showToast(editId?'Lead updated ✓':'Lead added ✓','success');
+      renderView();
+    }
   }catch(e){ showToast(e.message,'error'); }
 }
 
@@ -8911,13 +8992,14 @@ function openCrmProspectModal(id){
   modal.dataset.editId = ''; modal.dataset.editProspectId = p.id; modal.dataset.editCustomerId = ''; modal.dataset.createAs='';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  document.getElementById('crm-f-address-row').style.display='none';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_PROSPECT_STATUSES,p.status);
   document.getElementById('crm-f-name').value = p.name || '';
   document.getElementById('crm-f-company').value = p.company || '';
   document.getElementById('crm-f-position').value = p.position || '';
   document.getElementById('crm-f-email').value = p.email || '';
   document.getElementById('crm-f-phone').value = p.phone || '';
-  document.getElementById('crm-f-source').value = p.source || '';
+  setSelectValuePreservingLegacy(document.getElementById('crm-f-source'), p.source || '');
   document.getElementById('crm-f-estvalue').value = p.estimatedValue ?? '';
   document.getElementById('crm-f-notes').value = p.notes || '';
   const sel=document.getElementById('crm-f-assigned');
@@ -8937,10 +9019,12 @@ function openCrmCustomerModal(id){
   document.getElementById('crm-f-position').value = c.position || '';
   document.getElementById('crm-f-email').value = c.email || '';
   document.getElementById('crm-f-phone').value = c.phone || '';
-  document.getElementById('crm-f-source').value = c.source || '';
+  setSelectValuePreservingLegacy(document.getElementById('crm-f-source'), c.source || '');
   document.getElementById('crm-f-estvalue').value = '';
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='none';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
+  document.getElementById('crm-f-address-row').style.display='';
+  document.getElementById('crm-f-address').value = c.billingAddress || '';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_CUSTOMER_STATUSES,c.status);
   document.getElementById('crm-f-notes').value = c.notes || '';
   const sel=document.getElementById('crm-f-assigned');
@@ -8974,9 +9058,16 @@ async function saveCrmContact(){
     try{
       const r=await fetch(`/api/crm/prospects/${prospectId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+      const saved=await r.json();
       closeModal('crm-lead-modal'); modal.dataset.editProspectId='';
-      showToast('Prospect updated ✓','success');
-      await loadCrmData(); renderView();
+      await loadCrmData();
+      if(saved.autoConvertedToCustomer){
+        showToast(`"${saved.autoConvertedToCustomer.name}" marked Won — moved to Customers ✓`,'success');
+        showView('crm_customers');
+      }else{
+        showToast('Prospect updated ✓','success');
+        renderView();
+      }
     }catch(e){ showToast(e.message,'error'); }
     return;
   }
@@ -8990,6 +9081,7 @@ async function saveCrmContact(){
       source: document.getElementById('crm-f-source').value.trim()||null,
       status: document.getElementById('crm-f-status').value||undefined,
       assignedTo: document.getElementById('crm-f-assigned').value||null,
+      billingAddress: document.getElementById('crm-f-address').value.trim()||null,
       notes: document.getElementById('crm-f-notes').value.trim()||null,
     };
     try{
@@ -9033,6 +9125,7 @@ async function saveCrmContact(){
       source: document.getElementById('crm-f-source').value.trim()||null,
       status: document.getElementById('crm-f-status').value||undefined,
       assignedTo: document.getElementById('crm-f-assigned').value||null,
+      billingAddress: document.getElementById('crm-f-address').value.trim()||null,
       notes: document.getElementById('crm-f-notes').value.trim()||null,
     };
     try{
@@ -9179,13 +9272,7 @@ async function saveCrmPo(){
 }
 
 // ── Orders page (auto-populated from Customer purchases) ────────────────────
-function renderCrmOrders(){
-  const ca=document.getElementById('content-area');
-  if(!crmLoaded){
-    ca.innerHTML='<div class="loading">Loading Orders...</div>';
-    loadCrmData().then(()=>{ if(currentView==='crm_orders') renderView(); });
-    return;
-  }
+function crmOrdersTableHtml(){
   const q=(crmOrderFilters.search||'').trim().toLowerCase();
   const list=crmPOs.filter(po=>{
     if(crmOrderFilters.customerId && po.customerId!==crmOrderFilters.customerId) return false;
@@ -9221,9 +9308,19 @@ function renderCrmOrders(){
         const detailRow=isOpen?`<tr><td colspan="8" style="background:var(--g5);padding:16px" id="crm-po-detail-${po.id}">${crmOrderDetailHtml(po)}</td></tr>`:'';
         return mainRow+detailRow;
       }).join('');
+  return {list,rows};
+}
+function renderCrmOrders(){
+  const ca=document.getElementById('content-area');
+  if(!crmLoaded){
+    ca.innerHTML='<div class="loading">Loading Orders...</div>';
+    loadCrmData().then(()=>{ if(currentView==='crm_orders') renderView(); });
+    return;
+  }
+  const {list,rows}=crmOrdersTableHtml();
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${list.length} of ${crmPOs.length} order${crmPOs.length===1?'':'s'}</div>
+      <div style="font-size:13px;color:var(--g3)" id="crm-orders-count">${list.length} of ${crmPOs.length} order${crmPOs.length===1?'':'s'}</div>
     </div>
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <div style="position:relative;flex:2 1 260px">
@@ -9240,12 +9337,20 @@ function renderCrmOrders(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>PO Number</th><th>Customer Name & Email</th><th>Item Quantity</th><th>Delivery Date</th><th>Status</th><th>Created Date</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="crm-orders-tbody">${rows}</tbody>
     </table></div>`;
   // Fetch and fill in Sales/Delivery history for any rows already expanded.
   crmExpandedOrders.forEach(id=>loadCrmOrderHistory(id));
 }
-function crmSetOrderFilter_search(v){ crmOrderFilters.search=v; renderCrmOrders(); }
+function crmRerenderOrdersTableOnly(){
+  const {list,rows}=crmOrdersTableHtml();
+  const tbody=document.getElementById('crm-orders-tbody');
+  const countEl=document.getElementById('crm-orders-count');
+  if(tbody) tbody.innerHTML=rows;
+  if(countEl) countEl.textContent=`${list.length} of ${crmPOs.length} order${crmPOs.length===1?'':'s'}`;
+  crmExpandedOrders.forEach(id=>loadCrmOrderHistory(id));
+}
+function crmSetOrderFilter_search(v){ crmOrderFilters.search=v; crmRerenderOrdersTableOnly(); }
 function crmSetOrderFilter_customer(v){ crmOrderFilters.customerId=v; renderCrmOrders(); }
 function toggleCrmOrderExpand(id){
   if(crmExpandedOrders.has(id)) crmExpandedOrders.delete(id);
@@ -9369,13 +9474,7 @@ function invContactCell(email,phone){
 }
 
 // ── Vendors ───────────────────────────────────────────────────────────────────
-function renderInvVendors(){
-  const ca=document.getElementById('content-area');
-  if(!invLoaded){
-    ca.innerHTML='<div class="loading">Loading Vendors...</div>';
-    loadInvData().then(()=>{ if(currentView==='inv_vendors') renderView(); });
-    return;
-  }
+function invVendorsTableHtml(){
   const q=(invVendorFilters.search||'').trim().toLowerCase();
   const list=invVendors.filter(v=>{
     if(invVendorFilters.group && v.vendorGroup!==invVendorFilters.group) return false;
@@ -9385,7 +9484,7 @@ function renderInvVendors(){
     }
     return true;
   });
-  const rows = !list.length
+  return !list.length
     ? `<tr><td colspan="6" class="empty-state">${invVendors.length?'No vendors match your filters.':'No vendors yet.'}</td></tr>`
     : list.map(v=>{
         const isOpen=invExpandedVendors.has(v.id);
@@ -9407,6 +9506,14 @@ function renderInvVendors(){
         const detailRow=isOpen?`<tr><td colspan="6" style="background:var(--g5);padding:16px">${invVendorHistoryHtml(v)}</td></tr>`:'';
         return mainRow+detailRow;
       }).join('');
+}
+function renderInvVendors(){
+  const ca=document.getElementById('content-area');
+  if(!invLoaded){
+    ca.innerHTML='<div class="loading">Loading Vendors...</div>';
+    loadInvData().then(()=>{ if(currentView==='inv_vendors') renderView(); });
+    return;
+  }
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <h1 style="font-size:22px;font-weight:700">Vendors</h1>
@@ -9421,10 +9528,14 @@ function renderInvVendors(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>ID</th><th>Name</th><th>Group</th><th>Contact</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="inv-vendors-tbody">${invVendorsTableHtml()}</tbody>
     </table></div>`;
 }
-function invSetVendorFilter_search(v){ invVendorFilters.search=v; renderInvVendors(); }
+function invVendorsRerenderTableOnly(){
+  const tbody=document.getElementById('inv-vendors-tbody');
+  if(tbody) tbody.innerHTML=invVendorsTableHtml();
+}
+function invSetVendorFilter_search(v){ invVendorFilters.search=v; invVendorsRerenderTableOnly(); }
 function invSetVendorFilter_group(v){ invVendorFilters.group=v; renderInvVendors(); }
 function toggleInvVendorExpand(id){
   if(invExpandedVendors.has(id)) invExpandedVendors.delete(id);
@@ -9511,13 +9622,7 @@ async function deleteInvVendor(id){
 }
 
 // ── Items ─────────────────────────────────────────────────────────────────────
-function renderInvItems(){
-  const ca=document.getElementById('content-area');
-  if(!invLoaded){
-    ca.innerHTML='<div class="loading">Loading Items...</div>';
-    loadInvData().then(()=>{ if(currentView==='inv_items') renderView(); });
-    return;
-  }
+function invItemsTableHtml(){
   const q=(invItemFilters.search||'').trim().toLowerCase();
   const list=invItems.filter(i=>{
     if(invItemFilters.group && i.itemGroup!==invItemFilters.group) return false;
@@ -9529,7 +9634,7 @@ function renderInvItems(){
     return true;
   });
   const alertLabel={critical:'⚠ Below Min',reorder:'⚠ Reorder'};
-  const rows = !list.length
+  return !list.length
     ? `<tr><td colspan="8" class="empty-state">${invItems.length?'No items match your filters.':'No items yet.'}</td></tr>`
     : list.map(i=>{
         const isOpen=invExpandedItems.has(i.id);
@@ -9555,6 +9660,14 @@ function renderInvItems(){
         const detailRow=isOpen?`<tr><td colspan="8" style="background:var(--g5);padding:16px" id="inv-item-detail-${i.id}">${invItemHistoryHtml(i)}</td></tr>`:'';
         return mainRow+detailRow;
       }).join('');
+}
+function renderInvItems(){
+  const ca=document.getElementById('content-area');
+  if(!invLoaded){
+    ca.innerHTML='<div class="loading">Loading Items...</div>';
+    loadInvData().then(()=>{ if(currentView==='inv_items') renderView(); });
+    return;
+  }
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <h1 style="font-size:22px;font-weight:700">Inventory Items</h1>
@@ -9573,11 +9686,16 @@ function renderInvItems(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Item Code</th><th>Name</th><th>Group</th><th>Class</th><th>Stock</th><th>Sold</th><th>Unit</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="inv-items-tbody">${invItemsTableHtml()}</tbody>
     </table></div>`;
   invExpandedItems.forEach(id=>loadInvItemHistory(id));
 }
-function invSetItemFilter_search(v){ invItemFilters.search=v; renderInvItems(); }
+function invItemsRerenderTableOnly(){
+  const tbody=document.getElementById('inv-items-tbody');
+  if(tbody) tbody.innerHTML=invItemsTableHtml();
+  invExpandedItems.forEach(id=>loadInvItemHistory(id));
+}
+function invSetItemFilter_search(v){ invItemFilters.search=v; invItemsRerenderTableOnly(); }
 function invSetItemFilter_group(v){ invItemFilters.group=v; renderInvItems(); }
 function invSetItemFilter_class(v){ invItemFilters.cls=v; renderInvItems(); }
 function toggleInvItemExpand(id){
@@ -9713,13 +9831,7 @@ async function loadInvPurchaseLines(purchaseId){
   }catch(e){ return []; }
 }
 
-function renderInvPurchases(){
-  const ca=document.getElementById('content-area');
-  if(!invLoaded){
-    ca.innerHTML='<div class="loading">Loading Purchases...</div>';
-    loadInvData().then(()=>{ if(currentView==='inv_purchases') renderView(); });
-    return;
-  }
+function invPurchasesTableHtml(){
   const q=(invPurchaseFilters.search||'').trim().toLowerCase();
   const list=invPurchases.filter(p=>{
     if(invPurchaseFilters.status && p.status!==invPurchaseFilters.status) return false;
@@ -9757,6 +9869,19 @@ function renderInvPurchases(){
         const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:16px" id="inv-purchase-detail-${p.id}">${invPurchaseDetailHtml(p)}</td></tr>`:'';
         return mainRow+detailRow;
       }).join('');
+  // Lazily fetch line items for rows visible in the table (for totals) and
+  // any already-expanded detail rows. Uses the table-only re-render so a
+  // background line-cache fill doesn't blow away the search box's focus.
+  list.forEach(p=>{ if(!invPurchaseLinesCache[p.id]) loadInvPurchaseLines(p.id).then(()=>{ if(currentView==='inv_purchases') invPurchasesRerenderTableOnly(); }); });
+  return rows;
+}
+function renderInvPurchases(){
+  const ca=document.getElementById('content-area');
+  if(!invLoaded){
+    ca.innerHTML='<div class="loading">Loading Purchases...</div>';
+    loadInvData().then(()=>{ if(currentView==='inv_purchases') renderView(); });
+    return;
+  }
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <h1 style="font-size:22px;font-weight:700">Purchases</h1>
@@ -9776,11 +9901,14 @@ function renderInvPurchases(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Date</th><th>PO #</th><th>Vendor</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="inv-purchases-tbody">${invPurchasesTableHtml()}</tbody>
     </table></div>`;
-  list.forEach(p=>{ if(!invPurchaseLinesCache[p.id]) loadInvPurchaseLines(p.id).then(()=>{ if(currentView==='inv_purchases') renderInvPurchases(); }); });
 }
-function invSetPurchaseFilter_search(v){ invPurchaseFilters.search=v; renderInvPurchases(); }
+function invPurchasesRerenderTableOnly(){
+  const tbody=document.getElementById('inv-purchases-tbody');
+  if(tbody) tbody.innerHTML=invPurchasesTableHtml();
+}
+function invSetPurchaseFilter_search(v){ invPurchaseFilters.search=v; invPurchasesRerenderTableOnly(); }
 function invSetPurchaseFilter_status(v){ invPurchaseFilters.status=v; renderInvPurchases(); }
 function invSetPurchaseFilter_vendor(v){ invPurchaseFilters.vendorId=v; renderInvPurchases(); }
 function toggleInvPurchaseExpand(id){
@@ -9903,33 +10031,52 @@ async function openInvPurchaseEditModal(id){
   document.getElementById('inv-ep-vendor').innerHTML='<option value="">Select Vendor (Optional)</option>'+
     invVendors.map(v=>`<option value="${v.id}" ${p.vendorId===v.id?'selected':''}>${esc(v.name)}</option>`).join('');
   const lines=invPurchaseLinesCache[id] || await loadInvPurchaseLines(id);
-  document.getElementById('inv-ep-items').innerHTML=lines.map((l,idx)=>{
-    const pct=l.quantityOrdered>0 ? Math.round((l.quantityReceived/l.quantityOrdered)*100) : 0;
-    const recvState = l.quantityReceived<=0 ? 'not_received' : (l.quantityReceived>=l.quantityOrdered ? 'fully_received' : 'partially_received');
-    return `<div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" data-line-id="${l.id}" data-ordered="${l.quantityOrdered}">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px"><strong>${esc(invItemName(l.itemId))}</strong><span style="font-size:12px;color:var(--g3)">Ordered: ${l.quantityOrdered}</span></div>
+  document.getElementById('inv-ep-items').innerHTML=lines.map((l,idx)=>`
+    <div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" data-line-id="${l.id}" data-ordered="${l.quantityOrdered}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <strong>${esc(invItemName(l.itemId))} (${esc(invItemRecord(l.itemId)?.itemCode||'')})</strong>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label><input type="text" class="inv-ep-line-vcode" value="${esc(l.vendorItemCode||'')}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
-        <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Ordered Qty</label><input type="number" class="inv-ep-line-qty" value="${l.quantityOrdered}" min="${l.quantityReceived}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
-        <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Unit Cost</label><input type="number" class="inv-ep-line-cost" value="${l.unitCost}" min="0" step="0.01" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+        <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Lead Time (days)</label><input type="number" class="inv-ep-line-leadtime" value="${l.leadTimeDays??0}" min="0" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
       </div>
-      <label style="font-size:11px;color:var(--g3)">Receiving Status</label>
-      <select class="inv-ep-line-state" onchange="invEpUpdateLineState(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px">
-        <option value="not_received" ${recvState==='not_received'?'selected':''}>Not Received</option>
-        <option value="partially_received" ${recvState==='partially_received'?'selected':''}>Partially Received</option>
-        <option value="fully_received" ${recvState==='fully_received'?'selected':''}>Fully Received</option>
-      </select>
-      <div class="inv-ep-line-pct-wrap" style="display:${recvState==='partially_received'?'flex':'none'};align-items:center;gap:8px">
-        <input type="range" class="inv-ep-line-pct" min="0" max="100" value="${pct}" oninput="this.nextElementSibling.textContent=this.value+'%'" style="flex:1">
-        <span style="font-size:12px;min-width:36px">${pct}%</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="flex:1 1 100px"><label style="font-size:11px;color:var(--g3)">Quantity Ordered</label><input type="number" class="inv-ep-line-qty" value="${l.quantityOrdered}" min="${l.quantityReceived}" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+        <div style="flex:1 1 100px"><label style="font-size:11px;color:var(--g3)">Quantity Received</label><input type="number" class="inv-ep-line-received" value="${l.quantityReceived}" min="0" max="${l.quantityOrdered}" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:2px solid #27AE60;border-radius:6px"></div>
       </div>
-    </div>`;
-  }).join('');
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Remaining</label><div class="inv-ep-line-remaining" style="padding:6px;background:var(--g5);border-radius:6px">${(l.quantityOrdered-l.quantityReceived).toFixed(2)}</div></div>
+        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Unit Cost</label><input type="number" class="inv-ep-line-cost" value="${l.unitCost}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Subtotal</label><div class="inv-ep-line-subtotal" style="padding:6px;background:var(--g5);border-radius:6px">₹${(l.quantityOrdered*l.unitCost).toFixed(2)}</div></div>
+      </div>
+      <div class="inv-ep-line-status-pill"></div>
+    </div>`).join('');
+  document.querySelectorAll('#inv-ep-items > div').forEach(row=>invEpUpdateLineDerived(row.querySelector('.inv-ep-line-received')));
   document.getElementById('inv-purchase-edit-modal').classList.add('open');
 }
-function invEpUpdateLineState(selectEl){
-  const wrap=selectEl.parentElement.querySelector('.inv-ep-line-pct-wrap');
-  wrap.style.display = selectEl.value==='partially_received' ? 'flex' : 'none';
+// Recomputes Remaining, Subtotal, and the status pill for a line whenever
+// its Ordered/Received/Unit Cost fields change — no separate status
+// dropdown or percentage slider; the status is purely derived from
+// received vs ordered, per the simplified design.
+function invEpUpdateLineDerived(inputEl){
+  const row=inputEl.closest('[data-line-id]');
+  if(!row) return;
+  const ordered=Number(row.querySelector('.inv-ep-line-qty').value||0);
+  const received=Math.min(Number(row.querySelector('.inv-ep-line-received').value||0), ordered);
+  const cost=Number(row.querySelector('.inv-ep-line-cost').value||0);
+  row.querySelector('.inv-ep-line-received').max=ordered;
+  row.querySelector('.inv-ep-line-received').value=received;
+  row.querySelector('.inv-ep-line-remaining').textContent=(ordered-received).toFixed(2);
+  row.querySelector('.inv-ep-line-subtotal').textContent='₹'+(ordered*cost).toFixed(2);
+  const pill=row.querySelector('.inv-ep-line-status-pill');
+  if(received<=0){
+    pill.innerHTML=`<div style="padding:8px 12px;background:var(--g5);border-radius:6px;color:var(--g3);font-weight:600">Not Received</div>`;
+  }else if(received>=ordered){
+    pill.innerHTML=`<div style="padding:8px 12px;background:#27AE6022;border-radius:6px;color:#27AE60;font-weight:600">Fully Received</div>`;
+  }else{
+    const pct=ordered>0?Math.round((received/ordered)*100):0;
+    pill.innerHTML=`<div style="padding:8px 12px;background:#F39C1222;border-radius:6px;color:#F39C12;font-weight:600">Partially Received (${pct}%)</div>`;
+  }
 }
 async function saveInvPurchaseEdit(){
   if(!invEditPurchaseId) return;
@@ -9946,14 +10093,11 @@ async function saveInvPurchaseEdit(){
       const ordered=Number(row.dataset.ordered);
       const qty=Number(row.querySelector('.inv-ep-line-qty').value||ordered);
       const cost=Number(row.querySelector('.inv-ep-line-cost').value||0);
+      const leadTimeDays=Number(row.querySelector('.inv-ep-line-leadtime')?.value||0);
       const vendorItemCode=row.querySelector('.inv-ep-line-vcode').value.trim()||null;
-      lineUpdates.push({lineId,quantityOrdered:qty,unitCost:cost,vendorItemCode});
+      lineUpdates.push({lineId,quantityOrdered:qty,unitCost:cost,vendorItemCode,leadTimeDays});
 
-      const state=row.querySelector('.inv-ep-line-state').value;
-      let quantityReceived;
-      if(state==='not_received') quantityReceived=0;
-      else if(state==='fully_received') quantityReceived=qty;
-      else { const pct=Number(row.querySelector('.inv-ep-line-pct').value||0); quantityReceived=Math.round((pct/100)*qty*100)/100; }
+      const quantityReceived=Math.min(Number(row.querySelector('.inv-ep-line-received').value||0), qty);
       receiveUpdates.push({purchaseItemId:lineId,quantityReceived});
     });
 
@@ -9990,7 +10134,12 @@ let mfgSelectedBomId=null;      // which BOM is selected in the left/right BOM B
 let mfgExpandedAssemblies=new Set();
 let mfgAssemblyDetailCache={};  // assemblyId -> full detail incl. componentsUsed
 let mfgAssemblySearch='';
-let mfgVendorCheckCache={};     // `${bomId}:${qty}` -> vendor-check response
+// NOTE: no client-side cache for vendor-check results. Component stock
+// changes constantly (receiving purchases, other builds, adjustments), so
+// caching this across modal opens showed permanently stale numbers — e.g.
+// checking a BOM before any stock existed, then receiving real inventory
+// afterward, would still show "Total: 0" forever because the first (empty)
+// result never got invalidated. Always fetch fresh.
 
 async function loadMfgData(){
   try{
@@ -10223,18 +10372,12 @@ async function removeMfgBomLine(bomId,lineId){
 }
 
 // ── Assembly page ─────────────────────────────────────────────────────────────
-function renderMfgAssembly(){
-  const ca=document.getElementById('content-area');
-  if(!mfgLoaded){
-    ca.innerHTML='<div class="loading">Loading Assembly...</div>';
-    loadMfgData().then(()=>{ if(currentView==='mfg_assembly') renderView(); });
-    return;
-  }
+function mfgAssemblyTableHtml(){
   const q=(mfgAssemblySearch||'').trim().toLowerCase();
   const list = q
     ? mfgAssemblies.filter(a=>[a.name,a.assemblyNumber,mfgBomName(a.bomId),invItemName(a.productItemId)].filter(Boolean).join(' ').toLowerCase().includes(q))
     : mfgAssemblies;
-  const rows = !list.length
+  return !list.length
     ? `<tr><td colspan="7" class="empty-state">${mfgAssemblies.length?'No assemblies match your search.':'No assemblies yet.'}</td></tr>`
     : list.map(a=>{
         const isOpen=mfgExpandedAssemblies.has(a.id);
@@ -10259,6 +10402,14 @@ function renderMfgAssembly(){
         const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:16px" id="mfg-assembly-detail-${a.id}">${mfgAssemblyDetailHtml(a)}</td></tr>`:'';
         return mainRow+detailRow;
       }).join('');
+}
+function renderMfgAssembly(){
+  const ca=document.getElementById('content-area');
+  if(!mfgLoaded){
+    ca.innerHTML='<div class="loading">Loading Assembly...</div>';
+    loadMfgData().then(()=>{ if(currentView==='mfg_assembly') renderView(); });
+    return;
+  }
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <h1 style="font-size:22px;font-weight:700">Assembly</h1>
@@ -10269,7 +10420,7 @@ function renderMfgAssembly(){
         <button class="btn btn-primary" onclick="openMfgAssemblyModal()">+ Add Assembly</button>
       </div>
       <div style="position:relative;margin-bottom:12px">
-        <input type="text" placeholder="Search assemblies..." value="${esc(mfgAssemblySearch)}" oninput="mfgAssemblySearch=this.value;renderMfgAssembly()"
+        <input type="text" placeholder="Search assemblies..." value="${esc(mfgAssemblySearch)}" oninput="mfgAssemblySearch=this.value;mfgAssemblyRerenderTableOnly()"
           style="width:100%;padding:9px 10px 9px 34px;border:1px solid var(--border);border-radius:8px">
         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g3)">
           <svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
@@ -10277,9 +10428,14 @@ function renderMfgAssembly(){
       </div>
       <div class="table-wrap"><table>
         <thead><tr><th>Date</th><th>Assembly Name</th><th>BOM</th><th>Quantity</th><th>Created By</th><th>Actions</th></tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody id="mfg-assembly-tbody">${mfgAssemblyTableHtml()}</tbody>
       </table></div>
     </div>`;
+  mfgExpandedAssemblies.forEach(id=>loadMfgAssemblyDetail(id));
+}
+function mfgAssemblyRerenderTableOnly(){
+  const tbody=document.getElementById('mfg-assembly-tbody');
+  if(tbody) tbody.innerHTML=mfgAssemblyTableHtml();
   mfgExpandedAssemblies.forEach(id=>loadMfgAssemblyDetail(id));
 }
 function toggleMfgAssemblyExpand(id){
@@ -10334,9 +10490,7 @@ async function onMfgAssemblyBomOrQtyChange(){
   if(!bomId){ resultEl.innerHTML=''; return; }
   resultEl.innerHTML='<div style="font-size:12px;color:var(--g3)">Checking component stock…</div>';
   try{
-    const cacheKey=`${bomId}:${qty}`;
-    const data = mfgVendorCheckCache[cacheKey] || await fetch(`/api/manufacturing/boms/${bomId}/vendor-check?quantity=${qty}`).then(r=>r.json());
-    mfgVendorCheckCache[cacheKey]=data;
+    const data = await fetch(`/api/manufacturing/boms/${bomId}/vendor-check?quantity=${qty}`).then(r=>r.json());
     resultEl.innerHTML=`
       <div style="font-weight:600;margin:10px 0 6px">Required Components & Vendor Sources</div>
       ${data.lines.map(line=>{
@@ -10568,13 +10722,7 @@ function salesCustomerName(id){
 
 let salesSearchTerm='';
 
-function renderSales(){
-  const ca=document.getElementById('content-area');
-  if(!salesLoaded){
-    ca.innerHTML='<div class="loading">Loading Sales...</div>';
-    loadSalesData().then(()=>{ if(currentView==='sales') renderView(); });
-    return;
-  }
+function salesTableHtml(){
   const q=(salesSearchTerm||'').trim().toLowerCase();
   const list = q
     ? salesList.filter(s=>{
@@ -10587,7 +10735,6 @@ function renderSales(){
     ? `<tr><td colspan="6" class="empty-state">${salesList.length?'No sales match your search.':"No sales recorded yet. Create one from a Customer's Sale action."}</td></tr>`
     : list.map(s=>{
         const cust=crmCustomerRecord?crmCustomerRecord(s.customerId):null;
-        const firstItem=(s.items&&s.items[0])||null;
         return `<tr>
           <td><strong>${esc(s.saleNumber)}</strong></td>
           <td><strong>${esc(cust?.name||salesCustomerName(s.customerId))}</strong>${cust?.company?`<div style="font-size:11px;color:var(--g3)">${esc(cust.company)}</div>`:''}</td>
@@ -10600,11 +10747,20 @@ function renderSales(){
           </td>
         </tr>`;
       }).join('');
+  return rows;
+}
+function renderSales(){
+  const ca=document.getElementById('content-area');
+  if(!salesLoaded){
+    ca.innerHTML='<div class="loading">Loading Sales...</div>';
+    loadSalesData().then(()=>{ if(currentView==='sales') renderView(); });
+    return;
+  }
   ca.innerHTML=`
     <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Sales</h1>
     <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Manage customer sales and deliveries</div>
     <div style="position:relative;margin-bottom:16px">
-      <input type="text" placeholder="Search by sale number, customer name, or company…" value="${esc(salesSearchTerm)}" oninput="salesSearchTerm=this.value;renderSales()"
+      <input type="text" placeholder="Search by sale number, customer name, or company…" value="${esc(salesSearchTerm)}" oninput="salesSearchTerm=this.value;salesRerenderTableOnly()"
         style="width:100%;padding:9px 10px 9px 34px;border:1px solid var(--border);border-radius:8px">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g3)">
         <svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
@@ -10612,8 +10768,12 @@ function renderSales(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Sale #</th><th>Customer</th><th>Products</th><th>Sale Date</th><th>Deliver</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="sales-tbody">${salesTableHtml()}</tbody>
     </table></div>`;
+}
+function salesRerenderTableOnly(){
+  const tbody=document.getElementById('sales-tbody');
+  if(tbody) tbody.innerHTML=salesTableHtml();
 }
 
 // Build the flattened list of unsold assembly units (with product name + serial) for the picker
@@ -10803,13 +10963,7 @@ function deliveryCustomerName(saleId){
   return c?c.name:salesCustomerName(s.customerId);
 }
 
-function renderDeliveries(){
-  const ca=document.getElementById('content-area');
-  if(!deliveriesLoaded){
-    ca.innerHTML='<div class="loading">Loading Deliveries...</div>';
-    loadDeliveriesData().then(()=>{ if(currentView==='deliveries') renderView(); });
-    return;
-  }
+function deliveriesTableHtml(){
   const q=(deliverySearchTerm||'').trim().toLowerCase();
   const list = q
     ? deliveriesList.filter(d=>{
@@ -10817,7 +10971,7 @@ function renderDeliveries(){
         return hay.includes(q);
       })
     : deliveriesList;
-  const rows = !list.length
+  return !list.length
     ? `<tr><td colspan="7" class="empty-state">${deliveriesList.length?'No deliveries match your search.':'No deliveries scheduled yet. Create one from a Sale.'}</td></tr>`
     : list.map(d=>{
         const sale=salesList.find(s=>s.id===d.saleId);
@@ -10834,11 +10988,19 @@ function renderDeliveries(){
           </td>
         </tr>`;
       }).join('');
+}
+function renderDeliveries(){
+  const ca=document.getElementById('content-area');
+  if(!deliveriesLoaded){
+    ca.innerHTML='<div class="loading">Loading Deliveries...</div>';
+    loadDeliveriesData().then(()=>{ if(currentView==='deliveries') renderView(); });
+    return;
+  }
   ca.innerHTML=`
     <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Deliveries</h1>
     <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Track and manage all deliveries</div>
     <div style="position:relative;margin-bottom:16px">
-      <input type="text" placeholder="Search by sale number, customer, address, or location…" value="${esc(deliverySearchTerm)}" oninput="deliverySearchTerm=this.value;renderDeliveries()"
+      <input type="text" placeholder="Search by sale number, customer, address, or location…" value="${esc(deliverySearchTerm)}" oninput="deliverySearchTerm=this.value;deliveriesRerenderTableOnly()"
         style="width:100%;padding:9px 10px 9px 34px;border:1px solid var(--border);border-radius:8px">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--g3)">
         <svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" fill="none"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
@@ -10846,8 +11008,12 @@ function renderDeliveries(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Sale #</th><th>Customer</th><th>Products</th><th>Delivery Address</th><th>Delivery Date</th><th>Delivered</th><th>Actions</th></tr></thead>
-      <tbody>${rows}</tbody>
+      <tbody id="deliveries-tbody">${deliveriesTableHtml()}</tbody>
     </table></div>`;
+}
+function deliveriesRerenderTableOnly(){
+  const tbody=document.getElementById('deliveries-tbody');
+  if(tbody) tbody.innerHTML=deliveriesTableHtml();
 }
 
 // Checking the "Delivered" box on an existing delivery row is a quick mark-
