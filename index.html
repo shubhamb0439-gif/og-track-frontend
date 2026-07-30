@@ -10125,6 +10125,10 @@ function addInvPoLine(prefillItemId){
         <input type="number" id="inv-po-line-leadtime-${idx}" value="0" min="0" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
       <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Unit Cost *</label>
         <input type="number" id="inv-po-line-cost-${idx}" value="0" min="0" step="0.01" oninput="updateInvPoTotal()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Freight Charges <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input type="number" id="inv-po-line-freight-${idx}" value="0" min="0" step="0.01" oninput="updateInvPoTotal()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Import Charges <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input type="number" id="inv-po-line-import-${idx}" value="0" min="0" step="0.01" oninput="updateInvPoTotal()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
       <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Line Total</label>
         <div id="inv-po-line-total-${idx}" style="padding:6px;background:var(--g5);border-radius:6px;font-weight:600">₹0.00</div></div>
     </div>`;
@@ -10137,7 +10141,12 @@ function updateInvPoTotal(){
     const idx=row.id.split('-').pop();
     const qty=Number(document.getElementById(`inv-po-line-qty-${idx}`)?.value||0);
     const cost=Number(document.getElementById(`inv-po-line-cost-${idx}`)?.value||0);
-    const lineTotal=qty*cost;
+    const freight=Number(document.getElementById(`inv-po-line-freight-${idx}`)?.value||0);
+    const importCh=Number(document.getElementById(`inv-po-line-import-${idx}`)?.value||0);
+    // Freight/import are flat charges for the whole line, not per-unit —
+    // matches how the backend's landed-cost calc already treats them
+    // (unitCost*qty + freightCost + importCharges, divided back per unit).
+    const lineTotal=(qty*cost)+freight+importCh;
     total+=lineTotal;
     const totalEl=document.getElementById(`inv-po-line-total-${idx}`);
     if(totalEl) totalEl.textContent='₹'+lineTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
@@ -10156,7 +10165,9 @@ async function saveInvPurchase(){
     const qty=Number(document.getElementById(`inv-po-line-qty-${idx}`)?.value||0);
     const leadTimeDays=Number(document.getElementById(`inv-po-line-leadtime-${idx}`)?.value||0)||undefined;
     const cost=Number(document.getElementById(`inv-po-line-cost-${idx}`)?.value||0);
-    if(itemId&&qty>0) lines.push({itemId,vendorItemCode,quantityOrdered:qty,unitCost:cost,leadTimeDays});
+    const freightCost=Number(document.getElementById(`inv-po-line-freight-${idx}`)?.value||0)||undefined;
+    const importCharges=Number(document.getElementById(`inv-po-line-import-${idx}`)?.value||0)||undefined;
+    if(itemId&&qty>0) lines.push({itemId,vendorItemCode,quantityOrdered:qty,unitCost:cost,leadTimeDays,freightCost,importCharges});
   });
   if(!lines.length){ showToast('Add at least one item with a quantity','error'); return; }
   const payload={ poNumber, vendorId, orderDate:document.getElementById('inv-po-orderdate').value||undefined, lines };
@@ -10198,6 +10209,8 @@ async function openInvPurchaseEditModal(id){
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Remaining</label><div class="inv-ep-line-remaining" style="padding:6px;background:var(--g5);border-radius:6px">${(l.quantityOrdered-l.quantityReceived).toFixed(2)}</div></div>
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Unit Cost</label><input type="number" class="inv-ep-line-cost" value="${l.unitCost}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Freight Charges <span style="font-weight:400;text-transform:none">(optional)</span></label><input type="number" class="inv-ep-line-freight" value="${l.freightCost||0}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Import Charges <span style="font-weight:400;text-transform:none">(optional)</span></label><input type="number" class="inv-ep-line-import" value="${l.importCharges||0}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Subtotal</label><div class="inv-ep-line-subtotal" style="padding:6px;background:var(--g5);border-radius:6px">₹${(l.quantityOrdered*l.unitCost).toFixed(2)}</div></div>
       </div>
       <div class="inv-ep-line-status-pill"></div>
@@ -10245,15 +10258,17 @@ async function saveInvPurchaseEdit(){
       const qty=Number(row.querySelector('.inv-ep-line-qty').value||ordered);
       const cost=Number(row.querySelector('.inv-ep-line-cost').value||0);
       const leadTimeDays=Number(row.querySelector('.inv-ep-line-leadtime')?.value||0);
+      const freightCost=Number(row.querySelector('.inv-ep-line-freight')?.value||0);
+      const importCharges=Number(row.querySelector('.inv-ep-line-import')?.value||0);
       const vendorItemCode=row.querySelector('.inv-ep-line-vcode').value.trim()||null;
-      lineUpdates.push({lineId,quantityOrdered:qty,unitCost:cost,vendorItemCode,leadTimeDays});
+      lineUpdates.push({lineId,quantityOrdered:qty,unitCost:cost,vendorItemCode,leadTimeDays,freightCost,importCharges});
 
       const quantityReceived=Math.min(Number(row.querySelector('.inv-ep-line-received').value||0), qty);
       receiveUpdates.push({purchaseItemId:lineId,quantityReceived});
     });
 
     for(const lu of lineUpdates){
-      await fetch(`/api/inventory/purchases/${invEditPurchaseId}/items/${lu.lineId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({quantityOrdered:lu.quantityOrdered,unitCost:lu.unitCost,vendorItemCode:lu.vendorItemCode})});
+      await fetch(`/api/inventory/purchases/${invEditPurchaseId}/items/${lu.lineId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({quantityOrdered:lu.quantityOrdered,unitCost:lu.unitCost,vendorItemCode:lu.vendorItemCode,leadTimeDays:lu.leadTimeDays,freightCost:lu.freightCost,importCharges:lu.importCharges})});
     }
     const r=await fetch(`/api/inventory/purchases/${invEditPurchaseId}/receive-lines`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:receiveUpdates})});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
