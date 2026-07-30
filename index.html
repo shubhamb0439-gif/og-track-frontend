@@ -1984,8 +1984,13 @@ body { transition: background .3s ease, color .3s ease; }
     <div class="modal-header"><h2 id="mfg-bom-modal-title">New BOM</h2><button class="modal-close" onclick="closeModal('mfg-bom-modal')">×</button></div>
     <div class="modal-body">
       <div class="form-row full"><div class="form-group"><label>BOM Name *</label><input type="text" id="mfg-b-name" placeholder="Standard Bicycle BOM"></div></div>
-      <div class="form-row full"><div class="form-group"><label>Finished Good *</label><select id="mfg-b-product"></select>
-        <div style="font-size:12px;color:var(--g3);margin-top:4px">The Component or Product this BOM's recipe produces.</div>
+      <div class="form-row full"><div class="form-group"><label>Finished Good *</label>
+        <input type="hidden" id="mfg-b-product">
+        <input type="text" id="mfg-b-product-search" placeholder="Search components..." autocomplete="off"
+          oninput="mfgRenderFinishedGoodOptions(this.value)" onfocus="mfgRenderFinishedGoodOptions(this.value)"
+          style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px">
+        <div id="mfg-b-product-options" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:6px"></div>
+        <div style="font-size:12px;color:var(--g3);margin-top:4px">The item this BOM's recipe produces — Part, Component, or Product.</div>
       </div></div>
     </div>
     <div class="modal-footer">
@@ -2000,11 +2005,13 @@ body { transition: background .3s ease, color .3s ease; }
   <div class="modal">
     <div class="modal-header"><h2>Add Component</h2><button class="modal-close" onclick="closeModal('mfg-add-component-modal')">×</button></div>
     <div class="modal-body">
-      <div class="form-row full"><div class="form-group"><label>Search</label>
-        <input type="text" id="mfg-comp-search" placeholder="Search by item name or ID…" oninput="mfgRenderComponentOptions(this.value)">
-      </div></div>
-      <div class="form-row full"><div class="form-group"><label>Part *</label><select id="mfg-comp-part"></select>
-        <div style="font-size:12px;color:var(--g3);margin-top:4px">Only raw Parts are shown here — Finished Goods can't be BOM components.</div>
+      <div class="form-row full"><div class="form-group"><label>Part / Component *</label>
+        <input type="hidden" id="mfg-comp-part">
+        <input type="text" id="mfg-comp-search" placeholder="Search components..." autocomplete="off"
+          oninput="mfgRenderComponentOptions(this.value)" onfocus="mfgRenderComponentOptions(this.value)"
+          style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px">
+        <div id="mfg-comp-part-options" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:6px"></div>
+        <div id="mfg-comp-allowed-hint" style="font-size:12px;color:var(--g3);margin-top:4px"></div>
       </div></div>
       <div class="form-row full"><div class="form-group"><label>Quantity Required *</label><input type="number" id="mfg-comp-qty" min="0" step="0.01" placeholder="e.g. 2"></div></div>
     </div>
@@ -10082,17 +10089,49 @@ async function renderMfgComponentsPanel(bom){
   }catch(e){ panel.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load components.</div>'; }
 }
 
+function mfgItemOptionLabel(i){
+  // Matches the reference format: "[CODE] Full description (Type)"
+  return `${i.itemCode?`[${i.itemCode}] `:''}${i.name}${i.itemGroup?` (${i.itemGroup})`:''}`;
+}
+// Renders a clickable results list (not a native <select>) so each row can
+// show a description sub-line and type tag, matching the reference design's
+// two-line searchable picker.
+function mfgRenderItemPickerResults(containerEl, items, onPick){
+  containerEl.innerHTML = !items.length
+    ? '<div style="padding:10px;font-size:13px;color:var(--g3)">No matching items.</div>'
+    : items.map(i=>`
+      <div onclick="${onPick}('${i.id}')" style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background='var(--g5)'" onmouseout="this.style.background='transparent'">
+        <div style="font-weight:600;font-size:13px">${esc(i.displayName||i.name)}</div>
+        <div style="font-size:12px;color:var(--g3);margin-top:2px">${esc(i.itemCode?`[${i.itemCode}] `:'')}${esc(i.name)}</div>
+        <div style="font-size:11px;color:var(--g3);margin-top:2px;font-weight:600">${esc(i.itemGroup||'—')}</div>
+      </div>`).join('');
+}
 function openMfgBomModal(){
   document.getElementById('mfg-bom-modal-title').textContent='New BOM';
   document.getElementById('mfg-b-name').value='';
-  const sel=document.getElementById('mfg-b-product');
-  // "Finished Good" per the spec = any inventory item that's a Component or
-  // Product (i.e. something you'd build, not a raw Part you'd only consume).
-  const finishedGoods=invItems.filter(i=>i.itemGroup==='Component'||i.itemGroup==='Product');
-  sel.innerHTML=finishedGoods.length
-    ? finishedGoods.map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join('')
-    : '<option value="">— No Components/Products in Inventory yet —</option>';
+  document.getElementById('mfg-b-product').value='';
+  document.getElementById('mfg-b-product-search').value='';
+  mfgRenderFinishedGoodOptions('');
   document.getElementById('mfg-bom-modal').classList.add('open');
+}
+function mfgRenderFinishedGoodOptions(search){
+  // Per spec: the Finished Good picker itself lists everything (Parts,
+  // Components, Products) with its type shown alongside — a BOM's product
+  // isn't restricted to Component/Product only; what matters is which
+  // component types are allowed to feed INTO it (handled separately in
+  // mfgRenderComponentOptions, keyed off the Finished Good's own group).
+  const q=(search||'').trim().toLowerCase();
+  const items=invItems.filter(i=>{
+    if(!q) return true;
+    return (i.name||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q) || (i.displayName||'').toLowerCase().includes(q);
+  });
+  mfgRenderItemPickerResults(document.getElementById('mfg-b-product-options'), items, 'mfgPickFinishedGood');
+}
+function mfgPickFinishedGood(itemId){
+  const item=invItemRecord(itemId);
+  document.getElementById('mfg-b-product').value=itemId;
+  document.getElementById('mfg-b-product-search').value=item?mfgItemOptionLabel(item):'';
+  document.getElementById('mfg-b-product-options').innerHTML='';
 }
 async function saveMfgBomNew(){
   const name=document.getElementById('mfg-b-name').value.trim();
@@ -10121,24 +10160,42 @@ async function deleteMfgBom(id){
   }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Add Component modal (Part-only dropdown + search) ────────────────────────
+// ── Add Component modal ────────────────────────────────────────────────────
+// Which component types are selectable depends on the BOM's own Finished
+// Good type: a Component-type BOM can only be built from raw Parts, while a
+// Product-type BOM can be built from Parts AND Components (sub-assemblies) —
+// matching the reference workflow exactly.
 function openMfgAddComponentModal(){
   if(!mfgSelectedBomId) return;
+  document.getElementById('mfg-comp-part').value='';
   document.getElementById('mfg-comp-search').value='';
   document.getElementById('mfg-comp-qty').value='';
+  const allowedGroups=mfgAllowedComponentGroups();
+  document.getElementById('mfg-comp-allowed-hint').textContent=
+    allowedGroups.length>1 ? 'Parts and Components can both be added here.' : 'Only Parts can be added here — this BOM\'s Finished Good is a Component.';
   mfgRenderComponentOptions('');
   document.getElementById('mfg-add-component-modal').classList.add('open');
 }
+function mfgAllowedComponentGroups(){
+  const bom=mfgBomRecord(mfgSelectedBomId);
+  const finishedGood=bom?invItemRecord(bom.productItemId):null;
+  if(finishedGood?.itemGroup==='Product') return ['Part','Component'];
+  return ['Part']; // Component-type BOMs (and anything unrecognized) default to Parts-only
+}
 function mfgRenderComponentOptions(search){
   const q=(search||'').trim().toLowerCase();
-  const parts=invItems.filter(i=>i.itemGroup==='Part').filter(i=>{
+  const allowedGroups=mfgAllowedComponentGroups();
+  const candidates=invItems.filter(i=>allowedGroups.includes(i.itemGroup)).filter(i=>{
     if(!q) return true;
-    return (i.name||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q);
+    return (i.name||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q) || (i.displayName||'').toLowerCase().includes(q);
   });
-  const sel=document.getElementById('mfg-comp-part');
-  sel.innerHTML = parts.length
-    ? parts.map(i=>`<option value="${i.id}">${esc(i.name)}${i.itemCode?` (${esc(i.itemCode)})`:''}</option>`).join('')
-    : '<option value="">— No matching Parts —</option>';
+  mfgRenderItemPickerResults(document.getElementById('mfg-comp-part-options'), candidates, 'mfgPickComponent');
+}
+function mfgPickComponent(itemId){
+  const item=invItemRecord(itemId);
+  document.getElementById('mfg-comp-part').value=itemId;
+  document.getElementById('mfg-comp-search').value=item?mfgItemOptionLabel(item):'';
+  document.getElementById('mfg-comp-part-options').innerHTML='';
 }
 async function saveMfgAddComponent(){
   const partId=document.getElementById('mfg-comp-part').value;
