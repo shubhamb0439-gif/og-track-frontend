@@ -2845,8 +2845,8 @@ function buildSidebar(){
   if(BUILTIN_ROLES.includes(role)){
     const items={
       masteradmin:      [['companies','Companies','#C0392B'],['company_modules','Modules','#8E44AD'],['admin','User Management','#D0D0D0'],['messages','Messages','#E74C3C']],
-      superadmin:       [['ceo_dashboard','Exec Dashboard','#C0392B'],['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
-      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      superadmin:       [['ceo_dashboard','Exec Dashboard','#C0392B'],['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       tester:           [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['bugs','All Bugs','#7F7F7F'],['mybugs','My Bugs','#D0D0D0'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       developer:        [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['mybugs','My Bugs','#7F7F7F'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       accounts_manager: [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','Clients','#8E44AD'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Reports','#F39C12'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
@@ -2885,6 +2885,7 @@ function buildSidebar(){
       mybugs:['mybugs','My Bugs','#D0D0D0'],
       projects:['projects','Projects','#7F7F7F'],
       attendance:['attendance','Attendance','#27AE60'],
+      ops_dashboard:['ops_dashboard','Ops Dashboard','#16A085'],
       history:['history','History','#4A4A4A'],
       messages:['messages','Messages','#E74C3C'],
     };
@@ -2937,6 +2938,7 @@ function buildSidebar(){
     hr_interviews:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="2" y="3.5" width="14" height="12" rx="1"/><line x1="2" y1="7.5" x2="16" y2="7.5"/><line x1="6" y1="1.5" x2="6" y2="5.5"/><line x1="12" y1="1.5" x2="12" y2="5.5"/><circle cx="9" cy="11.5" r="1.5"/></svg>`,
     hr_reports:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><line x1="3" y1="15" x2="3" y2="8"/><line x1="7" y1="15" x2="7" y2="4"/><line x1="11" y1="15" x2="11" y2="10"/><line x1="15" y1="15" x2="15" y2="6"/><line x1="1" y1="15" x2="17" y2="15"/></svg>`,
     ceo_dashboard:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M2 13L6 8l3 3 4-5 3 3"/><rect x="1" y="1" width="16" height="14" rx="1.5"/><line x1="1" y1="16" x2="17" y2="16"/></svg>`,
+    ops_dashboard:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="1.5" y="1.5" width="6" height="6" rx="1"/><rect x="10.5" y="1.5" width="6" height="6" rx="1"/><rect x="1.5" y="10.5" width="6" height="6" rx="1"/><rect x="10.5" y="10.5" width="6" height="6" rx="1"/></svg>`,
     crm:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M2 3h14l-5 7v5l-4 2v-7L2 3z"/></svg>`,
     crm_leads:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="6" r="3"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>`,
     crm_prospects:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="6" r="3"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M14 3l1.5 1.5L18 2"/></svg>`,
@@ -3088,7 +3090,7 @@ function showView(v){
   document.querySelectorAll('.nav-group').forEach(g=>{
     if(g.querySelector('#nav-'+v)) g.classList.add('open');
   });
-  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries'}[v]||v;
+  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries'}[v]||v;
   document.getElementById('filter-bar').style.display=(v==='bugs'||v==='mybugs')?'flex':'none';
   // Animate content area on tab switch
   const ca = document.getElementById('content-area');
@@ -3125,6 +3127,7 @@ function renderView(){
   if(currentView==='sprints')       return renderSprints();
   if(currentView==='sub_tickets')   return renderSubTickets();
   if(currentView==='ceo_dashboard') return renderCeoDashboard();
+  if(currentView==='ops_dashboard') return renderOpsDashboard();
   if(currentView==='hr_dashboard')  return renderHrDashboard();
   if(currentView==='hr_jobs')       return renderHrJobs();
   if(currentView==='hr_candidates') return renderHrCandidates();
@@ -8182,6 +8185,101 @@ function _exportHrReport(format){
 
 // ── CEO Executive Dashboard ───────────────────────────────────────────────────
 let _ceoLoaded=false;
+// ── Ops Dashboard — consolidated view across Sales & CRM / Inventory / Manufacturing ──
+let opsDashboardLoaded=false;
+async function renderOpsDashboard(){
+  const ca=document.getElementById('content-area');
+  if(!opsDashboardLoaded){
+    ca.innerHTML='<div class="loading">Loading Ops Dashboard...</div>';
+    await Promise.all([
+      crmLoaded?Promise.resolve():loadCrmData(),
+      invLoaded?Promise.resolve():loadInvData(),
+      mfgLoaded?Promise.resolve():loadMfgData(),
+      salesLoaded?Promise.resolve():loadSalesData(),
+      deliveriesLoaded?Promise.resolve():loadDeliveriesData(),
+    ]);
+    opsDashboardLoaded=true;
+    if(currentView!=='ops_dashboard') return;
+  }
+
+  // ── Stats ──
+  const totalPOs=crmPOs.length;
+  const pendingPOs=crmPOs.filter(po=>po.status==='open').length;
+  const latePOs=crmPOs.filter(po=>po.status==='late').length;
+  const totalSales=salesList.length;
+  const totalVendors=invVendors.length;
+  const totalItems=invItems.length;
+  const stockAlerts=invItems.filter(i=>i.alert).length;
+
+  const statCard=(label,value,icon,color)=>`
+    <div class="stat-card" style="flex:1 1 200px;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:12px;color:var(--g3);margin-bottom:6px">${esc(label)}</div>
+        <div style="font-size:26px;font-weight:700">${value}</div>
+      </div>
+      <div style="width:44px;height:44px;border-radius:10px;background:${color}22;color:${color};display:flex;align-items:center;justify-content:center">${icon}</div>
+    </div>`;
+  const iconDoc=`<svg width="20" height="20" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" fill="none"><rect x="3" y="2" width="12" height="14" rx="1"/><line x1="6" y1="6" x2="12" y2="6"/><line x1="6" y1="9" x2="12" y2="9"/></svg>`;
+  const iconRupee=`<svg width="20" height="20" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" fill="none"><line x1="4" y1="3" x2="14" y2="3"/><line x1="4" y1="7" x2="14" y2="7"/><path d="M4 3c5 0 6 6 0 6h-1l7 6"/></svg>`;
+  const iconClock=`<svg width="20" height="20" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" fill="none"><circle cx="9" cy="9" r="7"/><path d="M9 5v4l3 2"/></svg>`;
+  const iconWarn=`<svg width="20" height="20" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M9 2L1 15h16L9 2z"/><line x1="9" y1="7" x2="9" y2="11"/><circle cx="9" cy="13.2" r=".3" fill="currentColor"/></svg>`;
+  const iconVendor=`<svg width="20" height="20" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" fill="none"><circle cx="6" cy="6" r="2.5"/><circle cx="13" cy="7" r="2"/><path d="M1.5 16c0-2.8 2-5 4.5-5s4.5 2.2 4.5 5M11 12.5c2.2.3 4 2 4 3.5"/></svg>`;
+  const iconItems=`<svg width="20" height="20" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" fill="none"><path d="M2 3h2l2 9h8l2-6H5"/><circle cx="7" cy="15" r="1"/><circle cx="13" cy="15" r="1"/></svg>`;
+
+  // ── Recent lists ──
+  const recentPurchases=[...invPurchases].sort((a,b)=>new Date(b.orderDate||0)-new Date(a.orderDate||0)).slice(0,3);
+  const recentAssemblies=[...mfgAssemblies].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,3);
+  const recentSales=[...salesList].sort((a,b)=>new Date(b.saleDate||0)-new Date(a.saleDate||0)).slice(0,3);
+  const recentDeliveries=[...deliveriesList].sort((a,b)=>new Date(b.scheduledDate||0)-new Date(a.scheduledDate||0)).slice(0,3);
+  const recentPOs=[...crmPOs].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,3);
+
+  const panel=(title,itemsHtml)=>`
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">${esc(title)}</h3>
+      ${itemsHtml||'<div style="color:var(--g3);font-size:13px">No data yet.</div>'}
+    </div>`;
+  const rowItem=(color,title,subtitle,dateStr,right)=>`
+    <div style="display:flex;gap:10px;padding:8px 0;border-left:3px solid ${color};padding-left:10px;margin-bottom:8px">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px">${esc(title)}</div>
+        <div style="font-size:12px;color:var(--g3)">${esc(subtitle||'')}</div>
+        <div style="font-size:11px;color:var(--g3)">${esc(dateStr||'')}</div>
+      </div>
+      ${right?`<div style="font-size:12px;color:var(--g3);white-space:nowrap;align-self:center">${right}</div>`:''}
+    </div>`;
+
+  const purchasesHtml=recentPurchases.map(p=>rowItem('#2980B9',`PO: ${p.poNumber||'N/A'}`,invVendorName(p.vendorId),p.orderDate?new Date(p.orderDate).toLocaleDateString('en-GB'):'',`${(invPurchaseLinesCache[p.id]?.length)||1} item(s)`)).join('');
+  const assembliesHtml=recentAssemblies.map(a=>rowItem('#8E44AD',esc(a.name||a.assemblyNumber),`BOM: ${mfgBomName(a.bomId)}`,a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'',`${a.quantityBuilt} unit${a.quantityBuilt===1?'':'s'}`)).join('');
+  const salesHtml=recentSales.map(s=>rowItem('#27AE60',esc(s.saleNumber),salesCustomerName(s.customerId),s.saleDate?new Date(s.saleDate).toLocaleDateString('en-GB'):'','1 item')).join('');
+  const deliveriesHtml=recentDeliveries.map(d=>rowItem(d.delivered?'#27AE60':'#F39C12',deliverySaleNumber(d.saleId),deliveryCustomerName(d.saleId),d.scheduledDate?new Date(d.scheduledDate).toLocaleDateString('en-GB'):'',d.delivered?'Delivered':'Pending')).join('');
+  const posHtml=recentPOs.map(po=>rowItem(po.status==='fulfilled'?'#27AE60':'#D35400',`PO: ${po.poNumber}`,po.customerName||'',po.deliveryDate?`Due: ${new Date(po.deliveryDate).toLocaleDateString('en-GB')}`:'',`<span style="text-transform:capitalize">${esc(po.status||'')}</span>`)).join('');
+
+  ca.innerHTML=`
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:16px">Ops Dashboard</h1>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px">
+      ${statCard('Total Purchase Orders',totalPOs,iconDoc,'#2980B9')}
+      ${statCard('Total Sales',totalSales,iconRupee,'#27AE60')}
+      ${statCard('Pending Purchase Orders',pendingPOs,iconClock,'#F39C12')}
+      ${statCard('Late Purchase Orders',latePOs,iconWarn,'#C0392B')}
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px">
+      ${statCard('Total Vendors',totalVendors,iconVendor,'#8E44AD')}
+      ${statCard('Total Items',totalItems,iconItems,'#16A085')}
+      ${statCard('Stock Alerts',stockAlerts,iconWarn,'#C0392B')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      ${panel('Recent Purchase Orders',posHtml)}
+      ${panel('Recent Sales',salesHtml)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      ${panel('Recent Purchases',purchasesHtml)}
+      ${panel('Recent Assemblies',assembliesHtml)}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:16px">
+      ${panel('Recent Deliveries',deliveriesHtml)}
+    </div>`;
+}
+
 async function renderCeoDashboard(){
   if(!_hrDataLoaded) await loadHrData();
   const el=document.getElementById('content-area');
@@ -8790,8 +8888,8 @@ function crmCustomersTableHtml(){
         const isOpen=crmExpandedCustomers.has(c.id);
         const mainRow=`<tr>
           <td>
-            <div style="display:flex;align-items:flex-start;gap:2px">
-              <button onclick="toggleCrmCustomerExpand('${c.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+            <div style="display:flex;align-items:flex-start;gap:4px;margin-left:-6px">
+              <button onclick="toggleCrmCustomerExpand('${c.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none;width:18px;height:18px;display:flex;align-items:center;justify-content:center">
                 ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
               </button>
               <div>
@@ -9303,8 +9401,8 @@ function crmOrdersTableHtml(){
         const color=statusColor[po.status]||'#7F7F7F';
         const mainRow=`<tr>
           <td>
-            <div style="display:flex;align-items:center;gap:2px">
-              <button onclick="toggleCrmOrderExpand('${po.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+            <div style="display:flex;align-items:center;gap:4px;margin-left:-6px">
+              <button onclick="toggleCrmOrderExpand('${po.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none;width:18px;height:18px;display:flex;align-items:center;justify-content:center">
                 ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
               </button>
               <strong>${esc(po.poNumber)}</strong>
@@ -9505,8 +9603,8 @@ function invVendorsTableHtml(){
         const isOpen=invExpandedVendors.has(v.id);
         const mainRow=`<tr>
           <td>
-            <div style="display:flex;align-items:center;gap:2px">
-              <button onclick="toggleInvVendorExpand('${v.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+            <div style="display:flex;align-items:center;gap:4px;margin-left:-6px">
+              <button onclick="toggleInvVendorExpand('${v.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none;width:18px;height:18px;display:flex;align-items:center;justify-content:center">
                 ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
               </button>
               <span style="font-family:monospace;font-size:12px;color:var(--g3)">${esc(v.vendorCode||'—')}</span>
@@ -9657,8 +9755,8 @@ function invItemsTableHtml(){
         const isOpen=invExpandedItems.has(i.id);
         const mainRow=`<tr>
           <td>
-            <div style="display:flex;align-items:center;gap:2px">
-              <button onclick="toggleInvItemExpand('${i.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+            <div style="display:flex;align-items:center;gap:4px;margin-left:-6px">
+              <button onclick="toggleInvItemExpand('${i.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none;width:18px;height:18px;display:flex;align-items:center;justify-content:center">
                 ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
               </button>
               <span style="font-family:monospace;font-size:12px;color:var(--g3)">${esc(i.itemCode||'—')}</span>
@@ -9870,8 +9968,8 @@ function invPurchasesTableHtml(){
         const totalCost=invPurchaseLinesCache[p.id]?.reduce((s,l)=>s+Number(l.quantityOrdered)*Number(l.unitCost),0);
         const mainRow=`<tr>
           <td>
-            <div style="display:flex;align-items:center;gap:2px">
-              <button onclick="toggleInvPurchaseExpand('${p.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+            <div style="display:flex;align-items:center;gap:4px;margin-left:-6px">
+              <button onclick="toggleInvPurchaseExpand('${p.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none;width:18px;height:18px;display:flex;align-items:center;justify-content:center">
                 ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
               </button>
               <span>${p.orderDate?new Date(p.orderDate).toLocaleDateString('en-GB'):'—'}</span>
@@ -10405,8 +10503,8 @@ function mfgAssemblyTableHtml(){
         const isOpen=mfgExpandedAssemblies.has(a.id);
         const mainRow=`<tr>
           <td>
-            <div style="display:flex;align-items:center;gap:2px">
-              <button onclick="toggleMfgAssemblyExpand('${a.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+            <div style="display:flex;align-items:center;gap:4px;margin-left:-6px">
+              <button onclick="toggleMfgAssemblyExpand('${a.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none;width:18px;height:18px;display:flex;align-items:center;justify-content:center">
                 ${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}
               </button>
               <span>${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'—'}</span>
