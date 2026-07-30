@@ -2861,11 +2861,11 @@ function buildSidebar(){
       const allowed=window.COMPANY_CONTEXT.modules;
       const groupModuleKey={sales_crm:'crm',inventory_group:'inventory',manufacturing_group:'manufacturing'};
       // Core pages that should always be available regardless of a
-      // company's configured module list — this specifically covers pages
-      // added after a company was already provisioned (like Ops Dashboard),
-      // which would otherwise be silently stripped out here since they can
-      // never appear in an older enabled_modules list that predates them.
-      const alwaysOnNavKeys=['dashboard','attendance','history','messages','ops_dashboard'];
+      // company's configured module list — these predate the module
+      // system entirely. Ops Dashboard is NOT included here: it's a real,
+      // masteradmin-toggleable module like Sales/Inventory/Manufacturing,
+      // gated normally below.
+      const alwaysOnNavKeys=['dashboard','attendance','history','messages'];
       navItems=navItems.filter(item=>{
         if(item&&item.group) return allowed.includes(groupModuleKey[item.group]||item.group);
         return alwaysOnNavKeys.includes(item[0])||allowed.includes(item[0]);
@@ -2879,11 +2879,11 @@ function buildSidebar(){
     // Custom role — build nav from permissions
     const cr=allCustomRoles.find(r=>r.id===role||r.name===role);
     let perms=cr?.permissions||[];
-    // Core pages added after this role was created (like Ops Dashboard)
-    // can never be in cr.permissions — that list was saved before the page
-    // existed. Force these in unconditionally so every custom role gets
-    // them automatically, the same way built-in roles always show them.
-    const alwaysOnPerms=['dashboard','attendance','history','messages','ops_dashboard'];
+    // Core pages added before the module system existed — force these in
+    // unconditionally. Ops Dashboard is deliberately excluded: it's a real,
+    // grantable permission like crm/inventory/manufacturing, controlled by
+    // Role Manager per role and by masteradmin per company.
+    const alwaysOnPerms=['dashboard','attendance','history','messages'];
     perms=[...new Set([...perms,...alwaysOnPerms])];
     // Same rule as built-in roles: a permission only takes effect if the
     // company actually has that module enabled. Without this, disabling a
@@ -6482,6 +6482,7 @@ const _BUILTIN_MODULES=[
   {id:'hr_interviews',label:'Interviews',desc:'Interview scheduler'},
   {id:'admin',label:'User Management',desc:'Admin panel'},
   {id:'roles',label:'Role Manager',desc:'Custom roles'},
+  {id:'ops_dashboard',label:'Ops Dashboard',desc:'Consolidated Sales/Inventory/Manufacturing overview'},
 ];
 
 function renderCompanyModules(){
