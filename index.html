@@ -2814,6 +2814,23 @@ async function launchApp(){
     document.getElementById('sp-name').textContent=currentProject.name;
     document.getElementById('content-area').innerHTML='<div class="loading">Loading bugs...</div>';
     await loadBugs();
+  } else if(!['masteradmin','superadmin','manager','developer','tester'].includes(currentUser.role) && !(allCustomRoles.find(r=>r.id===currentUser.role||r.name===currentUser.role)?.permissions||[]).includes('projects')){
+    // A custom role without the 'projects' permission has no business being
+    // funneled into the Projects/Bugs picker flow at all — that flow (and
+    // its "No projects assigned yet" message) only makes sense for roles
+    // that actually work inside Projects. Land them on their own first
+    // available page instead (Dashboard if they have it, otherwise
+    // whatever their nav's first real entry is).
+    document.getElementById('main-app').style.display='flex';
+    document.getElementById('sp-name').textContent=currentUser.companyName||'';
+    const cr=allCustomRoles.find(r=>r.id===currentUser.role||r.name===currentUser.role);
+    const perms=cr?.permissions||[];
+    const landingView = perms.includes('dashboard') ? 'dashboard'
+      : perms.includes('ops_dashboard') ? 'ops_dashboard'
+      : (perms.find(p=>['crm','inventory','manufacturing','sales','deliveries','attendance','history','messages','hr_dashboard'].includes(p)) || 'attendance');
+    currentView = landingView==='crm' ? 'crm_leads' : landingView==='inventory' ? 'inv_vendors' : landingView==='manufacturing' ? 'mfg_bom' : landingView;
+    document.getElementById('content-area').innerHTML='<div class="loading">Loading...</div>';
+    renderView();
   } else {
     // Load all bugs first so picker shows correct counts
     try {
@@ -2901,6 +2918,11 @@ function buildSidebar(){
       projects:['projects','Projects','#7F7F7F'],
       attendance:['attendance','Attendance','#27AE60'],
       ops_dashboard:['ops_dashboard','Ops Dashboard','#16A085'],
+      hr_dashboard:['hr_dashboard','HR Dashboard','#C0392B'],
+      hr_jobs:['hr_jobs','Job Openings','#8E44AD'],
+      hr_candidates:['hr_candidates','Candidates','#2980B9'],
+      hr_interviews:['hr_interviews','Interviews','#F39C12'],
+      hr_reports:['hr_reports','HR Reports','#27AE60'],
       history:['history','History','#4A4A4A'],
       messages:['messages','Messages','#E74C3C'],
     };
@@ -5597,6 +5619,11 @@ const ALL_PERMISSIONS=[
   {key:'manufacturing',label:'Manufacturing'},
   {key:'sales',label:'Sales'},
   {key:'deliveries',label:'Deliveries'},
+  {key:'hr_dashboard',label:'HR Dashboard'},
+  {key:'hr_jobs',label:'HR Job Openings'},
+  {key:'hr_candidates',label:'HR Candidates'},
+  {key:'hr_interviews',label:'HR Interviews'},
+  {key:'hr_reports',label:'HR Reports'},
   {key:'attendance',label:'Attendance'},
   {key:'history',label:'History'},
   {key:'messages',label:'Messages'},
@@ -6480,6 +6507,7 @@ const _BUILTIN_MODULES=[
   {id:'hr_jobs',label:'Job Openings',desc:'Job postings'},
   {id:'hr_candidates',label:'Candidates',desc:'Applicant tracking'},
   {id:'hr_interviews',label:'Interviews',desc:'Interview scheduler'},
+  {id:'hr_reports',label:'HR Reports',desc:'Recruitment reporting'},
   {id:'admin',label:'User Management',desc:'Admin panel'},
   {id:'roles',label:'Role Manager',desc:'Custom roles'},
   {id:'ops_dashboard',label:'Ops Dashboard',desc:'Consolidated Sales/Inventory/Manufacturing overview'},
