@@ -1990,7 +1990,7 @@ body { transition: background .3s ease, color .3s ease; }
           oninput="mfgRenderFinishedGoodOptions(this.value)" onfocus="mfgRenderFinishedGoodOptions(this.value)"
           style="width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px">
         <div id="mfg-b-product-options" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:6px"></div>
-        <div style="font-size:12px;color:var(--g3);margin-top:4px">The item this BOM's recipe produces — Part, Component, or Product.</div>
+        <div style="font-size:12px;color:var(--g3);margin-top:4px">The item this BOM's recipe produces — a Component or Product (not a Part).</div>
       </div></div>
     </div>
     <div class="modal-footer">
@@ -10115,13 +10115,11 @@ function openMfgBomModal(){
   document.getElementById('mfg-bom-modal').classList.add('open');
 }
 function mfgRenderFinishedGoodOptions(search){
-  // Per spec: the Finished Good picker itself lists everything (Parts,
-  // Components, Products) with its type shown alongside — a BOM's product
-  // isn't restricted to Component/Product only; what matters is which
-  // component types are allowed to feed INTO it (handled separately in
-  // mfgRenderComponentOptions, keyed off the Finished Good's own group).
+  // A BOM's Finished Good must be a Component or a Product — never a Part.
+  // A Part is a raw input you buy/consume, not something you build a recipe
+  // for; only Components and Products get manufactured from a BOM.
   const q=(search||'').trim().toLowerCase();
-  const items=invItems.filter(i=>{
+  const items=invItems.filter(i=>i.itemGroup==='Component'||i.itemGroup==='Product').filter(i=>{
     if(!q) return true;
     return (i.name||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q) || (i.displayName||'').toLowerCase().includes(q);
   });
