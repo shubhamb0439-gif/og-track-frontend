@@ -2860,7 +2860,16 @@ function buildSidebar(){
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules&&role!=='masteradmin'){
       const allowed=window.COMPANY_CONTEXT.modules;
       const groupModuleKey={sales_crm:'crm',inventory_group:'inventory',manufacturing_group:'manufacturing'};
-      navItems=navItems.filter(item=> item&&item.group ? allowed.includes(groupModuleKey[item.group]||item.group) : allowed.includes(item[0]));
+      // Core pages that should always be available regardless of a
+      // company's configured module list — this specifically covers pages
+      // added after a company was already provisioned (like Ops Dashboard),
+      // which would otherwise be silently stripped out here since they can
+      // never appear in an older enabled_modules list that predates them.
+      const alwaysOnNavKeys=['dashboard','attendance','history','messages','ops_dashboard'];
+      navItems=navItems.filter(item=>{
+        if(item&&item.group) return allowed.includes(groupModuleKey[item.group]||item.group);
+        return alwaysOnNavKeys.includes(item[0])||allowed.includes(item[0]);
+      });
       // Append custom modules as external links
       (window.COMPANY_CONTEXT.customModules||[]).forEach(m=>{
         navItems.push([m.id||m.label,m.label,'#8E44AD',m.url]);
@@ -2877,7 +2886,11 @@ function buildSidebar(){
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules){
       const allowed=window.COMPANY_CONTEXT.modules;
       const moduleGate={mybugs:'bugs'}; // permission keys that map to a different module key
-      perms=perms.filter(p=>allowed.includes(moduleGate[p]||p));
+      // Same always-on exemption as the built-in-role path above — core
+      // pages added after a company was provisioned shouldn't require that
+      // company's module list to be manually updated to become visible.
+      const alwaysOnPerms=['dashboard','attendance','history','messages','ops_dashboard'];
+      perms=perms.filter(p=>alwaysOnPerms.includes(p)||allowed.includes(moduleGate[p]||p));
     }
     const permMap={
       dashboard:['dashboard','Dashboard','var(--red2)'],
@@ -5573,6 +5586,7 @@ async function approveReg(id,status){
 // ── CUSTOM ROLES (superadmin) ─────────────────────────────────────────────────
 const ALL_PERMISSIONS=[
   {key:'dashboard',label:'Dashboard'},
+  {key:'ops_dashboard',label:'Ops Dashboard'},
   {key:'bugs',label:'All Bugs'},
   {key:'mybugs',label:'My Bugs'},
   {key:'projects',label:'Projects'},
