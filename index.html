@@ -8934,7 +8934,7 @@ function renderCrmCustomers(){
       onSearch:'crmSetCustomerFilter_search', onStatus:'crmSetCustomerFilter_status', onSource:'crmSetCustomerFilter_source',
     })}
     <div class="table-wrap"><table>
-      <thead><tr><th></th><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Lifetime Value</th><th>Assigned To</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Name</th><th>Company</th><th>Contact</th><th>Status</th><th>Source</th><th>Lifetime Value</th><th>Assigned To</th><th>Actions</th></tr></thead>
       <tbody id="crm-customers-tbody">${rows}</tbody>
     </table></div>`;
 }
@@ -10755,16 +10755,24 @@ function mfgUnitStatusBadge(unit){
 function mfgTraceUnitsHtml(){
   if(!mfgTraceUnits.length) return '<div style="font-size:13px;color:var(--g3);padding:10px 0">No units for this assembly.</div>';
   return `
-    <table style="width:100%;font-size:13px;margin-top:8px">
-      <thead><tr><th style="text-align:left">Unit #</th><th style="text-align:left">Serial Number</th><th>Status</th><th></th></tr></thead>
+    <table style="width:100%;font-size:13px;margin-top:8px;table-layout:fixed">
+      <colgroup>
+        <col style="width:70px"><col style="width:220px"><col><col style="width:100px">
+      </colgroup>
+      <thead><tr>
+        <th style="text-align:left;padding:9px 12px">Unit #</th>
+        <th style="text-align:left;padding:9px 12px">Serial Number</th>
+        <th style="text-align:left;padding:9px 12px">Status</th>
+        <th style="padding:9px 12px"></th>
+      </tr></thead>
       <tbody>${mfgTraceUnits.map(u=>`<tr>
-        <td>${u.unitNumber}</td>
-        <td>
+        <td style="padding:9px 12px">${u.unitNumber}</td>
+        <td style="padding:9px 12px">
           <input type="text" id="mfg-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…"
-            style="padding:6px;border:1px solid var(--border);border-radius:6px;width:160px">
+            style="padding:6px;border:1px solid var(--border);border-radius:6px;width:100%;max-width:180px;box-sizing:border-box">
         </td>
-        <td style="text-align:center">${mfgUnitStatusBadge(u)}</td>
-        <td><button class="btn-sm btn-primary" onclick="saveMfgUnitSerial('${u.id}')">Save</button></td>
+        <td style="text-align:left;padding:9px 12px">${mfgUnitStatusBadge(u)}</td>
+        <td style="padding:9px 12px"><button class="btn-sm btn-primary" onclick="saveMfgUnitSerial('${u.id}')">Save</button></td>
       </tr>`).join('')}</tbody>
     </table>`;
 }
