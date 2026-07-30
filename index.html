@@ -2879,6 +2879,12 @@ function buildSidebar(){
     // Custom role — build nav from permissions
     const cr=allCustomRoles.find(r=>r.id===role||r.name===role);
     let perms=cr?.permissions||[];
+    // Core pages added after this role was created (like Ops Dashboard)
+    // can never be in cr.permissions — that list was saved before the page
+    // existed. Force these in unconditionally so every custom role gets
+    // them automatically, the same way built-in roles always show them.
+    const alwaysOnPerms=['dashboard','attendance','history','messages','ops_dashboard'];
+    perms=[...new Set([...perms,...alwaysOnPerms])];
     // Same rule as built-in roles: a permission only takes effect if the
     // company actually has that module enabled. Without this, disabling a
     // module for a company wouldn't retroactively hide it from any custom
@@ -2886,10 +2892,6 @@ function buildSidebar(){
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules){
       const allowed=window.COMPANY_CONTEXT.modules;
       const moduleGate={mybugs:'bugs'}; // permission keys that map to a different module key
-      // Same always-on exemption as the built-in-role path above — core
-      // pages added after a company was provisioned shouldn't require that
-      // company's module list to be manually updated to become visible.
-      const alwaysOnPerms=['dashboard','attendance','history','messages','ops_dashboard'];
       perms=perms.filter(p=>alwaysOnPerms.includes(p)||allowed.includes(moduleGate[p]||p));
     }
     const permMap={
@@ -8205,13 +8207,30 @@ async function renderOpsDashboard(){
   const ca=document.getElementById('content-area');
   if(!opsDashboardLoaded){
     ca.innerHTML='<div class="loading">Loading Ops Dashboard...</div>';
-    await Promise.all([
-      crmLoaded?Promise.resolve():loadCrmData(),
-      invLoaded?Promise.resolve():loadInvData(),
-      mfgLoaded?Promise.resolve():loadMfgData(),
-      salesLoaded?Promise.resolve():loadSalesData(),
-      deliveriesLoaded?Promise.resolve():loadDeliveriesData(),
-    ]);
+    // NOTE: loadCrmData/loadInvData/loadMfgData/loadSalesData/loadDeliveriesData
+    // each call several of each other internally (e.g. loadSalesData also
+    // calls loadInvData, loadMfgData, AND loadCrmData; loadDeliveriesData
+    // calls loadSalesData). Firing all five at once via Promise.all caused
+    // overlapping/duplicate in-flight calls to the same loaders, and if any
+    // single one hung or threw somewhere not covered by its own try/catch,
+    // the whole Promise.all never settled — leaving this page stuck on
+    // "Loading..." forever, which is exactly what was happening. Instead,
+    // load each independently with its own error boundary so one bad
+    // response can't block the rest of the dashboard from rendering.
+    const safeLoad=async(flagGetter,loader,label)=>{
+      if(flagGetter()) return;
+      try{
+        await Promise.race([
+          loader(),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('timed out')),8000)),
+        ]);
+      }catch(e){ console.error(`Ops Dashboard: failed to load ${label}`,e); }
+    };
+    await safeLoad(()=>crmLoaded,loadCrmData,'CRM');
+    await safeLoad(()=>invLoaded,loadInvData,'Inventory');
+    await safeLoad(()=>mfgLoaded,loadMfgData,'Manufacturing');
+    await safeLoad(()=>salesLoaded,loadSalesData,'Sales');
+    await safeLoad(()=>deliveriesLoaded,loadDeliveriesData,'Deliveries');
     opsDashboardLoaded=true;
     if(currentView!=='ops_dashboard') return;
   }
