@@ -1809,6 +1809,9 @@ body { transition: background .3s ease, color .3s ease; }
       <div class="form-row">
         <div class="form-group"><label>Estimated Value (₹)</label><input type="number" id="crm-f-estvalue" placeholder="80000"></div>
       </div>
+      <div class="form-row full" id="crm-f-ltv-row" style="display:none"><div class="form-group"><label>Lifetime Value (₹)</label><input type="number" id="crm-f-ltv" min="0" placeholder="0">
+        <div style="font-size:12px;color:var(--g3);margin-top:4px">Starting value only — this updates automatically as sales are recorded for this customer.</div>
+      </div></div>
       <div class="form-row full" id="crm-f-address-row" style="display:none"><div class="form-group"><label>Address</label><textarea id="crm-f-address" placeholder="Street, City, State, PIN"></textarea></div></div>
       <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="crm-f-notes" placeholder="Anything relevant from the conversation so far…"></textarea></div></div>
     </div>
@@ -8562,6 +8565,7 @@ let crmOrderFilters={search:'',customerId:''};
 
 // Status vocabularies — each stage has its own list per the CRM spec.
 const CRM_LEAD_STATUSES=['New','Contacted','Qualified','Negotiation','Proposal','Won'];
+const CRM_SOURCES=['Website','LinkedIn','Referral','Email','Cold Call','Trade Show','Advertisement','Other'];
 const CRM_PROSPECT_STATUSES=['Demo Scheduled','Demo Completed','Qualified','Contacted','Won','Lost'];
 const CRM_CUSTOMER_STATUSES=['Active','At Risk','Churned','Inactive'];
 
@@ -8630,7 +8634,7 @@ function crmFilterBar({search,status,source,statusOptions,onSearch,onStatus,onSo
       </select>
       ${onSource?`<select onchange="${onSource}(this.value)" style="flex:1 1 160px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
         <option value="">All Sources</option>
-        ${[...new Set([...crmLeads,...crmProspects,...crmCustomers].map(c=>c.source).filter(Boolean))].map(s=>`<option value="${esc(s)}" ${source===s?'selected':''}>${esc(s)}</option>`).join('')}
+        ${CRM_SOURCES.map(s=>`<option value="${esc(s)}" ${source===s?'selected':''}>${esc(s)}</option>`).join('')}
       </select>`:''}
     </div>`;
 }
@@ -8787,7 +8791,7 @@ function crmCustomersTableHtml(){
         const mainRow=`<tr>
           <td>
             <div style="display:flex;align-items:flex-start;gap:2px">
-              <button onclick="toggleCrmCustomerExpand('${c.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);flex-shrink:0;line-height:0">
+              <button onclick="toggleCrmCustomerExpand('${c.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
                 ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
               </button>
               <div>
@@ -8902,6 +8906,7 @@ function openCrmLeadModal(id){
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
   document.getElementById('crm-f-address-row').style.display='none';
+  document.getElementById('crm-f-ltv-row').style.display='none';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_LEAD_STATUSES,l?.status);
   document.getElementById('crm-f-name').value = l?.name || '';
   document.getElementById('crm-f-company').value = l?.company || '';
@@ -8927,6 +8932,7 @@ function openCrmProspectAddModal(){
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
   document.getElementById('crm-f-address-row').style.display='none';
+  document.getElementById('crm-f-ltv-row').style.display='none';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_PROSPECT_STATUSES,'');
   ['name','company','position','email','phone','source','estvalue','notes'].forEach(f=>document.getElementById('crm-f-'+f).value='');
   const sel=document.getElementById('crm-f-assigned');
@@ -8942,6 +8948,8 @@ function openCrmCustomerAddModal(){
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
   document.getElementById('crm-f-address-row').style.display='';
   document.getElementById('crm-f-address').value='';
+  document.getElementById('crm-f-ltv-row').style.display='';
+  document.getElementById('crm-f-ltv').value='';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_CUSTOMER_STATUSES,'');
   ['name','company','position','email','phone','source','estvalue','notes'].forEach(f=>document.getElementById('crm-f-'+f).value='');
   const sel=document.getElementById('crm-f-assigned');
@@ -8993,6 +9001,7 @@ function openCrmProspectModal(id){
   document.getElementById('crm-f-estvalue').closest('.form-group').style.display='';
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
   document.getElementById('crm-f-address-row').style.display='none';
+  document.getElementById('crm-f-ltv-row').style.display='none';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_PROSPECT_STATUSES,p.status);
   document.getElementById('crm-f-name').value = p.name || '';
   document.getElementById('crm-f-company').value = p.company || '';
@@ -9025,6 +9034,8 @@ function openCrmCustomerModal(id){
   document.getElementById('crm-f-status').closest('.form-group').style.display='';
   document.getElementById('crm-f-address-row').style.display='';
   document.getElementById('crm-f-address').value = c.billingAddress || '';
+  document.getElementById('crm-f-ltv-row').style.display='';
+  document.getElementById('crm-f-ltv').value = c.lifetimeValue ?? '';
   crmPopulateStatusOptions(document.getElementById('crm-f-status'),CRM_CUSTOMER_STATUSES,c.status);
   document.getElementById('crm-f-notes').value = c.notes || '';
   const sel=document.getElementById('crm-f-assigned');
@@ -9082,6 +9093,7 @@ async function saveCrmContact(){
       status: document.getElementById('crm-f-status').value||undefined,
       assignedTo: document.getElementById('crm-f-assigned').value||null,
       billingAddress: document.getElementById('crm-f-address').value.trim()||null,
+      lifetimeValue: document.getElementById('crm-f-ltv').value ? Number(document.getElementById('crm-f-ltv').value) : undefined,
       notes: document.getElementById('crm-f-notes').value.trim()||null,
     };
     try{
@@ -9126,6 +9138,7 @@ async function saveCrmContact(){
       status: document.getElementById('crm-f-status').value||undefined,
       assignedTo: document.getElementById('crm-f-assigned').value||null,
       billingAddress: document.getElementById('crm-f-address').value.trim()||null,
+      lifetimeValue: document.getElementById('crm-f-ltv').value ? Number(document.getElementById('crm-f-ltv').value) : undefined,
       notes: document.getElementById('crm-f-notes').value.trim()||null,
     };
     try{
@@ -9290,10 +9303,12 @@ function crmOrdersTableHtml(){
         const color=statusColor[po.status]||'#7F7F7F';
         const mainRow=`<tr>
           <td>
-            <button onclick="toggleCrmOrderExpand('${po.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
-              ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
-            </button>
-            <strong>${esc(po.poNumber)}</strong>
+            <div style="display:flex;align-items:center;gap:2px">
+              <button onclick="toggleCrmOrderExpand('${po.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+                ${isOpen?CRM_ICONS.chevronDown:CRM_ICONS.chevronRight}
+              </button>
+              <strong>${esc(po.poNumber)}</strong>
+            </div>
           </td>
           <td>${esc(po.customerName||'—')}<div style="font-size:11px;color:var(--g3)">${esc(po.customerEmail||'')}</div></td>
           <td style="text-align:center">${po.totalQuantity!=null?po.totalQuantity+' item(s)':'—'}</td>
@@ -9490,10 +9505,12 @@ function invVendorsTableHtml(){
         const isOpen=invExpandedVendors.has(v.id);
         const mainRow=`<tr>
           <td>
-            <button onclick="toggleInvVendorExpand('${v.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
-              ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
-            </button>
-            <span style="font-family:monospace;font-size:12px;color:var(--g3)">${esc(v.vendorCode||'—')}</span>
+            <div style="display:flex;align-items:center;gap:2px">
+              <button onclick="toggleInvVendorExpand('${v.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+                ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
+              </button>
+              <span style="font-family:monospace;font-size:12px;color:var(--g3)">${esc(v.vendorCode||'—')}</span>
+            </div>
           </td>
           <td><strong>${esc(v.name)}</strong></td>
           <td style="text-transform:capitalize">${esc(v.vendorGroup||'—')}</td>
@@ -9640,10 +9657,12 @@ function invItemsTableHtml(){
         const isOpen=invExpandedItems.has(i.id);
         const mainRow=`<tr>
           <td>
-            <button onclick="toggleInvItemExpand('${i.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
-              ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
-            </button>
-            <span style="font-family:monospace;font-size:12px;color:var(--g3)">${esc(i.itemCode||'—')}</span>
+            <div style="display:flex;align-items:center;gap:2px">
+              <button onclick="toggleInvItemExpand('${i.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+                ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
+              </button>
+              <span style="font-family:monospace;font-size:12px;color:var(--g3)">${esc(i.itemCode||'—')}</span>
+            </div>
           </td>
           <td><strong>${esc(i.name)}</strong>${i.displayName?`<div style="font-size:11px;color:var(--g3)">${esc(i.displayName)}</div>`:''}</td>
           <td style="text-transform:capitalize">${esc(i.itemGroup||'—')}</td>
@@ -9851,10 +9870,12 @@ function invPurchasesTableHtml(){
         const totalCost=invPurchaseLinesCache[p.id]?.reduce((s,l)=>s+Number(l.quantityOrdered)*Number(l.unitCost),0);
         const mainRow=`<tr>
           <td>
-            <button onclick="toggleInvPurchaseExpand('${p.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
-              ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
-            </button>
-            ${p.orderDate?new Date(p.orderDate).toLocaleDateString('en-GB'):'—'}
+            <div style="display:flex;align-items:center;gap:2px">
+              <button onclick="toggleInvPurchaseExpand('${p.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+                ${isOpen?INV_ICONS.chevronDown:INV_ICONS.chevronRight}
+              </button>
+              <span>${p.orderDate?new Date(p.orderDate).toLocaleDateString('en-GB'):'—'}</span>
+            </div>
           </td>
           <td>${esc(p.poNumber||'—')}</td>
           <td>${esc(invVendorName(p.vendorId))}</td>
@@ -9892,6 +9913,7 @@ function renderInvPurchases(){
       <select onchange="invSetPurchaseFilter_status(this.value)" style="flex:1 1 140px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
         <option value="">All</option>
         <option value="pending" ${invPurchaseFilters.status==='pending'?'selected':''}>Pending</option>
+        <option value="partial" ${invPurchaseFilters.status==='partial'?'selected':''}>Partial</option>
         <option value="received" ${invPurchaseFilters.status==='received'?'selected':''}>Received</option>
       </select>
       <select onchange="invSetPurchaseFilter_vendor(this.value)" style="flex:1 1 180px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
@@ -10383,10 +10405,12 @@ function mfgAssemblyTableHtml(){
         const isOpen=mfgExpandedAssemblies.has(a.id);
         const mainRow=`<tr>
           <td>
-            <button onclick="toggleMfgAssemblyExpand('${a.id}')" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--g3);vertical-align:middle;margin-right:4px">
-              ${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}
-            </button>
-            ${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'—'}
+            <div style="display:flex;align-items:center;gap:2px">
+              <button onclick="toggleMfgAssemblyExpand('${a.id}')" style="background:none;border:none;margin:0;padding:2px;cursor:pointer;color:var(--g3);flex-shrink:0;line-height:1;font:inherit;appearance:none;-webkit-appearance:none">
+                ${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}
+              </button>
+              <span>${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'—'}</span>
+            </div>
           </td>
           <td><strong>${esc(a.name||a.assemblyNumber)}</strong></td>
           <td>${esc(mfgBomName(a.bomId))}</td>
