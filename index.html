@@ -1947,7 +1947,7 @@ body { transition: background .3s ease, color .3s ease; }
     <div class="modal-header"><h2>Make Purchase</h2><button class="modal-close" onclick="closeModal('inv-po-modal')">×</button></div>
     <div class="modal-body" style="max-height:75vh;overflow-y:auto">
       <div class="form-row">
-        <div class="form-group"><label>Vendor</label><select id="inv-po-vendor"><option value="">Select Vendor (Optional)</option></select></div>
+        <div class="form-group"><label>Vendor *</label><select id="inv-po-vendor"><option value="">Select Vendor</option></select></div>
         <div class="form-group"><label>PO Number</label><input type="text" id="inv-po-number" placeholder="Optional"></div>
       </div>
       <div class="form-row"><div class="form-group"><label>Purchase Date *</label><input type="date" id="inv-po-orderdate"></div></div>
@@ -10143,7 +10143,7 @@ function invPurchaseDetailHtml(purchase){
 
 // ── Make Purchase modal ───────────────────────────────────────────────────────
 function openInvPoModal(prefillItemId){
-  document.getElementById('inv-po-vendor').innerHTML='<option value="">Select Vendor (Optional)</option>'+
+  document.getElementById('inv-po-vendor').innerHTML='<option value="">Select Vendor</option>'+
     invVendors.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
   document.getElementById('inv-po-number').value='';
   document.getElementById('inv-po-orderdate').value=new Date().toISOString().slice(0,10);
@@ -10153,10 +10153,27 @@ function openInvPoModal(prefillItemId){
   updateInvPoTotal();
   document.getElementById('inv-po-modal').classList.add('open');
 }
-function invPoItemOptions(selectedId){
-  return '<option value="">Select Item</option>'+invItems.map(i=>
-    `<option value="${i.id}" ${selectedId===i.id?'selected':''}>${esc(i.name)}</option>`
-  ).join('');
+let invPoActivePickerIdx=null;
+function invPoRenderItemOptions(idx,search){
+  invPoActivePickerIdx=idx;
+  const q=(search||'').trim().toLowerCase();
+  const items=invItems.filter(i=>{
+    if(!q) return true;
+    return (i.name||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q) || (i.displayName||'').toLowerCase().includes(q);
+  });
+  const optionsEl=document.getElementById(`inv-po-line-item-options-${idx}`);
+  optionsEl.style.display='';
+  mfgRenderItemPickerResults(optionsEl, items, 'invPoPickItem');
+}
+function invPoPickItem(itemId){
+  const idx=invPoActivePickerIdx;
+  if(idx==null) return;
+  const item=invItemRecord(itemId);
+  document.getElementById(`inv-po-line-item-${idx}`).value=itemId;
+  document.getElementById(`inv-po-line-item-search-${idx}`).value=item?mfgItemOptionLabel(item):'';
+  const optionsEl=document.getElementById(`inv-po-line-item-options-${idx}`);
+  optionsEl.innerHTML='';
+  optionsEl.style.display='none';
 }
 function addInvPoLine(prefillItemId){
   const idx=invPoLineIdx++;
@@ -10168,7 +10185,12 @@ function addInvPoLine(prefillItemId){
       <label style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase">Item</label>
       <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('inv-po-line-${idx}').remove();updateInvPoTotal()" style="color:var(--red)">Remove Item</button>
     </div>
-    <select id="inv-po-line-item-${idx}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px">${invPoItemOptions(prefillItemId)}</select>
+    <input type="hidden" id="inv-po-line-item-${idx}" value="${prefillItemId||''}">
+    <input type="text" id="inv-po-line-item-search-${idx}" placeholder="Search by item name or code…" autocomplete="off"
+      value="${prefillItemId?esc(mfgItemOptionLabel(invItemRecord(prefillItemId))):''}"
+      oninput="invPoRenderItemOptions(${idx},this.value)" onfocus="invPoRenderItemOptions(${idx},this.value)"
+      style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px">
+    <div id="inv-po-line-item-options-${idx}" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;display:none"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <div style="flex:1 1 100px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label>
         <input type="text" id="inv-po-line-vcode-${idx}" placeholder="Optional" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
@@ -10208,7 +10230,8 @@ function updateInvPoTotal(){
   if(totalPreview) totalPreview.textContent='₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2});
 }
 async function saveInvPurchase(){
-  const vendorId=document.getElementById('inv-po-vendor').value||undefined;
+  const vendorId=document.getElementById('inv-po-vendor').value;
+  if(!vendorId){ showToast('Select a vendor','error'); return; }
   const poNumber=document.getElementById('inv-po-number').value.trim()||undefined;
   const lines=[];
   document.querySelectorAll('#inv-po-lines > div').forEach(row=>{
