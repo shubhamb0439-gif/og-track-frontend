@@ -149,6 +149,7 @@
       // Keep the key names the rest of the app already expects (ctx.name,
       // ctx.logo, ctx.primaryColor, ctx.secondaryColor, ctx.accentColor).
       window.COMPANY_CONTEXT = branding;
+      if (typeof initHexagonOverlay === 'function') initHexagonOverlay();
     }
   } catch (e) {
     // No matching/active company for this slug (or offline) — fall back to
@@ -1370,9 +1371,23 @@ body { transition: background .3s ease, color .3s ease; }
   from { width:0%; }
   to   { width:100%; }
 }
+
+/* Hexagon background watermark — masteradmin-toggleable per company, with an
+   adjustable opacity. Off by default; enabled via the .active class and the
+   --hex-overlay-opacity CSS variable, both set by initHexagonOverlay() once
+   COMPANY_CONTEXT is known. */
+#hexagon-overlay{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='140' viewBox='0 0 80 140'%3E%3Cpath d='M40 0 L80 23 L80 70 L40 93 L0 70 L0 23 Z' fill='none' stroke='%23ffffff' stroke-width='1'/%3E%3Cpath d='M40 93 L80 116 L80 140 M0 116 L0 140 M0 116 L40 93' fill='none' stroke='%23ffffff' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat:repeat;
+  opacity:0;
+  transition:opacity .3s ease;
+}
+#hexagon-overlay.active{ opacity:var(--hex-overlay-opacity, 0.06); }
 </style>
 </head>
 <body>
+<div id="hexagon-overlay"></div>
 
 <!-- SPLASH SCREEN -->
 <div id="splash-screen">
@@ -2465,6 +2480,22 @@ let currentProject = JSON.parse(localStorage.getItem('bt_project')||'null');
 let allUsers       = [];
 let allProjects    = [];
 let allCustomRoles = [];
+
+// Applies the masteradmin-configured hexagon background watermark for the
+// current company, if enabled. Called once at bootstrap (from the branding
+// IIFE, if the function is already defined by then) and again here at
+// DOMContentLoaded to cover the normal case where the script hasn't finished
+// parsing yet when COMPANY_CONTEXT is first set.
+function initHexagonOverlay(){
+  const overlay=document.getElementById('hexagon-overlay');
+  if(!overlay) return;
+  const ctx=window.COMPANY_CONTEXT;
+  const enabled=!!(ctx&&ctx.hexOverlayEnabled);
+  const opacityPct=(ctx&&ctx.hexOverlayOpacity!=null)?Number(ctx.hexOverlayOpacity):6;
+  document.documentElement.style.setProperty('--hex-overlay-opacity', (opacityPct/100).toFixed(3));
+  overlay.classList.toggle('active', enabled);
+}
+document.addEventListener('DOMContentLoaded', initHexagonOverlay);
 let bugs           = [];
 let sprints        = [];
 let stories        = [];
@@ -6428,6 +6459,17 @@ function renderCompanies(){
           <div class="field"><label>Secondary Color</label><input type="color" id="cm-secondary" value="#E74C3C" style="width:100%;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer"></div>
           <div class="field"><label>Accent Color</label><input type="color" id="cm-accent" value="#8E44AD" style="width:100%;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer"></div>
         </div>
+        <div class="field" style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:4px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600">
+            <input type="checkbox" id="cm-hex-enabled" onchange="document.getElementById('cm-hex-opacity-row').style.display=this.checked?'flex':'none'">
+            Hexagon Background Overlay
+          </label>
+          <div id="cm-hex-opacity-row" style="display:none;align-items:center;gap:10px;margin-top:8px">
+            <span style="font-size:12px;color:var(--g3);white-space:nowrap">Opacity</span>
+            <input type="range" id="cm-hex-opacity" min="1" max="30" value="6" style="flex:1" oninput="document.getElementById('cm-hex-opacity-val').textContent=this.value+'%'">
+            <span id="cm-hex-opacity-val" style="font-size:12px;color:var(--g3);min-width:34px">6%</span>
+          </div>
+        </div>
         <div style="display:flex;gap:10px;margin-top:4px">
           <button class="btn-primary" onclick="saveCompany()">Save Company</button>
           <button class="btn btn-ghost" onclick="closeModal('company-modal')">Cancel</button>
@@ -6462,6 +6504,11 @@ function openCompanyModal(id){
   document.getElementById('cm-logo-b64').value=c?.logo||'';
   const prev=document.getElementById('cm-logo-preview');
   if(c?.logo){prev.src=c.logo;prev.style.display='block';}else{prev.style.display='none';}
+  const hexEnabled=c?.hexOverlayEnabled ?? false;
+  document.getElementById('cm-hex-enabled').checked=hexEnabled;
+  document.getElementById('cm-hex-opacity').value=c?.hexOverlayOpacity ?? 6;
+  document.getElementById('cm-hex-opacity-val').textContent=(c?.hexOverlayOpacity ?? 6)+'%';
+  document.getElementById('cm-hex-opacity-row').style.display=hexEnabled?'flex':'none';
   document.getElementById('company-modal').style.display='flex';
 }
 
@@ -6474,7 +6521,9 @@ async function saveCompany(){
     primaryColor:document.getElementById('cm-primary').value,
     secondaryColor:document.getElementById('cm-secondary').value,
     accentColor:document.getElementById('cm-accent').value,
-    logo:document.getElementById('cm-logo-b64').value||null
+    logo:document.getElementById('cm-logo-b64').value||null,
+    hexOverlayEnabled:document.getElementById('cm-hex-enabled').checked,
+    hexOverlayOpacity:Number(document.getElementById('cm-hex-opacity').value),
   };
   try{
     let saved;
@@ -10032,6 +10081,25 @@ async function loadInvPurchaseLines(purchaseId){
   }catch(e){ return []; }
 }
 
+let invPurchaseLinesBulkLoaded=false;
+let invPurchaseLinesBulkLoading=false;
+// Loads every purchase's line items in ONE request instead of one fetch per
+// purchase order. The previous approach (a separate fetch per row, each
+// triggering its own table re-render on completion) caused the whole
+// Purchases page to visibly flicker/re-render dozens or hundreds of times
+// in a row once there were hundreds of real purchase orders to display.
+async function loadInvPurchaseLinesBulk(){
+  if(invPurchaseLinesBulkLoaded||invPurchaseLinesBulkLoading) return;
+  invPurchaseLinesBulkLoading=true;
+  try{
+    const byPurchase=await fetch('/api/inventory/purchases/all-items').then(r=>r.json());
+    Object.assign(invPurchaseLinesCache, byPurchase);
+    invPurchaseLinesBulkLoaded=true;
+    if(currentView==='inv_purchases') invPurchasesRerenderTableOnly();
+  }catch(e){ console.error('Failed to bulk-load purchase lines',e); }
+  finally{ invPurchaseLinesBulkLoading=false; }
+}
+
 function invPurchasesTableHtml(){
   const q=(invPurchaseFilters.search||'').trim().toLowerCase();
   const list=invPurchases.filter(p=>{
@@ -10072,10 +10140,11 @@ function invPurchasesTableHtml(){
         const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:16px" id="inv-purchase-detail-${p.id}">${invPurchaseDetailHtml(p)}</td></tr>`:'';
         return mainRow+detailRow;
       }).join('');
-  // Lazily fetch line items for rows visible in the table (for totals) and
-  // any already-expanded detail rows. Uses the table-only re-render so a
-  // background line-cache fill doesn't blow away the search box's focus.
-  list.forEach(p=>{ if(!invPurchaseLinesCache[p.id]) loadInvPurchaseLines(p.id).then(()=>{ if(currentView==='inv_purchases') invPurchasesRerenderTableOnly(); }); });
+  // Bulk-loads every purchase's line items in a single request (see
+  // loadInvPurchaseLinesBulk above) instead of firing one fetch per row —
+  // that per-row approach was the actual cause of the page flickering
+  // repeatedly as hundreds of individual fetches resolved one by one.
+  loadInvPurchaseLinesBulk();
   return rows;
 }
 function renderInvPurchases(){
@@ -10254,6 +10323,7 @@ async function saveInvPurchase(){
     showToast('Purchase created ✓','success');
     await loadInvData();
     invPurchaseLinesCache={};
+    invPurchaseLinesBulkLoaded=false;
     renderView();
   }catch(e){ showToast(e.message,'error'); }
 }
@@ -10352,6 +10422,7 @@ async function saveInvPurchaseEdit(){
     closeModal('inv-purchase-edit-modal');
     showToast('Purchase updated ✓','success');
     invPurchaseLinesCache={};
+    invPurchaseLinesBulkLoaded=false;
     await loadInvData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
