@@ -6389,7 +6389,13 @@ function renderSeniorEod(){
   });
   const ownGroups=Object.entries(byClient);
   const ownTotal=Object.values(byClient).reduce((s,c)=>s+c.duration,0);
-  const myReport=accEodReports.find(r=>r.accountantId===currentUser.id&&r.date===today);
+  // A 'draft' report (set by recallEodReport) is intentionally NOT treated
+  // as "already submitted" — the whole point of recalling a report is to
+  // let the accountant fix their notes/totals and resubmit fresh values.
+  // Without this exclusion, myReport still matched the recalled report by
+  // truthiness alone, permanently hiding the Submit button and leaving the
+  // original stale snapshot in place with no way to ever replace it.
+  const myReport=accEodReports.find(r=>r.accountantId===currentUser.id&&r.date===today&&r.status!=='draft');
   document.getElementById('content-area').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div><h2 style="margin:0;font-size:18px">EOD Reports</h2>
@@ -6435,8 +6441,8 @@ function renderSeniorEod(){
           </div>`).join('')}
         </div>
         <div class="acc-eod-total">Total: <strong>${fmtDuration(ownTotal)}</strong></div>
-        ${!myReport?`<button class="btn-primary" onclick="submitEodReport()">Submit My EOD →</button>`:
-          `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ Submitted</div>`}
+        ${!myReport?`<button class="btn-primary" onclick="submitEodReport()">${role==='accounts_manager'?'Finalize My EOD →':'Submit My EOD →'}</button>`:
+          `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ ${myReport.status==='reviewed'?'Finalized':'Submitted'}</div>`}
       `}
     </div>
     ${(role==='accounts_manager'||role==='senior_accountant')?(()=>{
@@ -6915,14 +6921,39 @@ async function submitEodReport(){
   });
   const clientSummary=Object.values(byClient);
   const totalDuration=clientSummary.reduce((s,c)=>s+c.duration,0);
-  const report={accountantId:currentUser.id,accountantName:currentUser.name,date:today,
-    accountantRole:currentUser.role,clientSummary,totalDuration,status:'submitted',submittedAt:new Date().toISOString(),
-    reviewNote:'',reviewedBy:null,reviewedAt:null};
-  const r=await fetch('/api/eod-reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(report)});
-  const saved=await r.json();
-  accEodReports.push(saved);
-  const submittedToLabel = currentUser.role==='senior_accountant' ? 'Accounts Manager' : 'Senior Accountant';
-  showToast(`EOD Report submitted to ${submittedToLabel} ✓`,'success');
+  // If a draft (recalled) report already exists for today, update that same
+  // row with the freshly-recomputed totals instead of creating a second
+  // report — otherwise the original draft row would be orphaned forever
+  // with its stale snapshot, which is exactly the "old duration keeps
+  // showing" symptom this fixes.
+  const draftReport=accEodReports.find(r=>r.accountantId===currentUser.id&&r.date===today&&r.status==='draft');
+  let saved;
+  if(draftReport){
+    const r=await fetch('/api/eod-reports/'+draftReport.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      clientSummary,totalDuration,status:'submitted',submittedAt:new Date().toISOString(),reviewNote:'',reviewedBy:null,reviewedAt:null,
+    })});
+    saved=await r.json();
+    accEodReports=accEodReports.map(x=>x.id===saved.id?saved:x);
+  }else{
+    const report={accountantId:currentUser.id,accountantName:currentUser.name,date:today,
+      accountantRole:currentUser.role,clientSummary,totalDuration,status:'submitted',submittedAt:new Date().toISOString(),
+      reviewNote:'',reviewedBy:null,reviewedAt:null};
+    const r=await fetch('/api/eod-reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(report)});
+    saved=await r.json();
+    accEodReports.push(saved);
+  }
+  if(currentUser.role==='accounts_manager'){
+    showToast('EOD Report finalized ✓','success');
+  }else{
+    // Look up the actual configured reviewer for this accountant (same
+    // accEodRoutes data already used by canSeeReport in renderSeniorEod),
+    // rather than assuming a fixed default based only on the submitter's
+    // role. Only falls back to the role-based default when no explicit
+    // route has been configured for this accountant.
+    const myRoute=accEodRoutes.find(x=>x.accountantId===currentUser.id);
+    const reviewerName = myRoute?.reviewerName || (currentUser.role==='senior_accountant' ? 'Accounts Manager' : 'Senior Accountant');
+    showToast(`EOD Report submitted to ${reviewerName} ✓`,'success');
+  }
   renderAccountantEod();
 }
 
