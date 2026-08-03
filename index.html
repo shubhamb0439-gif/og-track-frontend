@@ -6070,13 +6070,36 @@ function showAccountantsListModal(){
       }).join('');
   document.getElementById('acc-accountants-modal').classList.add('open');
 }
+// Shared visibility rule for "can this user see/review this EOD report" —
+// used by both the Dashboard's Pending Reviews/Reviewed Today counts and
+// the actual review queue in renderSeniorEod, so routing configuration is
+// enforced consistently everywhere a report count or list is shown, not
+// just in the queue itself. Routing (if configured for this accountant)
+// takes precedence over the role-based default for every role, including
+// Accounts Manager — a report explicitly routed to a specific Manager is
+// only visible to that Manager, not to every Manager account.
+function canSeeEodReport(r, currentUser, accEodRoutes){
+  const rt=accEodRoutes.find(x=>x.accountantId===r.accountantId);
+  if(rt) return rt.reviewerId===currentUser.id;
+  if(currentUser.role==='accounts_manager') return true;
+  return (r.accountantRole||'accountant')==='accountant';
+}
+
 async function renderAccDashboard(){
-  // Same fix as renderAccClients/renderAccEod: refetch fresh client data
-  // every time the dashboard renders, so a newly-assigned client's count
-  // updates immediately rather than only after a full sign-out/sign-in.
+  // Refetch fresh client, EOD report, and EOD routing data every time the
+  // dashboard renders — same staleness-prevention pattern already used for
+  // renderAccEod/renderAccClients. The Pending Reviews / Reviewed Today
+  // counts below now depend on accEodReports and accEodRoutes being current
+  // (via canSeeEodReport), not just accClients for the client count.
   try{
-    const cr=await fetch('/api/clients').then(r=>r.json());
+    const [cr,er,rt]=await Promise.all([
+      fetch('/api/clients').then(r=>r.json()),
+      fetch('/api/eod-reports').then(r=>r.json()),
+      fetch('/api/eod-routes').then(r=>r.json()),
+    ]);
     if(Array.isArray(cr)) accClients=cr;
+    if(Array.isArray(er)) accEodReports=er;
+    if(Array.isArray(rt)) accEodRoutes=rt;
   }catch(e){ /* keep whatever was already in memory if this fails */ }
   const role=currentUser.role;
   const today=todayStr();
@@ -6088,8 +6111,13 @@ async function renderAccDashboard(){
   const myClients=accClients.filter(c=>(c.assignedTo||[]).includes(currentUser.name));
   let html='';
   if(role==='accounts_manager'||role==='senior_accountant'){
-    const pending=accEodReports.filter(r=>r.status==='submitted');
-    const reviewedToday=accEodReports.filter(r=>r.status==='reviewed'&&r.date===today);
+    // Scoped to reports this specific reviewer is actually responsible for
+    // (per configured routing, or the default hierarchy when no route is
+    // set) — previously these counts included every submitted/reviewed
+    // report company-wide, which meant a Manager's dashboard showed reports
+    // that were routed to someone else entirely.
+    const pending=accEodReports.filter(r=>r.status==='submitted'&&canSeeEodReport(r,currentUser,accEodRoutes));
+    const reviewedToday=accEodReports.filter(r=>r.status==='reviewed'&&r.date===today&&canSeeEodReport(r,currentUser,accEodRoutes));
     const accountants=allUsers.filter(u=>(u.role==='accountant'||u.role==='intern')&&u.status==='active');
     html+=`<div class="stats-grid" style="margin-bottom:20px">
       <div class="stat-card"><div class="label">Total Clients</div><div class="value grey">${accClients.length}</div></div>
@@ -6156,9 +6184,15 @@ async function renderAccClients(){
     if(Array.isArray(cr)) accClients=cr;
   }catch(e){ /* keep whatever was already in memory if this fails */ }
   const role=currentUser.role;
-  const myClients=accClients.filter(c=>(c.assignedTo||[]).includes(currentUser.name));
-  const otherClients=accClients.filter(c=>!(c.assignedTo||[]).includes(currentUser.name));
   const isSenior=role==='accounts_manager'||role==='senior_accountant';
+  const myClients=accClients.filter(c=>(c.assignedTo||[]).includes(currentUser.name));
+  // Available/unassigned clients are only a concept for Seniors/Managers —
+  // an Accountant (or Intern, grouped the same way everywhere else in this
+  // file: see the accountants filters above) should never see or be able to
+  // pick up an unassigned client. Computing this as an empty array for
+  // non-Senior roles means it's also unavailable to any card/button logic
+  // below, not just hidden from the rendered HTML.
+  const otherClients=isSenior?accClients.filter(c=>!(c.assignedTo||[]).includes(currentUser.name)):[];
   const card=(c,isMine)=>`<div class="acc-client-card">
     <div class="acc-client-header">
       <span class="acc-client-name">${c.name}</span>
@@ -6189,21 +6223,22 @@ async function renderAccClients(){
   // since they sit at the top of that specific tier and have no Senior
   // Accountant "above" them to ask. Each role now gets wording that matches
   // its actual position in the hierarchy and what it can actually do next.
+  // Accountants/Interns no longer see "Pick one up below" since they can no
+  // longer see or act on unassigned clients at all (Issue 1) — their only
+  // path forward is asking a Senior/Manager to assign one directly.
   let myEmptyMessage;
   if(!accClients.length){
     myEmptyMessage = isSenior
       ? 'No clients yet. Add your first client above.'
       : 'No clients yet. Ask a Manager or Senior Accountant to create one.';
-  } else if(otherClients.length){
-    if(role==='senior_accountant'){
-      myEmptyMessage = 'No clients assigned to you. Pick one up below.';
-    } else if(role==='accounts_manager'){
-      myEmptyMessage = 'No clients assigned to you. Pick one up below or ask a Senior Accountant to assign one.';
-    } else {
-      myEmptyMessage = 'No clients assigned to you. Pick one up below or ask a Senior Accountant.';
-    }
+  } else if(isSenior && otherClients.length){
+    myEmptyMessage = role==='senior_accountant'
+      ? 'No clients assigned to you. Pick one up below.'
+      : 'No clients assigned to you. Pick one up below or ask a Senior Accountant to assign one.';
   } else {
-    myEmptyMessage = 'No clients assigned to you yet.';
+    myEmptyMessage = isSenior
+      ? 'No clients assigned to you yet.'
+      : 'No clients assigned to you yet. Ask a Senior Accountant or Accounting Manager to assign one.';
   }
   document.getElementById('content-area').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -6213,7 +6248,7 @@ async function renderAccClients(){
     <h3 style="font-size:12px;font-weight:600;color:var(--g3);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px">MY CLIENTS (${myClients.length})</h3>
     ${myClients.length?`<div class="acc-cards-grid">${myClients.map(c=>card(c,true)).join('')}</div>`:
       `<div class="empty-state" style="margin-bottom:20px"><p>${myEmptyMessage}</p></div>`}
-    ${otherClients.length?`
+    ${isSenior&&otherClients.length?`
       <h3 style="font-size:12px;font-weight:600;color:var(--g3);margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px">AVAILABLE CLIENTS (${otherClients.length})</h3>
       <div class="acc-cards-grid">${otherClients.map(c=>card(c,false)).join('')}</div>
     `:''}
@@ -6279,10 +6314,18 @@ async function renderAccEod(){
   // Refetch fresh EOD data every time this page opens, rather than relying
   // solely on whatever was loaded once at login — otherwise a report
   // submitted by someone else after this session started would never show
-  // up here until a full page reload.
+  // up here until a full page reload. Also refetches eod-routes for the
+  // same reason: a routing change configured by a Senior Accountant (e.g.
+  // "this Accountant's reports now go to a specific Manager") must be
+  // visible immediately to whoever is affected, not just after their next
+  // full sign-out/sign-in.
   try{
-    const er=await fetch('/api/eod-reports').then(r=>r.json());
+    const [er,rt]=await Promise.all([
+      fetch('/api/eod-reports').then(r=>r.json()),
+      fetch('/api/eod-routes').then(r=>r.json()),
+    ]);
     if(Array.isArray(er)) accEodReports=er;
+    if(Array.isArray(rt)) accEodRoutes=rt;
   }catch(e){ /* keep whatever was already in memory if this fails */ }
   if(role==='accounts_manager'||role==='senior_accountant') renderSeniorEod(); else renderAccountantEod(); // accountant + intern
 }
@@ -6338,7 +6381,14 @@ function renderAccountantEod(){
       </div>
       <div class="acc-eod-total">Total time worked: <strong>${fmtDuration(total)}</strong></div>
       ${!report?`<div style="padding:16px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
-        <div style="font-size:13px;color:var(--g2);margin-bottom:10px">Happy with your notes? Submit to your Senior Accountant.</div>
+        <div style="font-size:13px;color:var(--g2);margin-bottom:10px">Happy with your notes? Submit to ${(()=>{
+          // Same lookup already used in submitEodReport()'s post-submit
+          // toast — reuse it here too instead of a hardcoded reviewer name,
+          // so the pre-submit CTA and the actual routing configuration
+          // never disagree with each other.
+          const myRoute=accEodRoutes.find(x=>x.accountantId===currentUser.id);
+          return esc(myRoute?.reviewerName || 'your Senior Accountant');
+        })()}.</div>
         <button class="btn-primary" onclick="submitEodReport()">Submit EOD Report →</button>
       </div>`:`<div style="padding:12px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
@@ -6423,12 +6473,7 @@ function renderSeniorEod(){
   let selDate=today;
   const existing=document.getElementById('eod-date-filter');
   if(existing) selDate=existing.value;
-  const canSeeReport=r=>{
-    if(role==='accounts_manager') return true;
-    const rt=accEodRoutes.find(x=>x.accountantId===r.accountantId);
-    if(rt) return rt.reviewerId===currentUser.id;
-    return (r.accountantRole||'accountant')==='accountant';
-  };
+  const canSeeReport=r=>canSeeEodReport(r,currentUser,accEodRoutes);
   const dates=[...new Set([today,...accEodReports.filter(canSeeReport).map(r=>r.date)])].sort((a,b)=>b.localeCompare(a));
   const filtered=accEodReports.filter(r=>r.date===selDate&&canSeeReport(r));
   const pendingCount=accEodReports.filter(r=>r.status==='submitted'&&canSeeReport(r)).length;
@@ -6843,6 +6888,12 @@ async function saveClient(){
     assignedTo:[...document.querySelectorAll('#cm-assign input:checked')].map(i=>i.value),
     createdBy:currentUser.name,
     companyId:currentUser.companyId||undefined,
+    // Sent so the backend can authoritatively enforce who is allowed to
+    // create/edit clients (Issue 2) — this app has no auth middleware
+    // anywhere, so, consistent with how assignedTo/createdBy already work
+    // on this same endpoint, the requester's role/name travel in the body.
+    requestingUserRole:currentUser.role,
+    requestingUserName:currentUser.name,
   };
   try{
     let r, c;
@@ -6875,17 +6926,20 @@ async function saveClient(){
 
 async function deleteClient(id){
   if(!confirm('Delete this client? This cannot be undone.'))return;
-  await fetch('/api/clients/'+id,{method:'DELETE'});
-  accClients=accClients.filter(c=>c.id!==id);
-  showToast('Client deleted','success');
-  renderAccClients();
+  try{
+    const r=await fetch('/api/clients/'+id,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestingUserRole:currentUser.role})});
+    if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not delete this client'); }
+    accClients=accClients.filter(c=>c.id!==id);
+    showToast('Client deleted','success');
+    renderAccClients();
+  }catch(e){ showToast(e.message||'Could not delete this client','alert'); }
 }
 
 async function pickClient(id){
   const c=accClients.find(x=>x.id===id);if(!c)return;
   const updated=[...new Set([...(c.assignedTo||[]),currentUser.name])];
   try{
-    const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated})});
+    const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated,requestingUserRole:currentUser.role,requestingUserName:currentUser.name})});
     if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not pick up this client'); }
     const saved=await r.json();
     accClients=accClients.map(x=>x.id===id?{...x,...saved}:x);
@@ -6898,7 +6952,7 @@ async function removeFromClient(id){
   const c=accClients.find(x=>x.id===id);if(!c)return;
   const updated=(c.assignedTo||[]).filter(n=>n!==currentUser.name);
   try{
-    const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated})});
+    const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated,requestingUserRole:currentUser.role,requestingUserName:currentUser.name})});
     if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not remove you from this client'); }
     const saved=await r.json();
     // Merge rather than fully replace: if the backend's PATCH response is a
