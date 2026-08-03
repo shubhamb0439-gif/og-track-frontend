@@ -3105,6 +3105,16 @@ function connectSocket(){
   // already in memory and never re-fetches on its own.
   socket.on('eod:report_created',r=>{if(!accEodReports.find(x=>x.id===r.id))accEodReports.push(r);if(currentView==='acc_eod')renderAccEod();if(currentView==='dashboard')renderView();});
   socket.on('eod:report_updated',r=>{accEodReports=accEodReports.map(x=>x.id===r.id?r:x);if(currentView==='acc_eod')renderAccEod();});
+  // Client real-time updates — the backend already emits client:created/
+  // updated/deleted on every mutation (see accounting.js), but nothing on
+  // the frontend was listening for them, so an already-open session would
+  // never reflect a new assignment until navigating away and back (which
+  // now also refetches fresh data — see renderAccClients/renderAccDashboard
+  // — but a live push means the assignee sees it immediately, with no
+  // navigation needed at all).
+  socket.on('client:created',c=>{if(!accClients.find(x=>x.id===c.id))accClients.push(c);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
+  socket.on('client:updated',c=>{accClients=accClients.map(x=>x.id===c.id?c:x);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
+  socket.on('client:deleted',({id})=>{accClients=accClients.filter(x=>x.id!==id);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
   // Messaging socket listeners
   socket.on(`message:new:${currentUser.id}`, ({convoId, message}) => {
     handleIncomingMessage(convoId, message);
@@ -6060,7 +6070,14 @@ function showAccountantsListModal(){
       }).join('');
   document.getElementById('acc-accountants-modal').classList.add('open');
 }
-function renderAccDashboard(){
+async function renderAccDashboard(){
+  // Same fix as renderAccClients/renderAccEod: refetch fresh client data
+  // every time the dashboard renders, so a newly-assigned client's count
+  // updates immediately rather than only after a full sign-out/sign-in.
+  try{
+    const cr=await fetch('/api/clients').then(r=>r.json());
+    if(Array.isArray(cr)) accClients=cr;
+  }catch(e){ /* keep whatever was already in memory if this fails */ }
   const role=currentUser.role;
   const today=todayStr();
   const todayEntries=accTimeEntries.filter(e=>e.date===today);
@@ -6127,7 +6144,17 @@ function renderAccDashboard(){
 }
 
 // ── Clients Page ──────────────────────────────────────────────────────────────
-function renderAccClients(){
+async function renderAccClients(){
+  // Refetch fresh client data every time this page opens, matching the same
+  // pattern already applied to renderAccEod() — otherwise a client assigned
+  // to this user by a Senior Accountant after this session's initial login
+  // would never appear here (or update the Dashboard count) until a full
+  // sign-out/sign-in, since accClients was previously only ever populated
+  // once, at login, with no refetch on navigation.
+  try{
+    const cr=await fetch('/api/clients').then(r=>r.json());
+    if(Array.isArray(cr)) accClients=cr;
+  }catch(e){ /* keep whatever was already in memory if this fails */ }
   const role=currentUser.role;
   const myClients=accClients.filter(c=>(c.assignedTo||[]).includes(currentUser.name));
   const otherClients=accClients.filter(c=>!(c.assignedTo||[]).includes(currentUser.name));
@@ -6150,9 +6177,34 @@ function renderAccClients(){
       `:''}
     </div>
   </div>`;
-  const myEmptyMessage = !accClients.length
-    ? (isSenior ? 'No clients yet. Add your first client above.' : 'No clients yet. Ask a Manager or Senior Accountant to create one.')
-    : (otherClients.length ? 'No clients assigned to you. Pick one below or ask a Senior Accountant.' : 'No clients assigned to you yet.');
+  // Role-aware empty-state messaging for "My Clients". Distinguishes two
+  // independent conditions that were previously conflated:
+  //   (a) no clients exist in the system at all, vs.
+  //   (b) clients exist but none are assigned to the current viewer
+  //       (which may itself mean "unassigned clients are available to pick
+  //       up" or "clients exist but are all assigned to other people").
+  // Previously accounts_manager and senior_accountant were both bucketed
+  // into a single "isSenior" message that told the viewer to "ask a Senior
+  // Accountant" — which is nonsensical for a Senior Accountant themselves,
+  // since they sit at the top of that specific tier and have no Senior
+  // Accountant "above" them to ask. Each role now gets wording that matches
+  // its actual position in the hierarchy and what it can actually do next.
+  let myEmptyMessage;
+  if(!accClients.length){
+    myEmptyMessage = isSenior
+      ? 'No clients yet. Add your first client above.'
+      : 'No clients yet. Ask a Manager or Senior Accountant to create one.';
+  } else if(otherClients.length){
+    if(role==='senior_accountant'){
+      myEmptyMessage = 'No clients assigned to you. Pick one up below.';
+    } else if(role==='accounts_manager'){
+      myEmptyMessage = 'No clients assigned to you. Pick one up below or ask a Senior Accountant to assign one.';
+    } else {
+      myEmptyMessage = 'No clients assigned to you. Pick one up below or ask a Senior Accountant.';
+    }
+  } else {
+    myEmptyMessage = 'No clients assigned to you yet.';
+  }
   document.getElementById('content-area').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h2 style="margin:0;font-size:18px">Clients</h2>
