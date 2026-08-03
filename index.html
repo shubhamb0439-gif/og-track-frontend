@@ -2137,6 +2137,14 @@ body { transition: background .3s ease, color .3s ease; }
 </div>
 
 <!-- Deliveries: Schedule / Edit Delivery Modal -->
+<div class="modal-overlay" id="acc-accountants-modal">
+  <div class="modal">
+    <div class="modal-header"><h2>Accountants</h2><button class="modal-close" onclick="closeModal('acc-accountants-modal')">×</button></div>
+    <div class="modal-body" id="acc-accountants-list"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('acc-accountants-modal')">Close</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="delivery-modal">
   <div class="modal">
     <div class="modal-header"><h2 id="delivery-modal-title">Make Delivery</h2><button class="modal-close" onclick="closeModal('delivery-modal')">×</button></div>
@@ -2643,6 +2651,11 @@ function doLogout(){
   sessionStorage.clear();
   currentUser=null;currentProject=null;bugs=[];allUsers=[];allProjects=[];
   conversations=[];activeConvoId=null;totalUnread=0;
+  // These were previously never reset on logout — accounting/HR state could
+  // sit stale in memory (visible if anything renders before the next
+  // login's loadAccData()/loadHrData() call resolves) rather than being
+  // cleanly wiped the moment the user signs out.
+  accClients=[];accTimeEntries=[];accEodReports=[];accEodRoutes=[];
 
   // Hide all screens
   document.getElementById('main-app').style.display='none';
@@ -3085,6 +3098,13 @@ function connectSocket(){
   socket.on('project:deleted',({id})=>{allProjects=allProjects.filter(p=>p.id!==id);if(currentView==='projects')renderView();});
   socket.on('user:registered',u=>{if(!allUsers.find(x=>x.id===u.id))allUsers.push(u);if(currentView==='admin')renderAdmin();});
   socket.on('user:updated',u=>{allUsers=allUsers.map(x=>x.id===u.id?u:x);if(currentView==='admin')renderAdmin();});
+  // EOD report real-time updates — without this, a Manager/Senior who already
+  // has the EOD page open (or loaded accEodReports at login before a report
+  // was submitted) would never see a newly-submitted report until they fully
+  // reloaded the page, since renderAccEod() only re-renders from whatever is
+  // already in memory and never re-fetches on its own.
+  socket.on('eod:report_created',r=>{if(!accEodReports.find(x=>x.id===r.id))accEodReports.push(r);if(currentView==='acc_eod')renderAccEod();if(currentView==='dashboard')renderView();});
+  socket.on('eod:report_updated',r=>{accEodReports=accEodReports.map(x=>x.id===r.id?r:x);if(currentView==='acc_eod')renderAccEod();});
   // Messaging socket listeners
   socket.on(`message:new:${currentUser.id}`, ({convoId, message}) => {
     handleIncomingMessage(convoId, message);
@@ -5199,13 +5219,25 @@ if(window.OGTRACK_IS_QR_DISPLAY_PAGE){
       if(currentUser.role==='masteradmin'||currentUser.role==='superadmin'){
         currentProject={id:currentUser.role==='masteradmin'?'__master__':'__all__',name:currentUser.role==='masteradmin'?'BuckTrack Master':'All Projects'};
       } else if(saved){
-        // Verify saved project still exists and user still has access
-        const stillValid=allProjects.find(p=>p.id===saved.id&&(
+        // Verify saved project still exists and user still has access.
+        // The synthetic Accounting/HR "projects" (__acc__/__hr__) are never
+        // real entries in allProjects — they're placeholder objects used
+        // purely to satisfy the app's project-based navigation scaffolding
+        // for those roles. The old check here only recognized real projects
+        // as valid, which meant this ALWAYS failed for accounting/HR users:
+        // currentProject got set to null and the saved marker got deleted,
+        // so on re-login the app never reached the branch that calls
+        // loadAccData()/loadHrData() again — surfacing as "all my clients/
+        // timers/reports disappeared after signing back in."
+        const isSyntheticAndRoleMatches =
+          (saved.id==='__acc__' && ['accounts_manager','senior_accountant','accountant','intern'].includes(currentUser.role)) ||
+          (saved.id==='__hr__' && currentUser.role==='hr');
+        const stillValid = isSyntheticAndRoleMatches || allProjects.find(p=>p.id===saved.id&&(
           (p.managers||[]).includes(currentUser.name)||
           (p.developers||[]).includes(currentUser.name)||
           (p.testers||[]).includes(currentUser.name)
         ));
-        currentProject=stillValid||null;
+        currentProject=stillValid?saved:null;
         if(!stillValid) localStorage.removeItem('bt_project');
       }
       launchApp();
@@ -6011,6 +6043,23 @@ function startAccTimerDisplay(){
 }
 
 // ── Accountant Dashboard ──────────────────────────────────────────────────────
+function showAccountantsListModal(){
+  const accountants=allUsers.filter(u=>(u.role==='accountant'||u.role==='intern')&&u.status==='active');
+  const listEl=document.getElementById('acc-accountants-list');
+  listEl.innerHTML = !accountants.length
+    ? '<div class="empty-state"><p>No accountants found.</p></div>'
+    : accountants.map(u=>{
+        const myClientCount=accClients.filter(c=>(c.assignedTo||[]).includes(u.name)).length;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--g5)">
+          <div>
+            <div style="font-weight:600">${esc(u.name)}</div>
+            <div style="font-size:12px;color:var(--g3)">${esc(u.role==='intern'?'Intern':'Accountant')}</div>
+          </div>
+          <div style="font-size:13px;color:var(--g3)">${myClientCount} client${myClientCount===1?'':'s'}</div>
+        </div>`;
+      }).join('');
+  document.getElementById('acc-accountants-modal').classList.add('open');
+}
 function renderAccDashboard(){
   const role=currentUser.role;
   const today=todayStr();
@@ -6027,13 +6076,13 @@ function renderAccDashboard(){
     const accountants=allUsers.filter(u=>(u.role==='accountant'||u.role==='intern')&&u.status==='active');
     html+=`<div class="stats-grid" style="margin-bottom:20px">
       <div class="stat-card"><div class="label">Total Clients</div><div class="value grey">${accClients.length}</div></div>
-      <div class="stat-card"><div class="label">Accountants</div><div class="value grey">${accountants.length}</div></div>
+      <div class="stat-card clickable" onclick="showAccountantsListModal()"><div class="label">Accountants</div><div class="value grey">${accountants.length}</div></div>
       <div class="stat-card clickable${pending.length?' active':''}" onclick="showView('acc_eod')"><div class="label">Pending Reviews</div><div class="value red">${pending.length}</div></div>
       <div class="stat-card"><div class="label">Reviewed Today</div><div class="value grey">${reviewedToday.length}</div></div>
     </div><h3 style="margin:0 0 10px;font-size:13px;font-weight:600;color:var(--g2);text-transform:uppercase;letter-spacing:.5px">Your Work Today</h3>`;
   }
   html+=`<div class="stats-grid" style="margin-bottom:20px">
-    <div class="stat-card"><div class="label">My Clients</div><div class="value grey">${myClients.length}</div></div>
+    <div class="stat-card clickable" onclick="showView('acc_clients')"><div class="label">My Clients</div><div class="value grey">${myClients.length}</div></div>
     <div class="stat-card"><div class="label">Sessions Today</div><div class="value grey">${completed.length}</div></div>
     <div class="stat-card"><div class="label">Time Today</div><div class="value grey">${fmtDuration(totalSecs)}</div></div>
     <div class="stat-card${running?' clickable active':''}" onclick="${running?"showView('acc_timer')":"''"}">
@@ -6041,6 +6090,18 @@ function renderAccDashboard(){
       <div class="value ${running?'red':'grey'}">${running?'⏱ '+running.clientName:'—'}</div>
     </div>
   </div>`;
+  if(myClients.length){
+    html+=`<h3 style="font-size:13px;font-weight:600;color:var(--g2);margin:0 0 8px;text-transform:uppercase;letter-spacing:.5px">My Clients</h3>
+    <div class="acc-cards-grid" style="margin-bottom:20px">${myClients.map(c=>`
+      <div class="acc-client-card" style="cursor:pointer" onclick="showView('acc_clients')">
+        <div class="acc-client-header">
+          <span class="acc-client-name">${esc(c.name)}</span>
+          ${c.industry?`<span class="acc-client-badge">${esc(c.industry)}</span>`:''}
+        </div>
+        ${c.description?`<div class="acc-client-desc">${esc(c.description)}</div>`:''}
+      </div>`).join('')}
+    </div>`;
+  }
   if(running){
     html+=`<div class="acc-running-banner" onclick="showView('acc_timer')">
       <span>⏱ Timer running: <strong>${running.clientName}</strong></span>
@@ -6089,6 +6150,9 @@ function renderAccClients(){
       `:''}
     </div>
   </div>`;
+  const myEmptyMessage = !accClients.length
+    ? (isSenior ? 'No clients yet. Add your first client above.' : 'No clients yet. Ask a Manager or Senior Accountant to create one.')
+    : (otherClients.length ? 'No clients assigned to you. Pick one below or ask a Senior Accountant.' : 'No clients assigned to you yet.');
   document.getElementById('content-area').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h2 style="margin:0;font-size:18px">Clients</h2>
@@ -6096,12 +6160,11 @@ function renderAccClients(){
     </div>
     <h3 style="font-size:12px;font-weight:600;color:var(--g3);margin:0 0 10px;text-transform:uppercase;letter-spacing:.5px">MY CLIENTS (${myClients.length})</h3>
     ${myClients.length?`<div class="acc-cards-grid">${myClients.map(c=>card(c,true)).join('')}</div>`:
-      `<div class="empty-state" style="margin-bottom:20px"><p>No clients assigned to you. Pick one below or ask a Senior Accountant.</p></div>`}
+      `<div class="empty-state" style="margin-bottom:20px"><p>${myEmptyMessage}</p></div>`}
     ${otherClients.length?`
       <h3 style="font-size:12px;font-weight:600;color:var(--g3);margin:20px 0 10px;text-transform:uppercase;letter-spacing:.5px">AVAILABLE CLIENTS (${otherClients.length})</h3>
       <div class="acc-cards-grid">${otherClients.map(c=>card(c,false)).join('')}</div>
     `:''}
-    ${!myClients.length&&!otherClients.length?`<div class="empty-state"><p>${isSenior?'No clients yet. Add your first client above.':'No clients available.'}</p></div>`:''}
   `;
 }
 
@@ -6159,8 +6222,16 @@ function renderAccTimer(){
 }
 
 // ── EOD Report Page ───────────────────────────────────────────────────────────
-function renderAccEod(){
+async function renderAccEod(){
   const role=currentUser.role;
+  // Refetch fresh EOD data every time this page opens, rather than relying
+  // solely on whatever was loaded once at login — otherwise a report
+  // submitted by someone else after this session started would never show
+  // up here until a full page reload.
+  try{
+    const er=await fetch('/api/eod-reports').then(r=>r.json());
+    if(Array.isArray(er)) accEodReports=er;
+  }catch(e){ /* keep whatever was already in memory if this fails */ }
   if(role==='accounts_manager'||role==='senior_accountant') renderSeniorEod(); else renderAccountantEod(); // accountant + intern
 }
 
@@ -6368,7 +6439,7 @@ function renderSeniorEod(){
           `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ Submitted</div>`}
       `}
     </div>
-    ${role==='accounts_manager'?(()=>{
+    ${(role==='accounts_manager'||role==='senior_accountant')?(()=>{
       const reportableUsers=allUsers.filter(u=>(u.role==='accountant'||u.role==='intern')&&u.status==='active');
       const reviewers=allUsers.filter(u=>(u.role==='senior_accountant'||u.role==='accounts_manager')&&u.status==='active');
       if(!reportableUsers.length) return '';
@@ -6667,12 +6738,15 @@ async function saveEodRoute(accountantId, accountantName) {
   const reviewerId = sel.value;
   if (!reviewerId) { showToast('Select a reviewer first','error'); return; }
   const reviewer = allUsers.find(u => u.id === reviewerId);
-  const r = await fetch('/api/eod-routes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ accountantId, accountantName, reviewerId, reviewerName: reviewer?.name||'' }) });
-  const saved = await r.json();
-  accEodRoutes = accEodRoutes.filter(x => x.accountantId !== accountantId);
-  accEodRoutes.push(saved);
-  showToast('Routing saved — '+accountantName+' → '+reviewer?.name, 'success');
-  renderAccEod();
+  try{
+    const r = await fetch('/api/eod-routes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ accountantId, accountantName, reviewerId, reviewerName: reviewer?.name||'' }) });
+    if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not save routing'); }
+    const saved = await r.json();
+    accEodRoutes = accEodRoutes.filter(x => x.accountantId !== accountantId);
+    accEodRoutes.push(saved);
+    showToast('Routing saved — '+accountantName+' → '+reviewer?.name, 'success');
+    renderAccEod();
+  }catch(e){ showToast(e.message||'Could not save routing','alert'); }
 }
 
 async function removeEodRoute(routeId) {
@@ -6713,17 +6787,32 @@ async function saveClient(){
     companyId:currentUser.companyId||undefined,
   };
   try{
+    let r, c;
     if(editingClientId){
-      const r=await fetch('/api/clients/'+editingClientId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      const c=await r.json(); accClients=accClients.map(x=>x.id===c.id?c:x);
+      r=await fetch('/api/clients/'+editingClientId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Server rejected the update'); }
+      c=await r.json();
+      if(!c||!c.id) throw new Error('Server response was missing the updated client');
+      accClients=accClients.map(x=>x.id===c.id?{...x,...c}:x);
     } else {
-      const r=await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      const c=await r.json(); accClients.push(c);
+      r=await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Server rejected the new client'); }
+      c=await r.json();
+      if(!c||!c.id) throw new Error('Server response was missing the new client\'s id');
+      accClients.push(c);
     }
     closeModal('client-modal');
     showToast(editingClientId?'Client updated':'Client added','success');
     renderAccClients();
-  }catch(e){showToast('Save failed','alert');}
+  }catch(e){
+    // Previously any failure here was silently swallowed as a generic "Save
+    // failed" with the response never actually checked — so a rejected
+    // PATCH/POST could look like nothing happened at all (bug: self-assign
+    // edits not saving) or, worse, get treated as if it succeeded with
+    // corrupted data (bug: new clients vanishing after refresh, since they
+    // were never really persisted server-side). Now the real error surfaces.
+    showToast(e.message||'Save failed','alert');
+  }
 }
 
 async function deleteClient(id){
@@ -6737,21 +6826,31 @@ async function deleteClient(id){
 async function pickClient(id){
   const c=accClients.find(x=>x.id===id);if(!c)return;
   const updated=[...new Set([...(c.assignedTo||[]),currentUser.name])];
-  const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated})});
-  const saved=await r.json();
-  accClients=accClients.map(x=>x.id===id?saved:x);
-  showToast('Picked up '+c.name,'success');
-  renderAccClients();
+  try{
+    const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated})});
+    if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not pick up this client'); }
+    const saved=await r.json();
+    accClients=accClients.map(x=>x.id===id?{...x,...saved}:x);
+    showToast('Picked up '+c.name,'success');
+    renderAccClients();
+  }catch(e){ showToast(e.message||'Could not pick up this client','alert'); }
 }
 
 async function removeFromClient(id){
   const c=accClients.find(x=>x.id===id);if(!c)return;
   const updated=(c.assignedTo||[]).filter(n=>n!==currentUser.name);
-  const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated})});
-  const saved=await r.json();
-  accClients=accClients.map(x=>x.id===id?saved:x);
-  showToast('Removed from '+c.name,'success');
-  renderAccClients();
+  try{
+    const r=await fetch('/api/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({assignedTo:updated})});
+    if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not remove you from this client'); }
+    const saved=await r.json();
+    // Merge rather than fully replace: if the backend's PATCH response is a
+    // partial object (missing name/description/industry), a full replace
+    // would wipe those fields to undefined — which is exactly what showed up
+    // as "undefined" in the Available Clients card after using Remove Me.
+    accClients=accClients.map(x=>x.id===id?{...x,...saved}:x);
+    showToast('Removed from '+c.name,'success');
+    renderAccClients();
+  }catch(e){ showToast(e.message||'Could not remove you from this client','alert'); }
 }
 
 // ── Timer controls ────────────────────────────────────────────────────────────
@@ -6822,7 +6921,8 @@ async function submitEodReport(){
   const r=await fetch('/api/eod-reports',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(report)});
   const saved=await r.json();
   accEodReports.push(saved);
-  showToast('EOD Report submitted to Senior Accountant ✓','success');
+  const submittedToLabel = currentUser.role==='senior_accountant' ? 'Accounts Manager' : 'Senior Accountant';
+  showToast(`EOD Report submitted to ${submittedToLabel} ✓`,'success');
   renderAccountantEod();
 }
 
