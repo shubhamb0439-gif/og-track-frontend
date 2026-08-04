@@ -91,8 +91,15 @@
       return `/api/${slug}/attendance${rest}`;
     }
 
-    // Determine namespace remap by matching the first path segment.
-    const firstSeg = '/' + (rest.split('/').filter(Boolean)[0] || '');
+    // Determine namespace remap by matching the first path segment. Strip
+    // the query string first — otherwise a call like '/time-entries?date=…'
+    // (every GET here carries query params) never matches the ACC/HR lists
+    // below, silently falls through to the generic slug-prefix branch, and
+    // 404s against a route that was never defined at that path. That 404
+    // is exactly why a freshly-saved timer/EOD entry reads back as gone on
+    // the very next fetch (e.g. right after a page refresh).
+    const pathOnly = rest.split('?')[0];
+    const firstSeg = '/' + (pathOnly.split('/').filter(Boolean)[0] || '');
     if (ACC.includes(firstSeg)) {
       return `/api/${slug}/acc${rest}`;
     }
@@ -6414,8 +6421,8 @@ function renderAccountantEod(){
     ${!submitted&&groups.length?`<div style="font-size:13px;color:var(--g3);margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
       ✏️ Review and edit your session notes below before submitting. Changes save automatically when you click away.
     </div>`:''}
-    ${!groups.length?`<div class="empty-state"><p>No completed sessions today.<br>Start &amp; stop timers on the Timer page to log your work.</p></div>`:`
-      <div class="acc-eod-list">
+    ${!submitted&&!groups.length?`<div class="empty-state"><p>No completed sessions today.<br>Start &amp; stop timers on the Timer page to log your work.</p></div>`:`
+      ${groups.length?`<div class="acc-eod-list">
         ${groups.map(([cid,d])=>`<div class="acc-eod-client">
           <div class="acc-eod-client-header">
             <span style="font-weight:700;font-size:15px">${d.name}</span>
@@ -6436,7 +6443,7 @@ function renderAccountantEod(){
           </div>`).join('')}
         </div>`).join('')}
       </div>
-      <div class="acc-eod-total">Total time worked: <strong>${fmtDuration(total)}</strong></div>
+      <div class="acc-eod-total">Total time worked: <strong>${fmtDuration(submitted?(report.totalDuration||0):total)}</strong></div>`:''}
       ${!report?`<div style="padding:16px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
         <div style="font-size:13px;color:var(--g2);margin-bottom:10px">Happy with your notes? Submit to ${(()=>{
           // Same lookup already used in submitEodReport()'s post-submit
@@ -6584,8 +6591,8 @@ function renderSeniorEod(){
       </div>`}
     <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
       <h3 style="font-size:13px;font-weight:600;color:var(--g2);margin:0 0 12px">Your Work Today</h3>
-      ${!ownGroups.length?`<div class="empty-state"><p>No sessions logged for yourself today.</p></div>`:`
-        <div class="acc-eod-list">
+      ${!ownGroups.length&&!myReport?`<div class="empty-state"><p>No sessions logged for yourself today.</p></div>`:`
+        ${ownGroups.length?`<div class="acc-eod-list">
           ${ownGroups.map(([,d])=>`<div class="acc-eod-client">
             <div class="acc-eod-client-header">
               <span style="font-weight:700">${d.name}</span>
@@ -6594,7 +6601,7 @@ function renderSeniorEod(){
             ${d.notes.map(n=>`<div class="acc-eod-note">→ ${n}</div>`).join('')}
           </div>`).join('')}
         </div>
-        <div class="acc-eod-total">Total: <strong>${fmtDuration(ownTotal)}</strong></div>
+        <div class="acc-eod-total">Total: <strong>${fmtDuration(myReport?(myReport.totalDuration||0):ownTotal)}</strong></div>`:''}
         ${!myReport?`<button class="btn-primary" onclick="submitEodReport()">Submit My EOD →</button>`:
           `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ ${myReport.status==='reviewed'?'Reviewed':'Submitted — pending your review'}</div>`}
       `}
