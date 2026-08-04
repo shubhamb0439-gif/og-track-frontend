@@ -6,6 +6,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link id="google-font-link" href="" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<link id="og-favicon" rel="icon" type="image/png" href="">
 <title>OGTrack — OGPlus</title>
 <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
 <script>
@@ -150,6 +151,14 @@
       // ctx.logo, ctx.primaryColor, ctx.secondaryColor, ctx.accentColor).
       window.COMPANY_CONTEXT = branding;
       if (typeof initHexagonOverlay === 'function') initHexagonOverlay();
+      // Use the company's logo as the browser favicon, same as every other
+      // per-tenant branding element (sidebar logo, accent colors) already
+      // reads from ctx.logo. Left untouched (falls back to the static
+      // OGTrack default already in <head>) if this tenant has no logo set.
+      if (branding && branding.logo) {
+        var favicon = document.getElementById('og-favicon');
+        if (favicon) favicon.href = branding.logo;
+      }
     }
   } catch (e) {
     // No matching/active company for this slug (or offline) — fall back to
@@ -2504,6 +2513,23 @@ function initHexagonOverlay(){
   overlay.classList.toggle('active', enabled);
 }
 document.addEventListener('DOMContentLoaded', initHexagonOverlay);
+// Default favicon: reuse the same default brand image already embedded in
+// #ls-brand img (the loading-screen logo) rather than duplicating that same
+// base64 data a second time in the <head>. Only sets it if COMPANY_CONTEXT
+// hasn't already provided a real per-tenant logo (see the branding IIFE
+// above, which sets the favicon directly from ctx.logo when one exists).
+document.addEventListener('DOMContentLoaded', function(){
+  var favicon = document.getElementById('og-favicon');
+  // Use getAttribute(), not the .href DOM property — an empty href=""
+  // attribute on a <link> resolves .href to the full current page URL once
+  // parsed (a standard browser quirk for relative-URL attributes), so
+  // checking !favicon.href here would always be false and this fallback
+  // would never run.
+  if (favicon && !favicon.getAttribute('href')) {
+    var defaultLogo = document.querySelector('#ls-brand img');
+    if (defaultLogo && defaultLogo.src) favicon.href = defaultLogo.src;
+  }
+});
 let bugs           = [];
 let sprints        = [];
 let stories        = [];
@@ -6001,17 +6027,27 @@ async function submitCareersApplication(jobId){
 // ── ACCOUNTANT MODULE ─────────────────────────────────────────────────────────
 
 async function loadAccData(){
-  try{
-    const today=todayStr();
-    const _cq=currentUser&&currentUser.companyId?'?companyId='+currentUser.companyId:'';
-    const [cr,tr,er,rt]=await Promise.all([
-      fetch('/api/clients'+_cq).then(r=>r.json()),
-      fetch('/api/time-entries?accountantId='+currentUser.id+'&date='+today).then(r=>r.json()),
-      fetch('/api/eod-reports').then(r=>r.json()),
-      fetch('/api/eod-routes').then(r=>r.json()),
-    ]);
-    accClients=cr; accTimeEntries=tr; accEodReports=er; accEodRoutes=rt;
-  }catch(e){ accClients=[];accTimeEntries=[];accEodReports=[];accEodRoutes=[]; }
+  const today=todayStr();
+  const _cq=currentUser&&currentUser.companyId?'?companyId='+currentUser.companyId:'';
+  // Each fetch is independently guarded so a single failing/erroring endpoint
+  // cannot wipe out data that loaded successfully from the others. The
+  // previous Promise.all + single shared catch meant ANY one of these four
+  // requests failing (even transiently) reset ALL FOUR arrays to empty —
+  // which is exactly what "everything disappears after refresh" looked like:
+  // work logs, duration, and submitted EOD reports all vanishing together,
+  // even though most of that data had actually persisted correctly server-
+  // side and most of the requests would have succeeded on their own.
+  const safeFetch=async(url,fallback)=>{
+    try{ const r=await fetch(url); if(!r.ok) return fallback; const d=await r.json(); return Array.isArray(d)?d:fallback; }
+    catch(e){ console.error('loadAccData: failed to load '+url,e); return fallback; }
+  };
+  const [cr,tr,er,rt]=await Promise.all([
+    safeFetch('/api/clients'+_cq, accClients),
+    safeFetch('/api/time-entries?accountantId='+currentUser.id+'&date='+today, accTimeEntries),
+    safeFetch('/api/eod-reports', accEodReports),
+    safeFetch('/api/eod-routes', accEodRoutes),
+  ]);
+  accClients=cr; accTimeEntries=tr; accEodReports=er; accEodRoutes=rt;
 }
 
 function todayStr(){
@@ -6086,21 +6122,23 @@ function canSeeEodReport(r, currentUser, accEodRoutes){
 }
 
 async function renderAccDashboard(){
-  // Refetch fresh client, EOD report, and EOD routing data every time the
-  // dashboard renders — same staleness-prevention pattern already used for
-  // renderAccEod/renderAccClients. The Pending Reviews / Reviewed Today
-  // counts below now depend on accEodReports and accEodRoutes being current
-  // (via canSeeEodReport), not just accClients for the client count.
+  // Refetch fresh client, time entry, EOD report, and EOD routing data every
+  // time the dashboard renders — same staleness-prevention pattern already
+  // used for renderAccEod/renderAccClients. "Your Work Today" depends on
+  // accTimeEntries being current, not just accClients for the client count.
+  const today0=todayStr();
   try{
-    const [cr,er,rt]=await Promise.all([
-      fetch('/api/clients').then(r=>r.json()),
-      fetch('/api/eod-reports').then(r=>r.json()),
-      fetch('/api/eod-routes').then(r=>r.json()),
+    const [cr,tr,er,rt]=await Promise.all([
+      fetch('/api/clients').then(r=>r.ok?r.json():accClients),
+      fetch('/api/time-entries?accountantId='+currentUser.id+'&date='+today0).then(r=>r.ok?r.json():accTimeEntries),
+      fetch('/api/eod-reports').then(r=>r.ok?r.json():accEodReports),
+      fetch('/api/eod-routes').then(r=>r.ok?r.json():accEodRoutes),
     ]);
     if(Array.isArray(cr)) accClients=cr;
+    if(Array.isArray(tr)) accTimeEntries=tr;
     if(Array.isArray(er)) accEodReports=er;
     if(Array.isArray(rt)) accEodRoutes=rt;
-  }catch(e){ /* keep whatever was already in memory if this fails */ }
+  }catch(e){ console.error('renderAccDashboard: refresh failed',e); /* keep whatever was already in memory if this fails */ }
   const role=currentUser.role;
   const today=todayStr();
   const todayEntries=accTimeEntries.filter(e=>e.date===today);
@@ -6256,7 +6294,20 @@ async function renderAccClients(){
 }
 
 // ── Timer Page ────────────────────────────────────────────────────────────────
-function renderAccTimer(){
+async function renderAccTimer(){
+  // Same staleness-prevention refetch already applied to the Dashboard,
+  // Clients, and EOD pages — Your Work Today / the Timer page's completed-
+  // sessions list depend on accTimeEntries being current, not whatever was
+  // last loaded at login or on a previous page visit.
+  const today0=todayStr();
+  try{
+    const [tr,cr]=await Promise.all([
+      fetch('/api/time-entries?accountantId='+currentUser.id+'&date='+today0).then(r=>r.ok?r.json():accTimeEntries),
+      fetch('/api/clients').then(r=>r.ok?r.json():accClients),
+    ]);
+    if(Array.isArray(tr)) accTimeEntries=tr;
+    if(Array.isArray(cr)) accClients=cr;
+  }catch(e){ console.error('renderAccTimer: refresh failed',e); /* keep whatever was already in memory if this fails */ }
   const today=todayStr();
   const todayDone=accTimeEntries.filter(e=>e.date===today&&e.status==='completed').sort((a,b)=>new Date(a.startTime)-new Date(b.startTime));
   const running=getRunningEntry();
@@ -6318,15 +6369,21 @@ async function renderAccEod(){
   // same reason: a routing change configured by a Senior Accountant (e.g.
   // "this Accountant's reports now go to a specific Manager") must be
   // visible immediately to whoever is affected, not just after their next
-  // full sign-out/sign-in.
+  // full sign-out/sign-in. Also refetches time-entries — renderAccountantEod
+  // builds its "today's completed work" summary (the basis for what gets
+  // submitted) from accTimeEntries, so it needs to be current here too, not
+  // just on the Dashboard/Timer pages.
+  const today0=todayStr();
   try{
-    const [er,rt]=await Promise.all([
-      fetch('/api/eod-reports').then(r=>r.json()),
-      fetch('/api/eod-routes').then(r=>r.json()),
+    const [er,rt,tr]=await Promise.all([
+      fetch('/api/eod-reports').then(r=>r.ok?r.json():accEodReports),
+      fetch('/api/eod-routes').then(r=>r.ok?r.json():accEodRoutes),
+      fetch('/api/time-entries?accountantId='+currentUser.id+'&date='+today0).then(r=>r.ok?r.json():accTimeEntries),
     ]);
     if(Array.isArray(er)) accEodReports=er;
     if(Array.isArray(rt)) accEodRoutes=rt;
-  }catch(e){ /* keep whatever was already in memory if this fails */ }
+    if(Array.isArray(tr)) accTimeEntries=tr;
+  }catch(e){ console.error('renderAccEod: refresh failed',e); /* keep whatever was already in memory if this fails */ }
   if(role==='accounts_manager'||role==='senior_accountant') renderSeniorEod(); else renderAccountantEod(); // accountant + intern
 }
 
@@ -6538,8 +6595,8 @@ function renderSeniorEod(){
           </div>`).join('')}
         </div>
         <div class="acc-eod-total">Total: <strong>${fmtDuration(ownTotal)}</strong></div>
-        ${!myReport?`<button class="btn-primary" onclick="submitEodReport()">${role==='accounts_manager'?'Finalize My EOD →':'Submit My EOD →'}</button>`:
-          `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ ${myReport.status==='reviewed'?'Finalized':'Submitted'}</div>`}
+        ${!myReport?`<button class="btn-primary" onclick="submitEodReport()">Submit My EOD →</button>`:
+          `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ ${myReport.status==='reviewed'?'Reviewed':'Submitted — pending your review'}</div>`}
       `}
     </div>
     ${(role==='accounts_manager'||role==='senior_accountant')?(()=>{
@@ -7048,19 +7105,25 @@ async function submitEodReport(){
     saved=await r.json();
     accEodReports.push(saved);
   }
+  // Submission always lands as 'submitted' now — including for an Accounts
+  // Manager, whose own report previously auto-finalized to 'reviewed' at
+  // this exact point. Submitting and reviewing are two separate events for
+  // every role; a Manager reviews their own report the same way anyone
+  // else's report gets reviewed (via reviewEodReport()), just performed on
+  // their own report.
+  const myRoute=accEodRoutes.find(x=>x.accountantId===currentUser.id);
+  const reviewerName = myRoute?.reviewerName || (currentUser.role==='accounts_manager' ? null : (currentUser.role==='senior_accountant' ? 'Accounts Manager' : 'Senior Accountant'));
   if(currentUser.role==='accounts_manager'){
-    showToast('EOD Report finalized ✓','success');
+    showToast('EOD Report submitted — mark it reviewed once you\'ve confirmed it ✓','success');
   }else{
-    // Look up the actual configured reviewer for this accountant (same
-    // accEodRoutes data already used by canSeeReport in renderSeniorEod),
-    // rather than assuming a fixed default based only on the submitter's
-    // role. Only falls back to the role-based default when no explicit
-    // route has been configured for this accountant.
-    const myRoute=accEodRoutes.find(x=>x.accountantId===currentUser.id);
-    const reviewerName = myRoute?.reviewerName || (currentUser.role==='senior_accountant' ? 'Accounts Manager' : 'Senior Accountant');
     showToast(`EOD Report submitted to ${reviewerName} ✓`,'success');
   }
-  renderAccountantEod();
+  // This function is shared by both the Accountant/Intern submit button
+  // (renderAccountantEod) and the Senior/Manager submit button
+  // (renderSeniorEod) — re-render whichever view actually called it instead
+  // of always assuming the Accountant one, which would show the wrong page
+  // content when a Manager/Senior submitted their own EOD.
+  if(currentUser.role==='accounts_manager'||currentUser.role==='senior_accountant') renderSeniorEod(); else renderAccountantEod();
 }
 
 async function reviewEodReport(id){
