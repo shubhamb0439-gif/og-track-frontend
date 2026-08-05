@@ -2934,20 +2934,6 @@ async function launchApp(){
     document.getElementById('main-app').style.display='flex';
     showView('aida');
   }
-  if(!document.getElementById('aida-fab-btn')){
-    // Universal launcher for AIDA, reachable by every role — added as a FAB
-    // (same pattern as the QR scanner button just below) rather than a
-    // sidebar nav entry, since AIDA is explicitly "not another module" per
-    // the brief and should stay decoupled from each role's individual
-    // sidebar-building logic rather than requiring every branch in
-    // buildSidebar() to be touched to add one universal entry.
-    const _aidaFab=document.createElement('button');
-    _aidaFab.id='aida-fab-btn';_aidaFab.className='qr-fab';_aidaFab.title='Ask AIDA';
-    _aidaFab.style.cssText='display:flex;bottom:84px;background:#8E44AD';
-    _aidaFab.innerHTML='✨';
-    _aidaFab.onclick=()=>showView('aida');
-    document.body.appendChild(_aidaFab);
-  }
   if(!document.getElementById('qr-fab-btn')){
     const _fab=document.createElement('button');
     _fab.id='qr-fab-btn';_fab.className='qr-fab';_fab.title='Scan QR to Clock In/Out';
@@ -6673,6 +6659,7 @@ async function loadCompaniesData(){
 }
 
 let _editingCompanyId=null;
+let _editingCompanyOriginalSlug=null;
 
 function renderCompanies(){
   const ca=document.getElementById('content-area');
@@ -6715,7 +6702,10 @@ function renderCompanies(){
         <button onclick="closeModal('company-modal')" style="position:absolute;top:14px;right:14px;border:none;background:none;font-size:20px;cursor:pointer;color:var(--g3)">✕</button>
         <h3 id="cm-modal-title" style="margin:0 0 20px;font-size:17px">Add Company</h3>
         <div class="field"><label>Company Name *</label><input id="cm-cname" placeholder="e.g. Kayo Technologies" class="input"></div>
-        <div class="field"><label>URL Slug * <span style="font-size:11px;color:var(--g3)">(e.g. "kayo" → /kayo)</span></label><input id="cm-slug" placeholder="kayo" class="input" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')"></div>
+        <div class="field"><label>URL Slug * <span style="font-size:11px;color:var(--g3)">(e.g. "kayo" → /kayo)</span></label><input id="cm-slug" placeholder="kayo" class="input" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');checkSlugChangeWarning()"></div>
+        <div class="field" id="cm-slug-warning" style="display:none;background:#fff3cd;border:1px solid #ffe69c;border-radius:6px;padding:8px 10px;font-size:12px;color:#664d03;margin-top:-6px">
+          ⚠️ Changing the slug changes this company's login URL. Anyone with the old link (e.g. bookmarks) will need the new one — it will not redirect automatically.
+        </div>
         <div class="field"><label>Company Logo <span style="font-size:11px;color:var(--g3)">(Upload image)</span></label>
           <input type="file" id="cm-logo-file" accept="image/*" onchange="previewCompanyLogo(this)" style="display:block;margin-bottom:6px">
           <img id="cm-logo-preview" style="max-width:80px;max-height:80px;border-radius:8px;display:none;border:1px solid var(--border)">
@@ -6759,12 +6749,22 @@ function previewCompanyLogo(input){
   reader.readAsDataURL(file);
 }
 
+function checkSlugChangeWarning(){
+  const warningEl=document.getElementById('cm-slug-warning');
+  if(!warningEl) return;
+  const currentValue=document.getElementById('cm-slug').value.trim();
+  const isActuallyChanged=_editingCompanyId && _editingCompanyOriginalSlug && currentValue!==_editingCompanyOriginalSlug;
+  warningEl.style.display=isActuallyChanged?'block':'none';
+}
+
 function openCompanyModal(id){
   _editingCompanyId=id||null;
   const c=id?allCompanies.find(x=>x.id===id):null;
+  _editingCompanyOriginalSlug=c?.slug||null;
   document.getElementById('cm-modal-title').textContent=c?'Edit Company':'Add Company';
   document.getElementById('cm-cname').value=c?.name||'';
   document.getElementById('cm-slug').value=c?.slug||'';
+  document.getElementById('cm-slug-warning').style.display='none';
   document.getElementById('cm-primary').value=c?.primaryColor||'#C0392B';
   document.getElementById('cm-secondary').value=c?.secondaryColor||'#E74C3C';
   document.getElementById('cm-accent').value=c?.accentColor||'#8E44AD';
@@ -6796,18 +6796,20 @@ async function saveCompany(){
     let saved;
     if(_editingCompanyId){
       const r=await fetch('/api/companies/'+_editingCompanyId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not update this company'); }
       saved=await r.json();
       allCompanies=allCompanies.map(c=>c.id===_editingCompanyId?saved:c);
       showToast('Company updated','success');
     } else {
       const r=await fetch('/api/companies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not create this company'); }
       saved=await r.json();
       allCompanies.push(saved);
       showToast('Company created — accessible at /'+saved.slug,'success');
     }
     closeModal('company-modal');
     renderCompanies();
-  }catch(e){showToast('Failed to save company','error');}
+  }catch(e){showToast(e.message||'Failed to save company','error');}
 }
 
 async function deleteCompany(id,name){
