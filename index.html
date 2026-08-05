@@ -52,6 +52,9 @@
       if (parts[1] === 'attendance' && parts[2] === 'qr') {
         window.OGTRACK_IS_QR_DISPLAY_PAGE = true;
       }
+      if (parts[1] === 'aida') {
+        window.OGTRACK_IS_AIDA_DIRECT_LINK = true;
+      }
       return seg.toLowerCase();
     }
     window.OGTRACK_HAS_SLUG = false;
@@ -91,15 +94,8 @@
       return `/api/${slug}/attendance${rest}`;
     }
 
-    // Determine namespace remap by matching the first path segment. Strip
-    // the query string first — otherwise a call like '/time-entries?date=…'
-    // (every GET here carries query params) never matches the ACC/HR lists
-    // below, silently falls through to the generic slug-prefix branch, and
-    // 404s against a route that was never defined at that path. That 404
-    // is exactly why a freshly-saved timer/EOD entry reads back as gone on
-    // the very next fetch (e.g. right after a page refresh).
-    const pathOnly = rest.split('?')[0];
-    const firstSeg = '/' + (pathOnly.split('/').filter(Boolean)[0] || '');
+    // Determine namespace remap by matching the first path segment.
+    const firstSeg = '/' + (rest.split('/').filter(Boolean)[0] || '');
     if (ACC.includes(firstSeg)) {
       return `/api/${slug}/acc${rest}`;
     }
@@ -2678,6 +2674,9 @@ async function doRegister(){
 }
 
 function doLogout(){
+  // Fire-and-forget, before currentUser is cleared below (the call needs
+  // currentUser.id) — logout must never be blocked or slowed by this.
+  clearAidaSessionOnLogout();
   localStorage.removeItem('bt_user');
   localStorage.removeItem('bt_project');
   if(window.OGTRACK_clearToken) window.OGTRACK_clearToken();
@@ -2822,6 +2821,15 @@ async function launchApp(){
   document.getElementById('import-btn').style.display=currentUser.role==='tester'?'flex':'none';
   document.getElementById('notif-bell-btn').style.display=currentUser.role!=='superadmin'?'flex':'none';
 
+  // /{slug}/aida direct link: AIDA is reachable by every role (it's a layer
+  // over existing modules, not a module of its own — see detectSlug() where
+  // this flag is set from the URL's second path segment). Checked once here,
+  // before any role-specific branching below, rather than threaded into
+  // every individual role branch — the normal per-role currentProject/
+  // sidebar setup below still runs (needed for nav state to render
+  // correctly), this just overrides which view ends up showing at the end.
+  const _wantsAida = window.OGTRACK_IS_AIDA_DIRECT_LINK;
+
   // Load custom roles so buildSidebar can use them for custom-role users
   try { allCustomRoles = await fetch('/api/roles').then(r=>r.json()); } catch(e){ allCustomRoles=[]; }
   buildSidebar();
@@ -2918,6 +2926,28 @@ async function launchApp(){
     showProjectPicker();
   }
   loadConversations();
+  if(_wantsAida){
+    // All the role-specific setup above has already run normally (project
+    // context, sidebar, initial data loads) — this only overrides which
+    // view is actually shown, so AIDA works identically regardless of which
+    // branch above was taken for this user's role.
+    document.getElementById('main-app').style.display='flex';
+    showView('aida');
+  }
+  if(!document.getElementById('aida-fab-btn')){
+    // Universal launcher for AIDA, reachable by every role — added as a FAB
+    // (same pattern as the QR scanner button just below) rather than a
+    // sidebar nav entry, since AIDA is explicitly "not another module" per
+    // the brief and should stay decoupled from each role's individual
+    // sidebar-building logic rather than requiring every branch in
+    // buildSidebar() to be touched to add one universal entry.
+    const _aidaFab=document.createElement('button');
+    _aidaFab.id='aida-fab-btn';_aidaFab.className='qr-fab';_aidaFab.title='Ask AIDA';
+    _aidaFab.style.cssText='display:flex;bottom:84px;background:#8E44AD';
+    _aidaFab.innerHTML='✨';
+    _aidaFab.onclick=()=>showView('aida');
+    document.body.appendChild(_aidaFab);
+  }
   if(!document.getElementById('qr-fab-btn')){
     const _fab=document.createElement('button');
     _fab.id='qr-fab-btn';_fab.className='qr-fab';_fab.title='Scan QR to Clock In/Out';
@@ -3254,6 +3284,7 @@ function renderView(){
   if(currentView==='roles')       return renderRoles();
   if(currentView==='acc_clients') return renderAccClients();
   if(currentView==='acc_timer')   return renderAccTimer();
+  if(currentView==='aida')        return renderAida();
   if(currentView==='acc_eod')     return renderAccEod();
   if(currentView==='sprints')       return renderSprints();
   if(currentView==='sub_tickets')   return renderSubTickets();
@@ -6277,9 +6308,7 @@ async function renderAccClients(){
       ? 'No clients yet. Add your first client above.'
       : 'No clients yet. Ask a Manager or Senior Accountant to create one.';
   } else if(isSenior && otherClients.length){
-    myEmptyMessage = role==='senior_accountant'
-      ? 'No clients assigned to you. Pick one up below.'
-      : 'No clients assigned to you. Pick one up below or ask a Senior Accountant to assign one.';
+    myEmptyMessage = 'No clients assigned to you. Pick one up below.';
   } else {
     myEmptyMessage = isSenior
       ? 'No clients assigned to you yet.'
@@ -6421,8 +6450,8 @@ function renderAccountantEod(){
     ${!submitted&&groups.length?`<div style="font-size:13px;color:var(--g3);margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
       ✏️ Review and edit your session notes below before submitting. Changes save automatically when you click away.
     </div>`:''}
-    ${!submitted&&!groups.length?`<div class="empty-state"><p>No completed sessions today.<br>Start &amp; stop timers on the Timer page to log your work.</p></div>`:`
-      ${groups.length?`<div class="acc-eod-list">
+    ${!groups.length?`<div class="empty-state"><p>No completed sessions today.<br>Start &amp; stop timers on the Timer page to log your work.</p></div>`:`
+      <div class="acc-eod-list">
         ${groups.map(([cid,d])=>`<div class="acc-eod-client">
           <div class="acc-eod-client-header">
             <span style="font-weight:700;font-size:15px">${d.name}</span>
@@ -6443,7 +6472,7 @@ function renderAccountantEod(){
           </div>`).join('')}
         </div>`).join('')}
       </div>
-      <div class="acc-eod-total">Total time worked: <strong>${fmtDuration(submitted?(report.totalDuration||0):total)}</strong></div>`:''}
+      <div class="acc-eod-total">Total time worked: <strong>${fmtDuration(total)}</strong></div>
       ${!report?`<div style="padding:16px;background:var(--bg);border-radius:10px;border:1px solid var(--border)">
         <div style="font-size:13px;color:var(--g2);margin-bottom:10px">Happy with your notes? Submit to ${(()=>{
           // Same lookup already used in submitEodReport()'s post-submit
@@ -6591,8 +6620,8 @@ function renderSeniorEod(){
       </div>`}
     <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border)">
       <h3 style="font-size:13px;font-weight:600;color:var(--g2);margin:0 0 12px">Your Work Today</h3>
-      ${!ownGroups.length&&!myReport?`<div class="empty-state"><p>No sessions logged for yourself today.</p></div>`:`
-        ${ownGroups.length?`<div class="acc-eod-list">
+      ${!ownGroups.length?`<div class="empty-state"><p>No sessions logged for yourself today.</p></div>`:`
+        <div class="acc-eod-list">
           ${ownGroups.map(([,d])=>`<div class="acc-eod-client">
             <div class="acc-eod-client-header">
               <span style="font-weight:700">${d.name}</span>
@@ -6601,7 +6630,7 @@ function renderSeniorEod(){
             ${d.notes.map(n=>`<div class="acc-eod-note">→ ${n}</div>`).join('')}
           </div>`).join('')}
         </div>
-        <div class="acc-eod-total">Total: <strong>${fmtDuration(myReport?(myReport.totalDuration||0):ownTotal)}</strong></div>`:''}
+        <div class="acc-eod-total">Total: <strong>${fmtDuration(ownTotal)}</strong></div>
         ${!myReport?`<button class="btn-primary" onclick="submitEodReport()">Submit My EOD →</button>`:
           `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ ${myReport.status==='reviewed'?'Reviewed':'Submitted — pending your review'}</div>`}
       `}
@@ -11828,6 +11857,135 @@ async function saveDeliveryWithoutDelivering(){
     await Promise.all([loadDeliveriesData(),loadSalesData()]);
     renderView();
   }catch(e){ showToast(e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AIDA — AI conversational layer
+// ══════════════════════════════════════════════════════════════════════════════
+// Placeholder UI per the brief: full-screen, dark, orb, mic, history, input,
+// voice toggle, push-to-talk, thinking/speaking states. Visual polish is
+// explicitly deferred — this is functional scaffolding only.
+//
+// Architecture: this file only orchestrates UI state and one network call
+// (POST /api/aida/chat). All intent detection, tool selection, tool
+// execution, and response synthesis happen server-side (see
+// backend/aida-engine.js) — the frontend never talks to OpenAI directly and
+// never calls any module API directly on AIDA's behalf; everything goes
+// through the one chat endpoint, which itself only ever reaches existing
+// OGTrack APIs using the current user's own token.
+
+let aidaMessages=[]; // {role:'user'|'assistant', content} — cleared on logout, not persisted
+let aidaBusy=false;
+let aidaVoiceMode=false; // placeholder toggle only; no speech wiring yet per brief scope
+
+function renderAida(){
+  document.getElementById('content-area').style.padding='0';
+  document.getElementById('content-area').innerHTML=`
+    <div class="aida-shell">
+      <div class="aida-orb-zone">
+        <div class="aida-orb ${aidaBusy?'aida-orb-thinking':''}" id="aida-orb"></div>
+        <div class="aida-status" id="aida-status">${aidaBusy?'Thinking…':'Ask me anything about OGTrack'}</div>
+      </div>
+      <div class="aida-history" id="aida-history">${renderAidaHistory()}</div>
+      <div class="aida-controls">
+        <button class="aida-voice-toggle ${aidaVoiceMode?'active':''}" onclick="toggleAidaVoiceMode()" title="Voice mode (coming soon)">🎙</button>
+        <input type="text" id="aida-input" placeholder="Type a message…" autocomplete="off"
+          onkeydown="if(event.key==='Enter')sendAidaMessage()">
+        <button class="aida-mic-btn" id="aida-mic-btn" title="Push to talk (coming soon)" disabled>🎤</button>
+        <button class="btn-primary" onclick="sendAidaMessage()" ${aidaBusy?'disabled':''}>Send</button>
+      </div>
+    </div>
+    <style>
+      .aida-shell{display:flex;flex-direction:column;height:calc(100vh - 0px);background:#0b0b0f;color:#eee}
+      .aida-orb-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px 12px}
+      .aida-orb{width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#8E44AD,#3a1a52 70%);
+        box-shadow:0 0 40px rgba(142,68,173,.55);transition:box-shadow .3s ease}
+      .aida-orb-thinking{animation:aidaPulse 1.1s ease-in-out infinite}
+      @keyframes aidaPulse{0%,100%{transform:scale(1);box-shadow:0 0 40px rgba(142,68,173,.55)}50%{transform:scale(1.08);box-shadow:0 0 65px rgba(142,68,173,.85)}}
+      .aida-status{margin-top:14px;font-size:13px;color:#999}
+      .aida-history{flex:1;overflow-y:auto;padding:8px 16px;max-width:720px;margin:0 auto;width:100%}
+      .aida-msg{margin:10px 0;padding:10px 14px;border-radius:12px;max-width:80%;line-height:1.5;font-size:14px}
+      .aida-msg-user{background:#8E44AD;color:#fff;margin-left:auto;border-bottom-right-radius:2px}
+      .aida-msg-assistant{background:#1c1c22;color:#eee;margin-right:auto;border-bottom-left-radius:2px}
+      .aida-controls{display:flex;gap:8px;align-items:center;padding:14px 16px;border-top:1px solid #222;max-width:720px;margin:0 auto;width:100%}
+      .aida-controls input{flex:1;padding:11px 14px;border-radius:10px;border:1px solid #333;background:#151519;color:#eee;font-size:14px;outline:none}
+      .aida-voice-toggle,.aida-mic-btn{width:40px;height:40px;border-radius:50%;border:1px solid #333;background:#151519;color:#eee;font-size:16px;cursor:pointer}
+      .aida-voice-toggle.active{background:#8E44AD;border-color:#8E44AD}
+      .aida-mic-btn[disabled]{opacity:.35;cursor:not-allowed}
+    </style>`;
+  const hist=document.getElementById('aida-history');
+  if(hist) hist.scrollTop=hist.scrollHeight;
+  document.getElementById('aida-input')?.focus();
+}
+
+function renderAidaHistory(){
+  if(!aidaMessages.length){
+    return `<div style="text-align:center;color:#666;font-size:13px;margin-top:24px">No messages yet — try "who's absent today?"</div>`;
+  }
+  return aidaMessages.map(m=>`<div class="aida-msg aida-msg-${m.role}">${esc(m.content)}</div>`).join('');
+}
+
+function toggleAidaVoiceMode(){
+  // Placeholder only, per brief scope ("voice support will be added, but
+  // build the architecture so it supports streaming speech later" — no
+  // speech wiring is implemented yet).
+  aidaVoiceMode=!aidaVoiceMode;
+  renderAida();
+}
+
+// Builds the same context object described in the brief: current user,
+// role, tenant, company, current page/module/route — read from whatever
+// the app already has in memory (currentUser, currentView, currentProject),
+// never re-derived or guessed.
+function buildAidaContext(){
+  return {
+    currentView,
+    currentModule: currentView, // 1:1 for now; a dedicated module-grouping concept can replace this later without changing the wire format
+    currentProject: currentProject||null,
+  };
+}
+
+async function sendAidaMessage(){
+  const input=document.getElementById('aida-input');
+  const message=input?.value.trim();
+  if(!message||aidaBusy) return;
+  aidaMessages.push({role:'user',content:message});
+  input.value='';
+  aidaBusy=true;
+  renderAida();
+  try{
+    const r=await fetch('/api/aida/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        message,
+        userId:currentUser.id,
+        userName:currentUser.name,
+        role:currentUser.role,
+        companyId:currentUser.companyId,
+        context:buildAidaContext(),
+      }),
+    });
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'AIDA could not respond right now.');
+    aidaMessages.push({role:'assistant',content:data.reply||'(no response)'});
+  }catch(e){
+    aidaMessages.push({role:'assistant',content:e.message||'Something went wrong — please try again.'});
+  }finally{
+    aidaBusy=false;
+    renderAida();
+  }
+}
+
+// Clears AIDA's server-side session memory on logout, matching the brief's
+// explicit requirement that memory must reset after logout and never
+// persist permanently. Best-effort — logout should never be blocked by this.
+async function clearAidaSessionOnLogout(){
+  if(!currentUser) return;
+  try{
+    await fetch('/api/aida/clear-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentUser.id})});
+  }catch(e){ /* non-blocking */ }
+  aidaMessages=[];
 }
 </script>
 
