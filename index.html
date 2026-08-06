@@ -150,6 +150,13 @@
     xhr.send(null);
     if (xhr.status >= 200 && xhr.status < 300) {
       var branding = JSON.parse(xhr.responseText);
+      // A slug can resolve to a real row that's been suspended/archived by
+      // masteradmin — that's still "not a valid tenant to log into" from the
+      // frontend's perspective, same as a 404.
+      if (branding && branding.status && branding.status !== 'active') {
+        window.OGTRACK_FORBIDDEN = true;
+        return;
+      }
       // Keep the key names the rest of the app already expects (ctx.name,
       // ctx.logo, ctx.primaryColor, ctx.secondaryColor, ctx.accentColor).
       window.COMPANY_CONTEXT = branding;
@@ -162,6 +169,10 @@
         var favicon = document.getElementById('og-favicon');
         if (favicon) favicon.href = branding.logo;
       }
+    } else if (xhr.status === 404 || xhr.status === 403) {
+      // No company at all for this slug — distinct from a network/offline
+      // failure (caught below), which shouldn't lock users out.
+      window.OGTRACK_FORBIDDEN = true;
     }
   } catch (e) {
     // No matching/active company for this slug (or offline) — fall back to
@@ -5265,7 +5276,9 @@ function toggleTheme() {
 })();
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-if(window.OGTRACK_IS_QR_DISPLAY_PAGE){
+if(window.OGTRACK_FORBIDDEN){
+  showForbiddenPage();
+} else if(window.OGTRACK_IS_QR_DISPLAY_PAGE){
   showQrDisplayPage();
 } else if(window.OGTRACK_IS_CAREERS_PAGE){
   showCareersPage();
@@ -5631,6 +5644,24 @@ if(typeof BarcodeDetector==='undefined'&&!window.jsQR){
   const s=document.createElement('script');
   s.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
   document.head.appendChild(s);
+}
+
+// ── Forbidden page (unknown or inactive tenant slug, e.g. /some-typo) ──
+function showForbiddenPage(){
+  ['splash-screen','onboarding-screen','loading-screen','auth-screen','directory-screen','careers-screen'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const screen=document.createElement('div');
+  screen.id='forbidden-screen';
+  screen.style.cssText='position:fixed;inset:0;background:#1A1A1A;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:inherit;text-align:center;padding:20px';
+  screen.innerHTML=`
+    <div style="font-size:64px;line-height:1">🚫</div>
+    <div style="font-size:24px;font-weight:700;color:#fff">403 — Forbidden</div>
+    <div style="font-size:14px;color:#aaa;max-width:360px">This company doesn't exist or is no longer active.</div>
+    <a href="/" style="margin-top:10px;font-size:13px;color:var(--red2);text-decoration:none">← Back to company directory</a>
+  `;
+  document.body.appendChild(screen);
 }
 
 // ── QR Display Page (standalone — /slug/attendance/qr, for an office screen/tablet) ──
