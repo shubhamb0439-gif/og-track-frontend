@@ -94,8 +94,15 @@
       return `/api/${slug}/attendance${rest}`;
     }
 
-    // Determine namespace remap by matching the first path segment.
-    const firstSeg = '/' + (rest.split('/').filter(Boolean)[0] || '');
+    // Determine namespace remap by matching the first path segment. Strip
+    // the query string first — e.g. '/time-entries?accountantId=X&date=Y'
+    // must still match '/time-entries', otherwise every GET with a query
+    // string (which is most of them) silently skips the /acc or /hr remap,
+    // 404s against the backend, and callers fall back to their in-memory
+    // default (often []) — this is what made a freshly-started timer and
+    // that day's logged hours vanish on refresh: the POST (no query string)
+    // remapped fine, but every GET used to reload them did not.
+    const firstSeg = '/' + (rest.split('?')[0].split('/').filter(Boolean)[0] || '');
     if (ACC.includes(firstSeg)) {
       return `/api/${slug}/acc${rest}`;
     }
