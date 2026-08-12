@@ -1058,6 +1058,813 @@ tr:hover .badge { transform: scale(1.08); }
 .qr-fab:hover{transform:scale(1.07);box-shadow:0 6px 24px rgba(192,57,43,.6);}
 .qr-fab:active{transform:scale(.95);}
 @media(max-width:768px){.qr-fab{display:flex;}}
+
+/* ── AIDA launcher (floating, every logged-in screen) + overlay ─────────────── */
+.aida-launcher-btn{display:flex;position:fixed;bottom:24px;right:24px;width:58px;height:58px;border-radius:50%;
+  border:none;cursor:pointer;background:#151519;box-shadow:0 4px 16px rgba(142,68,173,.45);
+  z-index:850;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;}
+.aida-launcher-btn:hover{transform:scale(1.07);box-shadow:0 6px 24px rgba(142,68,173,.6);}
+.aida-launcher-btn:active{transform:scale(.95);}
+/* Placeholder icon — swap the inner markup for the real logo <img> once the asset lands. */
+.aida-launcher-orb{width:44px;height:44px;object-fit:contain;display:block;}
+/* The QR fab (mobile only) sits at the same corner — stack AIDA's launcher above it there. */
+@media(max-width:768px){.aida-launcher-btn{bottom:94px;}}
+
+.aida-overlay{display:none;position:fixed;inset:0;z-index:900;overflow:hidden;}
+.aida-overlay.open{display:flex;}
+/* ── AIDA hub — ported verbatim (selectors scoped under #aida-overlay so
+   none of these class names or @keyframes can collide with the rest of
+   this file) from the exact dashboard.css/logo.js the user supplied. ── */
+#aida-overlay {
+    --bg:#FFFFFF;
+    --panel:#FFFFFF;
+    --line:#E4E2DE;
+    --charcoal:#424242;
+    --red:#B7252D;
+    --readbadge:#F3E9EA;
+    --text:#242424;
+    --text-dim:#8A8886;
+    --label-blue:#33539E;
+    --logo-size: clamp(190px, 30vmin, 300px);
+    background:var(--bg); color:var(--text);
+  }
+
+#aida-overlay #hexBgSvg {
+    position:fixed; inset:0;
+    z-index:0;
+    display:block;
+    pointer-events:none;
+    -webkit-mask-image:radial-gradient(circle at 50% 46%, transparent 0%, transparent 24%, black 55%, black 100%);
+    mask-image:radial-gradient(circle at 50% 46%, transparent 0%, transparent 24%, black 55%, black 100%);
+  }
+
+#aida-overlay .bg-hex {
+    fill:none;
+    stroke-width:1.2;
+    stroke-opacity:0.045;
+    transition:stroke-opacity .55s ease;
+  }
+
+#aida-overlay .bg-hex.lit { stroke-opacity:0.55; }
+
+#aida-overlay .stage {
+    position:relative;
+    width:100%; height:100%;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:clamp(6px, 1.5vh, 18px);
+    padding:16px;
+  }
+
+#aida-overlay .topbar {
+    position:absolute; top:112px; left:0; right:0;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 16px;
+  }
+
+#aida-overlay .status-pill {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 16px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    box-shadow:0 1px 4px rgba(0,0,0,.05);
+    font-size:13px;
+    letter-spacing:.2px;
+    color:var(--text-dim);
+    transition:border-color .3s, color .3s;
+  }
+
+#aida-overlay .status-pill .dot {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--readbadge);
+    transition:background .35s;
+  }
+
+#aida-overlay .status-pill.unread { color:var(--text); border-color:rgba(183,37,45,.5); }
+
+#aida-overlay .status-pill.unread .dot { background:var(--red); box-shadow:0 0 0 0 rgba(183,37,45,.5); animation:aidaHubPulse 1.8s infinite; }
+
+@keyframes aidaHubPulse{
+    0%{ box-shadow:0 0 0 0 rgba(183,37,45,.45); }
+    70%{ box-shadow:0 0 0 7px rgba(183,37,45,0); }
+    100%{ box-shadow:0 0 0 0 rgba(183,37,45,0); }
+  }
+
+#aida-overlay .orbit-wrap {
+    position:relative;
+    width:calc(var(--logo-size) + 40px); height:calc(var(--logo-size) + 40px);
+    display:flex; align-items:center; justify-content:center;
+    perspective:1000px;
+  }
+
+#aida-overlay .logo-btn {
+    position:relative;
+    width:var(--logo-size); height:auto; aspect-ratio:179/173;
+    background:none; border:none; padding:0; margin:0;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    -webkit-user-select:none;
+    touch-action:none;
+    transform:scale(1);
+    transition:transform .34s cubic-bezier(.25,.9,.4,1), filter .32s ease, opacity .32s ease;
+    will-change:transform;
+    outline:none;
+    appearance:none;
+    -webkit-appearance:none;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;
+  }
+
+#aida-overlay .logo-btn:focus { outline:none; }
+
+#aida-overlay .logo-btn:focus-visible { outline:2px solid var(--red); outline-offset:6px; border-radius:50%; }
+
+#aida-overlay .logo-btn.pressing { transform:scale(0.94); }
+
+#aida-overlay .logo-btn.zoom {
+    animation:aidaHubLogoZoomIn .58s cubic-bezier(.22,.61,.32,1) forwards;
+  }
+
+#aida-overlay .logo-btn.zoom-out {
+    animation:aidaHubLogoZoomOut .52s cubic-bezier(.22,.61,.32,1) forwards;
+  }
+
+@keyframes aidaHubLogoZoomIn{
+    0%{ transform:scale(1); opacity:1; }
+    100%{ transform:scale(3.2); opacity:0; }
+  }
+
+@keyframes aidaHubLogoZoomOut{
+    0%{ transform:scale(3.2); opacity:0; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+
+#aida-overlay .logo-btn.flip-enter {
+    animation:aidaHubLogoFlipEnter .6s cubic-bezier(.16,.8,.24,1) forwards;
+  }
+
+@keyframes aidaHubLogoFlipEnter{
+    0%{ transform:rotateY(180deg) scale(1.3); opacity:1; }
+    100%{ transform:rotateY(0deg) scale(1); opacity:1; }
+  }
+
+#aida-overlay .logo-btn svg { width:100%; height:100%; display:block; }
+
+#aida-overlay .modal-backdrop {
+    position:fixed; inset:0;
+    background:rgba(20,18,17,0);
+    transition:background .35s ease;
+    pointer-events:none;
+    z-index:40;
+  }
+
+#aida-overlay .modal-backdrop.open { background:rgba(20,18,17,.4); pointer-events:auto; }
+
+#aida-overlay .msg-modal {
+    position:fixed; inset:0;
+    width:100%; height:100%;
+    background:var(--panel);
+    opacity:0;
+    transform:scale(.97);
+    pointer-events:none;
+    z-index:50;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    will-change:opacity, transform;
+  }
+
+#aida-overlay .msg-modal.open { pointer-events:auto; }
+
+/* The overlay's own close button sits at the same top-right corner as this
+   full-screen modal's own header close button (unlike the centered
+   floating-modal cards, which don't reach that corner) — hide it while
+   Messages is open so clicks land on msgModalClose instead of closing the
+   whole hub. */
+#aida-overlay .msg-modal.open ~ .aida-close-btn { display:none; }
+
+#aida-overlay .msg-modal.whoosh-out { pointer-events:none; }
+
+#aida-overlay .msg-modal.whoosh-in {
+    animation:aidaHubPanelDissolveIn .52s cubic-bezier(.22,.61,.32,1) forwards;
+  }
+
+#aida-overlay .msg-modal.whoosh-out {
+    animation:aidaHubPanelDissolveOut .44s ease forwards;
+  }
+
+@keyframes aidaHubPanelDissolveIn{
+    0%{ opacity:0; transform:scale(.97); }
+    100%{ opacity:1; transform:scale(1); }
+  }
+
+@keyframes aidaHubPanelDissolveOut{
+    0%{ opacity:1; transform:scale(1); }
+    100%{ opacity:0; transform:scale(.97); }
+  }
+
+#aida-overlay .msg-modal-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 22px 18px;
+    background:var(--red);
+    color:#fff;
+    font-size:17px; font-weight:500;
+    flex-shrink:0;
+    opacity:0;
+    transform:translateY(6px);
+    transition:opacity .3s ease, transform .3s ease;
+  }
+
+#aida-overlay .msg-modal.whoosh-in .msg-modal-header {
+    opacity:1; transform:translateY(0);
+    transition-delay:.2s;
+  }
+
+#aida-overlay .msg-modal.whoosh-out .msg-modal-header {
+    opacity:0; transform:translateY(6px);
+    transition:opacity .16s ease, transform .16s ease;
+    transition-delay:0s;
+  }
+
+#aida-overlay .msg-modal-close {
+    background:none; border:none; cursor:pointer;
+    color:rgba(255,255,255,.85);
+    display:flex; align-items:center; justify-content:center;
+    padding:4px; border-radius:50%;
+    transition:background .18s ease, color .18s ease, transform .12s ease;
+  }
+
+#aida-overlay .msg-modal-close:hover { color:#fff; background:rgba(255,255,255,.18); }
+
+#aida-overlay .msg-modal-close:active { transform:scale(.88); }
+
+#aida-overlay .msg-modal-close svg { width:18px; height:18px; }
+
+#aida-overlay .msg-modal-body {
+    flex:1;
+    overflow-y:auto; padding:8px 0;
+    opacity:0;
+    transform:translateY(8px);
+    transition:opacity .32s ease, transform .32s ease;
+  }
+
+#aida-overlay .msg-modal.whoosh-in .msg-modal-body {
+    opacity:1; transform:translateY(0);
+    transition-delay:.26s;
+  }
+
+#aida-overlay .msg-modal.whoosh-out .msg-modal-body {
+    opacity:0; transform:translateY(8px);
+    transition:opacity .16s ease, transform .16s ease;
+    transition-delay:0s;
+  }
+
+#aida-overlay .msg-modal-inputbar{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 16px;
+    border-top:1px solid var(--line);
+    background:var(--panel);
+    flex-shrink:0;
+  }
+#aida-overlay .msg-input{
+    flex:1; min-width:0;
+    border:1px solid var(--line); border-radius:20px;
+    padding:10px 16px; font-size:14px; color:var(--text);
+    background:var(--bg); outline:none; font-family:inherit;
+  }
+#aida-overlay .msg-input:focus{ border-color:var(--red); }
+#aida-overlay .msg-send-btn{
+    width:38px; height:38px; border-radius:50%; border:none; flex-shrink:0;
+    background:var(--red); color:#fff; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+#aida-overlay .msg-send-btn:hover{ background:#9c1f26; }
+#aida-overlay .msg-send-btn:disabled{ opacity:.5; cursor:default; }
+#aida-overlay .msg-send-btn svg{ width:17px; height:17px; }
+#aida-overlay .chat-msg{
+    max-width:78%; margin:6px 22px; padding:10px 14px;
+    border-radius:14px; font-size:13.5px; line-height:1.45;
+    overflow-wrap:break-word; white-space:pre-wrap;
+  }
+#aida-overlay .chat-msg-user{
+    margin-left:auto; background:var(--red); color:#fff; border-bottom-right-radius:4px;
+  }
+#aida-overlay .chat-msg-assistant{
+    margin-right:auto; background:var(--readbadge); color:var(--text); border-bottom-left-radius:4px;
+  }
+
+
+#aida-overlay .msg-row {
+    display:flex; align-items:center; gap:14px;
+    padding:14px 22px;
+    cursor:pointer;
+  }
+
+#aida-overlay .msg-row:hover { background:rgba(183,37,45,.04); }
+
+#aida-overlay .msg-avatar {
+    width:36px; height:36px; border-radius:50%;
+    background:var(--charcoal); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:500;
+    flex-shrink:0;
+  }
+
+#aida-overlay .msg-info { flex:1; min-width:0; }
+
+#aida-overlay .msg-name { font-size:13.5px; font-weight:500; color:var(--text); }
+
+#aida-overlay .msg-snippet {
+    font-size:12.5px; color:var(--text-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+#aida-overlay .msg-time { font-size:11px; color:var(--text-dim); flex-shrink:0; }
+
+#aida-overlay .app-header {
+    display:flex; flex-direction:column; align-items:center;
+    padding:0 16px;
+    gap:1px;
+  }
+
+#aida-overlay .app-header-logo-img {
+    height:clamp(34px, 6vh, 70px); width:auto;
+    margin-bottom:clamp(8px, 2vh, 18px);
+  }
+
+#aida-overlay .app-header-welcome {
+    font-size:clamp(18px, 3.4vh, 34px); font-weight:500;
+    font-style:italic;
+    color:var(--red);
+  }
+
+#aida-overlay .app-header-name {
+    font-size:clamp(16px, 2.6vh, 24px); font-weight:700;
+    color:var(--text);
+    cursor:pointer;
+    padding:2px 10px;
+    border-radius:10px;
+    transition:background .18s ease;
+  }
+
+#aida-overlay .app-header-name:hover { background:rgba(183,37,45,.06); }
+
+#aida-overlay .app-header-name:active { transform:scale(.98); }
+
+#aida-overlay .conn-pill {
+    display:flex; align-items:center; gap:8px;
+    padding:7px 16px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    box-shadow:0 1px 4px rgba(0,0,0,.05);
+    font-size:13px;
+    letter-spacing:.2px;
+    color:var(--text-dim);
+    margin-top:clamp(20px, 6vh, 80px);
+    cursor:default;
+    transition:border-color .3s ease, color .3s ease, opacity .3s ease;
+  }
+
+#aida-overlay .conn-pill .conn-dot {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--text-dim);
+    transition:background .3s ease;
+  }
+
+#aida-overlay .conn-pill.connecting .conn-dot {
+    background:#C9A227;
+    animation:aidaHubConnDotPulse 1s ease-in-out infinite;
+  }
+
+#aida-overlay .conn-pill.connected { color:var(--text); border-color:rgba(183,37,45,.4); }
+
+#aida-overlay .conn-pill.connected .conn-dot { background:var(--red); }
+
+@keyframes aidaHubConnDotPulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.35; }
+  }
+
+#aida-overlay .logo-btn .middle-layer {
+    fill:#AFAA9C; opacity:1;
+    transition:fill .9s ease, opacity .45s ease, transform .6s ease;
+    transform-box:view-box; transform-origin:84.7197px 84.287px;
+  }
+
+#aida-overlay .logo-btn.is-connected .middle-layer { fill:var(--red); }
+
+#aida-overlay .logo-btn.is-listening .middle-layer { transform:rotate(-93.2deg); }
+
+#aida-overlay .logo-btn .middle-layer-alt { display:none; }
+
+#aida-overlay .logo-btn.is-connecting .middle-layer {
+    animation:aidaHubBreathePulse .9s ease-in-out infinite;
+  }
+
+@keyframes aidaHubBreathePulse{
+    0%, 100%{ transform:scale(1); filter:brightness(1); }
+    50%{ transform:scale(1.045); filter:brightness(1.32); }
+  }
+
+#aida-overlay .logo-btn.is-speaking {
+    animation:aidaHubAidaSpeak 1.6s ease-in-out infinite;
+  }
+
+@keyframes aidaHubAidaSpeak{
+    0%, 100%{ transform:scale(1); }
+    50%{ transform:scale(1.03); }
+  }
+
+#aida-overlay .icon-x, #aida-overlay .icon-plus, #aida-overlay .icon-wave {
+    transition:opacity .3s ease, transform .3s ease;
+  }
+
+#aida-overlay .icon-x {
+    opacity:1; transform:rotate(0deg) scale(1);
+    transform-box:fill-box; transform-origin:center;
+    transition:transform .4s ease, opacity .3s ease;
+  }
+
+#aida-overlay .icon-plus { display:none; }
+
+#aida-overlay .icon-wave { opacity:0; transition:opacity .3s ease; }
+
+#aida-overlay .logo-btn.is-connecting .icon-x { transform:rotate(45deg) scale(1); }
+
+#aida-overlay .logo-btn.is-connected .icon-x {
+    opacity:1; transform:rotate(45deg) scale(1);
+    transition:opacity .2s ease, transform .35s ease .2s;
+  }
+
+#aida-overlay .logo-btn.is-listening .icon-x {
+    opacity:0; transform:rotate(45deg) scale(1);
+    transition:opacity .3s ease;
+  }
+
+#aida-overlay .logo-btn.is-listening .icon-wave {
+    opacity:1;
+    transition:opacity .3s ease .3s;
+  }
+
+#aida-overlay .wave-bar {
+    transform-origin:center;
+    animation:aidaHubWaveBar 900ms ease-in-out infinite;
+  }
+
+#aida-overlay .wave-bar:nth-child(1) { animation-delay:0ms; }
+
+#aida-overlay .wave-bar:nth-child(2) { animation-delay:120ms; }
+
+#aida-overlay .wave-bar:nth-child(3) { animation-delay:240ms; }
+
+#aida-overlay .wave-bar:nth-child(4) { animation-delay:120ms; }
+
+#aida-overlay .wave-bar:nth-child(5) { animation-delay:0ms; }
+
+@keyframes aidaHubWaveBar{
+    0%,100%{ transform:scaleY(.35); }
+    50%{ transform:scaleY(1); }
+  }
+
+#aida-overlay .icon-hit { cursor:pointer; }
+
+#aida-overlay .hint {
+    margin-top:clamp(10px, 2.5vh, 22px);
+    font-size:12.5px;
+    color:var(--text-dim);
+    letter-spacing:.3px;
+    transition:opacity .25s;
+  }
+
+#aida-overlay .menu-item {
+    position:absolute;
+    top:50%;
+    display:flex; align-items:center;
+    cursor:pointer;
+    opacity:0;
+    pointer-events:none;
+    transition:transform .32s cubic-bezier(.34,1.56,.64,1), opacity .22s;
+  }
+
+#aida-overlay .menu-item[data-side="right"] { left:50%; transform:translate(0,-50%) scale(.3); }
+
+#aida-overlay .menu-item[data-side="left"] { right:50%; transform:translate(0,-50%) scale(.3); }
+
+#aida-overlay .menu-icon {
+    width:32px; height:32px;
+    flex-shrink:0;
+    border-radius:50%;
+    background:var(--panel);
+    border:1px solid var(--line);
+    box-shadow:0 2px 6px rgba(0,0,0,.07);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--charcoal);
+    position:relative; z-index:2;
+    transition:border-color .2s, color .2s;
+  }
+
+#aida-overlay .menu-icon svg { width:14px; height:14px; }
+
+#aida-overlay .menu-icon.danger { border-color:var(--red); color:var(--red); }
+
+#aida-overlay .menu-pill {
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:999px;
+    height:26px;
+    display:flex; align-items:center;
+    padding:0 10px;
+    box-shadow:0 1px 4px rgba(0,0,0,.05);
+    white-space:nowrap;
+    position:relative; z-index:1;
+    transition:border-color .2s;
+  }
+
+#aida-overlay .menu-item[data-side="right"] .menu-pill { margin-left:-9px; padding-left:15px; }
+
+#aida-overlay .menu-item[data-side="left"] .menu-pill { margin-right:-9px; padding-right:15px; }
+
+#aida-overlay .menu-label {
+    font-size:11.5px;
+    font-weight:500;
+    letter-spacing:.1px;
+    color:var(--label-blue);
+  }
+
+#aida-overlay .menu-item:hover .menu-icon:not(.danger) { border-color:var(--red); color:var(--red); }
+
+#aida-overlay .menu-item:hover .menu-pill { border-color:var(--red); }
+
+#aida-overlay .menu-item:focus-visible { outline:none; }
+
+#aida-overlay .menu-item:focus-visible .menu-pill { border-color:var(--red); }
+
+#aida-overlay .orbit-wrap.open .menu-item {
+    opacity:1;
+    pointer-events:auto;
+  }
+
+#aida-overlay .orbit-wrap.open .menu-item[data-pos="tr"] { transform:translate(calc(var(--logo-size) * .608),calc(-50% - var(--logo-size) * .231)) scale(1); }
+
+#aida-overlay .orbit-wrap.open .menu-item[data-pos="br"] { transform:translate(calc(var(--logo-size) * .608),calc(-50% + var(--logo-size) * .25)) scale(1); }
+
+#aida-overlay .orbit-wrap.open .menu-item[data-pos="tl"] { transform:translate(calc(var(--logo-size) * -.608),calc(-50% - var(--logo-size) * .231)) scale(1); }
+
+#aida-overlay .orbit-wrap.open .menu-item[data-pos="bl"] { transform:translate(calc(var(--logo-size) * -.608),calc(-50% + var(--logo-size) * .25)) scale(1); }
+
+#aida-overlay .menu-item[data-pos="b"] {
+    left:50%; right:auto;
+    transform:translate(-50%,-50%) scale(.3);
+  }
+
+#aida-overlay .orbit-wrap.open .menu-item[data-pos="b"] { transform:translate(-50%,calc(-50% + var(--logo-size) * .685)) scale(1); }
+
+#aida-overlay .backdrop {
+    position:fixed; inset:0;
+    background:transparent;
+    pointer-events:none;
+    z-index:5;
+  }
+
+#aida-overlay .backdrop.open { pointer-events:auto; }
+
+#aida-overlay .orbit-wrap { z-index:10; }
+
+#aida-overlay .footer {
+    position:absolute; bottom:14px; left:0; right:0;
+    display:flex; justify-content:center;
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:.2px;
+  }
+
+#aida-overlay .floating-modal {
+    position:fixed; top:50%; left:50%;
+    width:360px; max-width:88vw;
+    max-height:76vh;
+    background:rgba(255,255,255,.74);
+    -webkit-backdrop-filter:blur(26px) saturate(160%);
+    backdrop-filter:blur(26px) saturate(160%);
+    border:1px solid rgba(255,255,255,.6);
+    border-radius:20px;
+    box-shadow:0 24px 70px rgba(30,20,18,.22), 0 6px 20px rgba(30,20,18,.1);
+    opacity:0;
+    pointer-events:none;
+    z-index:60;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    --dx:0px; --dy:0px;
+    transform:translate(-50%,-50%) scale(1);
+  }
+
+#aida-overlay .floating-modal.open { pointer-events:auto; }
+
+#aida-overlay .floating-modal.whoosh-out { pointer-events:none; }
+
+#aida-overlay .floating-modal.whoosh-in {
+    animation:aidaHubFloatModalOpen .5s cubic-bezier(.22,.61,.32,1) forwards;
+  }
+
+#aida-overlay .floating-modal.whoosh-out {
+    animation:aidaHubFloatModalClose .4s cubic-bezier(.5,0,.7,.15) forwards;
+  }
+
+@keyframes aidaHubFloatModalOpen{
+    0%{ transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.08); opacity:0; }
+    45%{ opacity:1; }
+    72%{ transform:translate(-50%,-50%) scale(1.025); }
+    100%{ transform:translate(-50%,-50%) scale(1); opacity:1; }
+  }
+
+@keyframes aidaHubFloatModalClose{
+    0%{ transform:translate(-50%,-50%) scale(1); opacity:1; }
+    22%{ transform:translate(-50%,-50%) scale(1.02); }
+    100%{ transform:translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(.08); opacity:0; }
+  }
+
+#aida-overlay .fm-header {
+    display:flex; align-items:center; gap:12px;
+    padding:20px 20px 16px;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+
+#aida-overlay .fm-icon {
+    width:38px; height:38px; border-radius:50%;
+    background:var(--red); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+
+#aida-overlay .fm-icon svg { width:18px; height:18px; }
+
+#aida-overlay .fm-title { font-size:16px; font-weight:500; color:var(--text); flex:1; }
+
+#aida-overlay .fm-close {
+    background:none; border:none; cursor:pointer;
+    color:var(--text-dim);
+    display:flex; align-items:center; justify-content:center;
+    padding:4px; border-radius:50%;
+    transition:color .18s ease, background .18s ease, transform .12s ease;
+  }
+
+#aida-overlay .fm-close:hover { color:var(--red); background:rgba(183,37,45,.08); }
+
+#aida-overlay .fm-close:active { transform:scale(.88); }
+
+#aida-overlay .fm-close svg { width:17px; height:17px; }
+
+#aida-overlay .fm-body { padding:18px 20px 22px; overflow-y:auto; }
+
+#aida-overlay .logout-copy {
+    margin:0 0 18px;
+    font-size:13.5px;
+    color:var(--text);
+    line-height:1.5;
+  }
+
+#aida-overlay .logout-actions { display:flex; gap:10px; }
+
+#aida-overlay .logout-cancel-btn {
+    flex:1;
+    height:40px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:var(--text);
+    font-size:13px; font-weight:500;
+    cursor:pointer;
+    transition:border-color .18s ease, background .18s ease, transform .12s ease;
+  }
+
+#aida-overlay .logout-cancel-btn:hover { border-color:var(--charcoal); }
+
+#aida-overlay .logout-cancel-btn:active { transform:scale(.97); }
+
+#aida-overlay .primary-btn-sm {
+    flex:1;
+    height:40px;
+    border-radius:10px;
+    border:none;
+    background:var(--red);
+    color:#fff;
+    font-size:13px; font-weight:600;
+    cursor:pointer;
+    box-shadow:0 6px 16px rgba(183,37,45,.3);
+    transition:background .18s ease, transform .12s ease, box-shadow .18s ease;
+  }
+
+#aida-overlay .primary-btn-sm:hover { background:#a11f27; }
+
+#aida-overlay .primary-btn-sm:active { transform:scale(.97); }
+
+#aida-overlay .profile-card { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+
+#aida-overlay .profile-avatar {
+    width:54px; height:54px; border-radius:50%;
+    background:var(--charcoal); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:17px; font-weight:500;
+    flex-shrink:0;
+  }
+
+#aida-overlay .profile-name { font-size:15px; font-weight:500; color:var(--text); }
+
+#aida-overlay .profile-role { font-size:12.5px; color:var(--text-dim); margin-top:2px; }
+
+#aida-overlay .profile-detail-row {
+    display:flex; justify-content:space-between;
+    padding:10px 0;
+    border-top:1px solid var(--line);
+    font-size:13px;
+  }
+
+#aida-overlay .profile-detail-label { color:var(--text-dim); }
+
+#aida-overlay .profile-detail-value { color:var(--text); font-weight:500; }
+
+#aida-overlay .help-row {
+    display:flex; gap:12px;
+    padding:12px 0;
+    border-top:1px solid var(--line);
+  }
+
+#aida-overlay .help-row:first-child { border-top:none; padding-top:0; }
+
+#aida-overlay .help-icon {
+    width:30px; height:30px; border-radius:50%;
+    background:rgba(183,37,45,.08); color:var(--red);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+
+#aida-overlay .help-icon svg { width:15px; height:15px; }
+
+#aida-overlay .help-title { font-size:13.5px; font-weight:500; color:var(--text); }
+
+#aida-overlay .help-desc { font-size:12.5px; color:var(--text-dim); margin-top:2px; line-height:1.45; }
+
+#aida-overlay .toast {
+    position:fixed;
+    bottom:36px; left:50%;
+    transform:translate(-50%, 16px) scale(.92);
+    display:flex; align-items:center; gap:10px;
+    padding:12px 20px;
+    background:var(--charcoal);
+    color:#fff;
+    border-radius:999px;
+    box-shadow:0 12px 30px rgba(0,0,0,.22);
+    font-size:13.5px; font-weight:500;
+    opacity:0;
+    pointer-events:none;
+    z-index:70;
+  }
+
+#aida-overlay .toast .toast-icon {
+    width:20px; height:20px; border-radius:50%;
+    background:var(--red);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+
+#aida-overlay .toast .toast-icon svg { width:11px; height:11px; }
+
+#aida-overlay .toast.show {
+    animation:aidaHubToastPop .35s cubic-bezier(.3,1.4,.4,1) forwards;
+  }
+
+#aida-overlay .toast.hide {
+    animation:aidaHubToastAway .3s ease forwards;
+  }
+
+@keyframes aidaHubToastPop{
+    0%{ transform:translate(-50%, 16px) scale(.92); opacity:0; }
+    60%{ transform:translate(-50%, -3px) scale(1.02); opacity:1; }
+    100%{ transform:translate(-50%, 0) scale(1); opacity:1; }
+  }
+
+@keyframes aidaHubToastAway{
+    0%{ transform:translate(-50%, 0) scale(1); opacity:1; }
+    100%{ transform:translate(-50%, 10px) scale(.94); opacity:0; }
+  }
+
+#aida-overlay .page-enter-fade {
+    position:fixed; inset:0;
+    background:#fff;
+    z-index:100;
+    pointer-events:none;
+    animation:aidaHubPageEnterFade .6s ease forwards;
+  }
+
+@keyframes aidaHubPageEnterFade{
+    0%{ opacity:1; }
+    100%{ opacity:0; }
+  }
+
+@media (prefers-reduced-motion: reduce) {
+#aida-overlay .menu-item, #aida-overlay .logo-btn, #aida-overlay .status-pill .dot, #aida-overlay .msg-modal.whoosh-in, #aida-overlay .msg-modal.whoosh-out, #aida-overlay .msg-modal-header, #aida-overlay .msg-modal-body, #aida-overlay .floating-modal.whoosh-in, #aida-overlay .floating-modal.whoosh-out, #aida-overlay .toast.show, #aida-overlay .toast.hide { transition:none !important; animation:none !important; }
+#aida-overlay .page-enter-fade { display:none; }
+}
 /* Scanner modal */
 .qr-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:900;flex-direction:column;}
 .qr-modal-bg.open{display:flex;}
@@ -2944,13 +3751,16 @@ async function launchApp(){
     showProjectPicker();
   }
   loadConversations();
+  // The launcher button belongs on every logged-in screen, regardless of how
+  // the user got here — create it unconditionally, the same way the QR fab
+  // below is.
+  ensureAidaOverlay();
   if(_wantsAida){
     // All the role-specific setup above has already run normally (project
-    // context, sidebar, initial data loads) — this only overrides which
-    // view is actually shown, so AIDA works identically regardless of which
-    // branch above was taken for this user's role.
-    document.getElementById('main-app').style.display='flex';
-    showView('aida');
+    // context, sidebar, initial data loads, and whatever view that role
+    // normally lands on) — the overlay now opens on TOP of that, it no
+    // longer overrides which view is showing underneath.
+    openAidaOverlay({skipPush:true});
   }
   if(!document.getElementById('qr-fab-btn')){
     const _fab=document.createElement('button');
@@ -3192,6 +4002,10 @@ function connectSocket(){
   socket.on(`seen:${currentUser.id}`, ({ convoId, seenBy }) => {
     handleMessagesSeen(convoId, seenBy);
   });
+  // AIDA voice — tenant sockets share one room per company, so these are
+  // per-user event names (unlike master admin's plain ones).
+  socket.on(`aida:voice-chunk:${currentUser.id}`, handleAidaVoiceChunk);
+  socket.on(`aida:voice-error:${currentUser.id}`, handleAidaVoiceError);
 
   socket.on('notification',notif=>{
     if(notif.to!==currentUser?.role&&notif.to!=='all')return;
@@ -3288,7 +4102,6 @@ function renderView(){
   if(currentView==='roles')       return renderRoles();
   if(currentView==='acc_clients') return renderAccClients();
   if(currentView==='acc_timer')   return renderAccTimer();
-  if(currentView==='aida')        return renderAida();
   if(currentView==='acc_eod')     return renderAccEod();
   if(currentView==='sprints')       return renderSprints();
   if(currentView==='sub_tickets')   return renderSubTickets();
@@ -8801,6 +9614,11 @@ async function renderCeoDashboard(){
     fetch('/api/attendance/regularize').then(r=>r.json()).catch(()=>[]),
     fetch('/api/sub-tickets').then(r=>r.json()).catch(()=>[]),
   ]);
+  // The user may have already navigated to a different view while these
+  // fetches were in flight (e.g. the /aida direct link switches views
+  // immediately after login, without waiting for this to finish) — bail out
+  // instead of clobbering whatever's now in content-area with a stale render.
+  if(currentView!=='ceo_dashboard') return;
   const allAtt=Array.isArray(attRes)?attRes:(attRes.records||[]);
   const allLeave=Array.isArray(leaveRes)?leaveRes:[];
   window.allAtt=allAtt; window._ceoLeaveCache=allLeave;
@@ -11902,9 +12720,13 @@ async function saveDeliveryWithoutDelivering(){
 // ══════════════════════════════════════════════════════════════════════════════
 // AIDA — AI conversational layer
 // ══════════════════════════════════════════════════════════════════════════════
-// Placeholder UI per the brief: full-screen, dark, orb, mic, history, input,
-// voice toggle, push-to-talk, thinking/speaking states. Visual polish is
-// explicitly deferred — this is functional scaffolding only.
+// A persistent overlay layer, not a view: a floating launcher button sits on
+// every logged-in screen, and opening it lays the chat panel on top of
+// whatever the user was looking at — it never touches currentView or
+// content-area, so the underlying screen's state is never disturbed by
+// opening/closing AIDA. Reachable via the launcher button, or directly via a
+// URL ending in /aida (which now just opens the overlay on top of the normal
+// landing view instead of replacing it).
 //
 // Architecture: this file only orchestrates UI state and one network call
 // (POST /api/aida/chat). All intent detection, tool selection, tool
@@ -11914,118 +12736,929 @@ async function saveDeliveryWithoutDelivering(){
 // through the one chat endpoint, which itself only ever reaches existing
 // OGTrack APIs using the current user's own token.
 
-let aidaMessages=[]; // {role:'user'|'assistant', content} — cleared on logout, not persisted
+let aidaMessages=[]; // {role:'user'|'assistant', content, toolCalls?, turnId?} — kept for backend context, not rendered as a visible history
 let aidaBusy=false;
-let aidaVoiceMode=false; // placeholder toggle only; no speech wiring yet per brief scope
+let aidaHistoryLoaded=false; // fetched once per session, on first open
+let aidaSpeaking=false; // true for the span between the first voice chunk playing and the last one finishing
+let aidaOverlayOpen=false;
+let _aidaPrevPath=null; // the URL to restore on close — recorded at open time, never guessed at close time
 
-function renderAida(){
-  document.getElementById('content-area').style.padding='0';
-  document.getElementById('content-area').innerHTML=`
-    <div class="aida-shell">
-      <div class="aida-orb-zone">
-        <div class="aida-orb ${aidaBusy?'aida-orb-thinking':''}" id="aida-orb"></div>
-        <div class="aida-status" id="aida-status">${aidaBusy?'Thinking…':'Ask me anything about OGTrack'}</div>
-      </div>
-      <div class="aida-history" id="aida-history">${renderAidaHistory()}</div>
-      <div class="aida-controls">
-        <button class="aida-voice-toggle ${aidaVoiceMode?'active':''}" onclick="toggleAidaVoiceMode()" title="Voice mode (coming soon)">🎙</button>
-        <input type="text" id="aida-input" placeholder="Type a message…" autocomplete="off"
-          onkeydown="if(event.key==='Enter')sendAidaMessage()">
-        <button class="aida-mic-btn" id="aida-mic-btn" title="Push to talk (coming soon)" disabled>🎤</button>
-        <button class="btn-primary" onclick="sendAidaMessage()" ${aidaBusy?'disabled':''}>Send</button>
-      </div>
-    </div>
-    <style>
-      .aida-shell{display:flex;flex-direction:column;height:calc(100vh - 0px);background:#0b0b0f;color:#eee}
-      .aida-orb-zone{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px 12px}
-      .aida-orb{width:90px;height:90px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#8E44AD,#3a1a52 70%);
-        box-shadow:0 0 40px rgba(142,68,173,.55);transition:box-shadow .3s ease}
-      .aida-orb-thinking{animation:aidaPulse 1.1s ease-in-out infinite}
-      @keyframes aidaPulse{0%,100%{transform:scale(1);box-shadow:0 0 40px rgba(142,68,173,.55)}50%{transform:scale(1.08);box-shadow:0 0 65px rgba(142,68,173,.85)}}
-      .aida-status{margin-top:14px;font-size:13px;color:#999}
-      .aida-history{flex:1;overflow-y:auto;padding:8px 16px;max-width:720px;margin:0 auto;width:100%}
-      .aida-msg{margin:10px 0;padding:10px 14px;border-radius:12px;max-width:80%;line-height:1.5;font-size:14px}
-      .aida-msg-user{background:#8E44AD;color:#fff;margin-left:auto;border-bottom-right-radius:2px}
-      .aida-msg-assistant{background:#1c1c22;color:#eee;margin-right:auto;border-bottom-left-radius:2px}
-      .aida-controls{display:flex;gap:8px;align-items:center;padding:14px 16px;border-top:1px solid #222;max-width:720px;margin:0 auto;width:100%}
-      .aida-controls input{flex:1;padding:11px 14px;border-radius:10px;border:1px solid #333;background:#151519;color:#eee;font-size:14px;outline:none}
-      .aida-voice-toggle,.aida-mic-btn{width:40px;height:40px;border-radius:50%;border:1px solid #333;background:#151519;color:#eee;font-size:16px;cursor:pointer}
-      .aida-voice-toggle.active{background:#8E44AD;border-color:#8E44AD}
-      .aida-mic-btn[disabled]{opacity:.35;cursor:not-allowed}
-    </style>`;
-  const hist=document.getElementById('aida-history');
-  if(hist) hist.scrollTop=hist.scrollHeight;
-  document.getElementById('aida-input')?.focus();
+// ── AIDA logo — the interactive 3-layer speech-bubble mark, verbatim from
+// the user's logo.js. Kept in its own render function so the SVG can be
+// swapped without touching the behavior below.
+function logoMarkup() {
+  return `<button class="logo-btn" id="logoBtn" aria-label="Hold to open menu" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 179 173" xmlns="http://www.w3.org/2000/svg">
+        <path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#424242"/>
+        <path class="middle-layer" id="middleLayer" d="M84.7197 25.3936C117.725 25.3936 144.481 51.7607 144.481 84.2861C144.481 116.812 117.725 143.18 84.7197 143.18C73.4569 143.18 62.9223 140.108 53.9297 134.771L54.8389 135.703L22.8389 142.867L32.5322 113.006C27.7074 104.51 24.958 94.7142 24.958 84.2861C24.9583 51.7607 51.7142 25.3936 84.7197 25.3936Z"/>
+        <path class="middle-layer-alt" id="middleLayerAlt" transform="translate(24.958,25.394)" d="M59.7617 0C26.7562 2.0319e-06 0.000248955 26.3671 0 58.8926C0 91.4182 26.756 117.786 59.7617 117.786C71.0246 117.786 81.5591 114.715 90.5518 109.377L89.6426 110.31L121.643 117.474L111.949 87.6123C116.774 79.1163 119.523 69.3206 119.523 58.8926C119.523 26.3671 92.7673 0 59.7617 0Z"/>
+        <g class="icon-x" id="iconX">
+          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="white" transform="rotate(45 84 84)"/>
+          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="white" transform="rotate(-45 84 84)"/>
+        </g>
+        <g class="icon-plus" id="iconPlus">
+          <path d="M91.3214 46.4093C94.0828 46.4094 96.3214 48.648 96.3214 51.4093V71.8029H116.715C119.476 71.8029 121.715 74.0416 121.715 76.8029V92.1964C121.715 94.9579 119.476 97.1964 116.715 97.1964H96.3214V116.715C96.3214 119.476 94.0828 121.715 91.3214 121.715H75.9279C73.1665 121.715 70.9279 119.476 70.9279 116.715V97.1964H51.4093C48.6479 97.1964 46.4093 94.9579 46.4093 92.1964V76.8029C46.4095 74.0416 48.648 71.8029 51.4093 71.8029H70.9279V51.4093C70.9279 48.6479 73.1665 46.4093 75.9279 46.4093H91.3214Z" fill="white"/>
+        </g>
+        <g class="icon-wave" id="iconWave">
+          <rect class="wave-bar" x="52" y="59" width="8" height="50" rx="4" fill="white"/>
+          <rect class="wave-bar" x="66" y="59" width="8" height="50" rx="4" fill="white"/>
+          <rect class="wave-bar" x="80" y="59" width="8" height="50" rx="4" fill="white"/>
+          <rect class="wave-bar" x="94" y="59" width="8" height="50" rx="4" fill="white"/>
+          <rect class="wave-bar" x="108" y="59" width="8" height="50" rx="4" fill="white"/>
+        </g>
+        <circle class="icon-hit" id="iconHit" cx="84" cy="84" r="45" fill="transparent" style="pointer-events:auto;"></circle>
+      </svg>
+    </button>`;
+}
+function renderLogo(container) {
+  container.insertAdjacentHTML('afterbegin', logoMarkup());
+  return document.getElementById('logoBtn');
 }
 
-function renderAidaHistory(){
-  if(!aidaMessages.length){
-    return `<div style="text-align:center;color:#666;font-size:13px;margin-top:24px">No messages yet — try "who's absent today?"</div>`;
+// ── AIDA hub — ported from the user's exact dashboard.js, wired to real data
+// and real mic/voice/logout instead of the reference's static placeholders.
+// Wrapped in one IIFE so none of its internals (isOpen, connectionState,
+// etc.) leak into the rest of this file — only _aidaHubInit/_aidaHubOnClose/
+// _aidaHubOnLogout are exposed, called from ensureAidaOverlay()/
+// closeAidaOverlay()/clearAidaSessionOnLogout() respectively.
+(function(){
+  var inited=false;
+  var isOpen=false;
+  var pressTimer=null;
+  var HOLD_MS=500;
+
+  var logoBtn, orbitWrap, backdrop, hintText, iconHit, connPill, connText,
+      modalBackdrop, msgModal, msgModalClose, msgInput, msgSendBtn, profileModal, profileModalClose,
+      helpModal, helpModalClose, logoutToast, drNameBtn, logoutModal,
+      logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems;
+  var msgSending=false;
+
+  window._aidaHubInit=function(){
+    if(inited) return;
+    inited=true;
+    renderLogo(document.getElementById('logoContainer'));
+
+    logoBtn=document.getElementById('logoBtn');
+    orbitWrap=document.getElementById('orbitWrap');
+    backdrop=document.getElementById('backdrop');
+    hintText=document.getElementById('hintText');
+    iconHit=document.getElementById('iconHit');
+    connPill=document.getElementById('connPill');
+    connText=document.getElementById('connText');
+    modalBackdrop=document.getElementById('modalBackdrop');
+    msgModal=document.getElementById('msgModal');
+    msgModalClose=document.getElementById('msgModalClose');
+    msgInput=document.getElementById('aidaMsgInput');
+    msgSendBtn=document.getElementById('aidaMsgSend');
+    profileModal=document.getElementById('profileModal');
+    profileModalClose=document.getElementById('profileModalClose');
+    helpModal=document.getElementById('helpModal');
+    helpModalClose=document.getElementById('helpModalClose');
+    logoutToast=document.getElementById('logoutToast');
+    drNameBtn=document.getElementById('drNameBtn');
+    logoutModal=document.getElementById('logoutModal');
+    logoutModalCancel=document.getElementById('logoutModalCancel');
+    logoutModalCancelBtn=document.getElementById('logoutModalCancelBtn');
+    logoutModalConfirm=document.getElementById('logoutModalConfirm');
+    menuItems=Array.prototype.slice.call(document.querySelectorAll('#aida-overlay .menu-item'));
+
+    function openMenu(){
+      if(isOpen) return;
+      isOpen=true;
+      orbitWrap.classList.add('open');
+      backdrop.classList.add('open');
+      logoBtn.setAttribute('aria-expanded','true');
+      hintText.style.opacity='0';
+      connPill.style.opacity='0';
+      menuItems.forEach(function(el,i){ el.tabIndex=0; el.style.transitionDelay=(i*25)+'ms'; });
+    }
+    function closeMenu(){
+      if(!isOpen) return;
+      isOpen=false;
+      orbitWrap.classList.remove('open');
+      backdrop.classList.remove('open');
+      logoBtn.setAttribute('aria-expanded','false');
+      hintText.style.opacity='1';
+      connPill.style.opacity='1';
+      menuItems.forEach(function(el){ el.tabIndex=-1; });
+    }
+    function beginPress(){
+      if(isOpen) return;
+      logoBtn.classList.add('pressing');
+      pressTimer=setTimeout(function(){ openMenu(); logoBtn.classList.remove('pressing'); },HOLD_MS);
+    }
+    function cancelPress(){ clearTimeout(pressTimer); logoBtn.classList.remove('pressing'); }
+
+    var modalTimers=[];
+    function clearModalTimers(){ modalTimers.forEach(clearTimeout); modalTimers=[]; }
+
+    function openMessageModal(){
+      if(isOpen) closeMenu();
+      clearModalTimers();
+      logoBtn.classList.remove('zoom-out');
+      logoBtn.classList.add('zoom');
+      modalTimers.push(setTimeout(function(){
+        modalBackdrop.classList.add('open');
+        msgModal.classList.remove('whoosh-out');
+        msgModal.classList.add('open');
+        void msgModal.offsetWidth;
+        msgModal.classList.add('whoosh-in');
+      },220));
+    }
+    function closeMessageModal(){
+      if(!msgModal.classList.contains('open')) return;
+      clearModalTimers();
+      modalBackdrop.classList.remove('open');
+      msgModal.classList.add('whoosh-out');
+      modalTimers.push(setTimeout(function(){
+        msgModal.classList.remove('open');
+        msgModal.classList.remove('whoosh-in');
+        msgModal.classList.remove('whoosh-out');
+        logoBtn.classList.remove('zoom');
+        logoBtn.classList.add('zoom-out');
+        modalTimers.push(setTimeout(function(){ logoBtn.classList.remove('zoom-out'); },520));
+      },460));
+    }
+
+    // Typed alternative to sendAidaVoiceInput() below — same turn history,
+    // same turnId hookup so a typed message still gets a spoken reply
+    // through the existing ElevenLabs voice-chunk stream.
+    async function sendAidaTextMessage(){
+      var text=(msgInput.value||'').trim();
+      if(!text||msgSending) return;
+      msgInput.value='';
+      msgSending=true;
+      msgSendBtn.disabled=true;
+      aidaMessages.push({role:'user',content:text});
+      renderAidaMsgRows();
+      try{
+        var r=await fetch('/api/aida/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,pageContext:buildAidaPageContext()})});
+        var data=await r.json();
+        if(!r.ok){
+          var fallback=r.status===503?"AIDA isn't set up for this workspace yet.":'AIDA could not respond right now.';
+          throw new Error(data.error||fallback);
+        }
+        aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
+        renderAidaMsgRows();
+        if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
+      }catch(e){
+        aidaMessages.push({role:'assistant',content:e.message||'Something went wrong — please try again.'});
+        renderAidaMsgRows();
+      }finally{
+        msgSending=false;
+        msgSendBtn.disabled=false;
+        msgInput.focus();
+      }
+    }
+    msgSendBtn.addEventListener('click',sendAidaTextMessage);
+    msgInput.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); sendAidaTextMessage(); } });
+
+    msgModalClose.addEventListener('click',closeMessageModal);
+    modalBackdrop.addEventListener('click',closeMessageModal);
+
+    // ── Connect / listen / speak — real mic + real upload, same visual timing ──
+    var connectionState='disconnected';
+    var isListening=false;
+    var isSpeaking=false;
+    var speakTimer=null;
+    var SPEAK_MS=2600;
+    var mediaStream=null, mediaRecorder=null, recordedChunks=[];
+
+    async function startConnecting(){
+      if(connectionState!=='disconnected') return;
+      connectionState='connecting';
+      connPill.classList.add('connecting');
+      connText.textContent='Connecting...';
+      logoBtn.classList.add('is-connecting');
+      // Unlock the AudioContext HERE, inside this real click — not later when
+      // the first voice chunk arrives over the socket (see the ElevenLabs
+      // playback code below): a context created off a socket event, after
+      // any user gesture, can get silently stuck "suspended".
+      _aidaGetVoiceCtx();
+      var start=Date.now();
+      var micOk=false;
+      try{ mediaStream=await navigator.mediaDevices.getUserMedia({audio:true}); micOk=true; }
+      catch(e){ console.warn('[AIDA] mic permission denied or unavailable:',e); }
+      var elapsed=Date.now()-start;
+      if(elapsed<2000) await new Promise(function(r){ setTimeout(r,2000-elapsed); });
+      connectionState='connected';
+      logoBtn.classList.remove('is-connecting');
+      connPill.classList.remove('connecting');
+      connPill.classList.add('connected');
+      connText.textContent='Connected';
+      logoBtn.classList.add('is-connected');
+      if(!micOk) showAidaToast("Mic access denied — allow it to talk to AIDA");
+    }
+
+    function startSpeaking(){
+      clearTimeout(speakTimer);
+      isSpeaking=true;
+      logoBtn.classList.add('is-speaking');
+      speakTimer=setTimeout(stopSpeaking,SPEAK_MS);
+    }
+    function stopSpeaking(){
+      clearTimeout(speakTimer);
+      if(!isSpeaking) return;
+      isSpeaking=false;
+      logoBtn.classList.remove('is-speaking');
+    }
+    function startListening(){
+      if(connectionState!=='connected'||isListening) return;
+      stopSpeaking();
+      isListening=true;
+      logoBtn.classList.add('is-listening');
+      recordedChunks=[];
+      try{
+        mediaRecorder=new MediaRecorder(mediaStream);
+        mediaRecorder.ondataavailable=function(e){ if(e.data.size>0) recordedChunks.push(e.data); };
+        mediaRecorder.start();
+      }catch(e){ console.warn('[AIDA] MediaRecorder failed to start:',e); }
+    }
+    function stopListening(){
+      if(!isListening) return;
+      isListening=false;
+      logoBtn.classList.remove('is-listening');
+      startSpeaking();
+      if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+        var mimeType=mediaRecorder.mimeType||'audio/webm';
+        mediaRecorder.onstop=function(){ sendAidaVoiceInput(new Blob(recordedChunks,{type:mimeType})); };
+        mediaRecorder.stop();
+      }
+    }
+
+    async function sendAidaVoiceInput(blob){
+      if(!blob||!blob.size) return;
+      _aidaVoiceCurrentTurnId=null;
+      aidaSpeaking=false;
+      try{
+        var form=new FormData();
+        form.append('audio',blob,'voice-input.webm');
+        form.append('pageContext',JSON.stringify(buildAidaPageContext()));
+        var r=await fetch('/api/aida/voice-input',{method:'POST',body:form});
+        var data=await r.json();
+        if(!r.ok){
+          var fallback=r.status===503?"AIDA isn't set up for this workspace yet.":'AIDA could not respond right now.';
+          throw new Error(data.error||fallback);
+        }
+        aidaMessages.push({role:'user',content:data.transcript||'(unrecognized)'});
+        aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
+        showAidaToast(data.reply||'(no response)');
+        if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
+      }catch(e){
+        showAidaToast(e.message||'Something went wrong — please try again.');
+      }
+    }
+
+    iconHit.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(connectionState==='disconnected') startConnecting();
+    });
+
+    function onSpaceDown(e){
+      if(!aidaOverlayOpen) return; // AIDA isn't open — never steal Space from the rest of the app
+      if(e.code!=='Space'&&e.key!==' ') return;
+      if(e.repeat) return;
+      var tag=(e.target&&e.target.tagName)||'';
+      if(tag==='INPUT'||tag==='TEXTAREA'||(e.target&&e.target.isContentEditable)) return;
+      e.preventDefault();
+      startListening();
+    }
+    function onSpaceUp(e){
+      if(e.code!=='Space'&&e.key!==' ') return;
+      stopListening();
+    }
+    document.addEventListener('keydown',onSpaceDown);
+    document.addEventListener('keyup',onSpaceUp);
+    window.addEventListener('blur',function(){ if(aidaOverlayOpen) stopListening(); });
+
+    logoBtn.addEventListener('pointerdown',function(e){ e.preventDefault(); beginPress(); });
+    logoBtn.addEventListener('pointerup',cancelPress);
+    logoBtn.addEventListener('pointerleave',cancelPress);
+    logoBtn.addEventListener('pointercancel',cancelPress);
+    logoBtn.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); if(isOpen) closeMenu(); else openMenu(); }
+    });
+
+    backdrop.addEventListener('click',closeMenu);
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape'&&aidaOverlayOpen) closeMenu();
+    });
+
+    function getOffsetFromCenter(el){
+      var rect=el.getBoundingClientRect();
+      return { dx:(rect.left+rect.width/2)-window.innerWidth/2, dy:(rect.top+rect.height/2)-window.innerHeight/2 };
+    }
+    var floatingModalTimers=[];
+    function clearFloatingModalTimers(){ floatingModalTimers.forEach(clearTimeout); floatingModalTimers=[]; }
+    function openFloatingModal(modalEl,originEl){
+      clearFloatingModalTimers();
+      var off=getOffsetFromCenter(originEl);
+      modalEl.style.setProperty('--dx',off.dx+'px');
+      modalEl.style.setProperty('--dy',off.dy+'px');
+      modalBackdrop.classList.add('open');
+      modalEl.classList.remove('whoosh-out');
+      modalEl.classList.add('open');
+      void modalEl.offsetWidth;
+      modalEl.classList.add('whoosh-in');
+    }
+    function closeFloatingModal(modalEl){
+      if(!modalEl.classList.contains('open')) return;
+      clearFloatingModalTimers();
+      modalBackdrop.classList.remove('open');
+      modalEl.classList.add('whoosh-out');
+      floatingModalTimers.push(setTimeout(function(){
+        modalEl.classList.remove('open');
+        modalEl.classList.remove('whoosh-in');
+        modalEl.classList.remove('whoosh-out');
+      },420));
+    }
+    profileModalClose.addEventListener('click',function(){ closeFloatingModal(profileModal); });
+    helpModalClose.addEventListener('click',function(){ closeFloatingModal(helpModal); });
+    logoutModalCancel.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
+    logoutModalCancelBtn.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
+    logoutModalConfirm.addEventListener('click',function(){ closeFloatingModal(logoutModal); performLogout(); });
+    modalBackdrop.addEventListener('click',function(){
+      closeFloatingModal(profileModal); closeFloatingModal(helpModal); closeFloatingModal(logoutModal);
+    });
+    document.addEventListener('keydown',function(e){
+      if(e.key!=='Escape'||!aidaOverlayOpen) return;
+      if(profileModal.classList.contains('open')) closeFloatingModal(profileModal);
+      if(helpModal.classList.contains('open')) closeFloatingModal(helpModal);
+      if(logoutModal.classList.contains('open')) closeFloatingModal(logoutModal);
+    });
+
+    drNameBtn.addEventListener('click',function(){ openFloatingModal(logoutModal,drNameBtn); });
+    drNameBtn.addEventListener('keydown',function(e){
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openFloatingModal(logoutModal,drNameBtn); }
+    });
+
+    var toastTimer=null;
+    function showAidaToast(msg){
+      clearTimeout(toastTimer);
+      document.getElementById('aidaToastText').textContent=msg;
+      logoutToast.classList.remove('hide');
+      logoutToast.classList.add('show');
+      toastTimer=setTimeout(function(){ logoutToast.classList.remove('show'); logoutToast.classList.add('hide'); },2200);
+    }
+
+    function performLogout(){
+      showAidaToast('Signed out securely');
+      setTimeout(function(){ doLogout(); },900);
+    }
+
+    // "Messages" is the text alternative to the voice module — the same
+    // AIDA conversation, typed instead of spoken. Renders the real turn
+    // history (aidaMessages), not a preview of anything else.
+    function renderAidaMsgRows(){
+      var body=document.getElementById('aidaMsgBody');
+      if(!body) return;
+      if(!aidaMessages.length){
+        body.innerHTML='<div style="padding:24px 22px;color:var(--text-dim);font-size:13px">No messages yet — type below, or hold the mic to talk.</div>';
+        return;
+      }
+      body.innerHTML=aidaMessages.map(function(m){
+        var cls=m.role==='user'?'chat-msg chat-msg-user':'chat-msg chat-msg-assistant';
+        return '<div class="'+cls+'">'+esc(m.content||'')+'</div>';
+      }).join('');
+      body.scrollTop=body.scrollHeight;
+    }
+    function renderAidaProfile(){
+      var name=(currentUser&&currentUser.name)||'there';
+      var initials=String(name).trim().split(/\s+/).map(function(s){return s[0];}).join('').slice(0,2).toUpperCase()||'?';
+      document.getElementById('aidaProfileAvatar').textContent=initials;
+      document.getElementById('aidaProfileName').textContent=name;
+      document.getElementById('aidaProfileRole').textContent=(currentUser&&currentUser.role)||'';
+      document.getElementById('aidaProfileEmail').textContent=(currentUser&&currentUser.email)||'—';
+      document.getElementById('aidaProfileRole2').textContent=(currentUser&&currentUser.role)||'—';
+      document.getElementById('aidaProfileProject').textContent=(currentProject&&currentProject.name)||'—';
+    }
+
+    menuItems.forEach(function(el){
+      function handleActivate(){
+        var action=el.getAttribute('data-action');
+        closeMenu();
+        if(action==='profile'){ renderAidaProfile(); openFloatingModal(profileModal,el); }
+        else if(action==='help'){ openFloatingModal(helpModal,el); }
+        else if(action==='messages'){ renderAidaMsgRows(); openMessageModal(); }
+        else if(action==='logout'){ performLogout(); }
+      }
+      el.addEventListener('click',handleActivate);
+      el.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); handleActivate(); } });
+    });
+
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape'&&aidaOverlayOpen) closeMessageModal();
+    });
+
+    // Personalize header/logout copy with the real logged-in user, once.
+    var name=(currentUser&&currentUser.name)||'there';
+    drNameBtn.textContent=name;
+    var logoutCopy=document.getElementById('logoutCopy');
+    if(logoutCopy) logoutCopy.textContent='Are you sure you want to log out, '+name+'?';
+
+    // ── Hex background — mouse-proximity lighting, verbatim from the reference ──
+    (function(){
+      var svg=document.getElementById('hexBgSvg');
+      var hexes=[];
+      var R=24;
+      var LIGHT_RADIUS=130;
+      var LIGHT_RADIUS_SQ=LIGHT_RADIUS*LIGHT_RADIUS;
+      var mouseX=-9999, mouseY=-9999;
+      var rafPending=false;
+
+      function hexPoints(cx,cy,r){
+        var a=r*0.8660254, h=r*0.5;
+        return [[cx,cy-r],[cx+a,cy-h],[cx+a,cy+h],[cx,cy+r],[cx-a,cy+h],[cx-a,cy-h]]
+          .map(function(p){ return p[0].toFixed(2)+','+p[1].toFixed(2); }).join(' ');
+      }
+      function buildGrid(){
+        svg.innerHTML='';
+        hexes=[];
+        var w=window.innerWidth, h=window.innerHeight;
+        svg.setAttribute('width',w); svg.setAttribute('height',h);
+        svg.setAttribute('viewBox','0 0 '+w+' '+h);
+        var hexW=R*1.7320508, rowSpacing=R*1.5;
+        var rows=Math.ceil(h/rowSpacing)+3, cols=Math.ceil(w/hexW)+3;
+        var frag=document.createDocumentFragment();
+        for(var r=-1;r<=rows;r++){
+          var y=r*rowSpacing;
+          var xOffset=(r%2!==0)?hexW/2:0;
+          for(var c=-1;c<=cols;c++){
+            var x=c*hexW+xOffset;
+            var isRed=(Math.abs(r+c)%2===0);
+            var poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+            poly.setAttribute('points',hexPoints(x,y,R));
+            poly.setAttribute('stroke',isRed?'#B7252D':'#424242');
+            poly.setAttribute('class','bg-hex');
+            frag.appendChild(poly);
+            hexes.push({x:x,y:y,el:poly,lit:false});
+          }
+        }
+        svg.appendChild(frag);
+      }
+      function updateLighting(){
+        rafPending=false;
+        for(var i=0;i<hexes.length;i++){
+          var hx=hexes[i];
+          var dx=hx.x-mouseX, dy=hx.y-mouseY;
+          var near=(dx*dx+dy*dy)<=LIGHT_RADIUS_SQ;
+          if(near!==hx.lit){ hx.lit=near; if(near) hx.el.classList.add('lit'); else hx.el.classList.remove('lit'); }
+        }
+      }
+      function onMouseMove(e){
+        mouseX=e.clientX; mouseY=e.clientY;
+        if(!rafPending){ rafPending=true; requestAnimationFrame(updateLighting); }
+      }
+      function onMouseLeave(){
+        mouseX=-9999; mouseY=-9999;
+        if(!rafPending){ rafPending=true; requestAnimationFrame(updateLighting); }
+      }
+      var resizeTimer=null;
+      function onResize(){ clearTimeout(resizeTimer); resizeTimer=setTimeout(buildGrid,200); }
+      buildGrid();
+      document.addEventListener('mousemove',onMouseMove);
+      document.addEventListener('mouseleave',onMouseLeave);
+      window.addEventListener('resize',onResize);
+    })();
+
+    window._aidaHubOnClose=function(){
+      if(isOpen) closeMenu();
+      closeMessageModal();
+      closeFloatingModal(profileModal);
+      closeFloatingModal(helpModal);
+      closeFloatingModal(logoutModal);
+      if(isListening){ stopListening(); }
+    };
+    window._aidaHubOnLogout=function(){
+      connectionState='disconnected';
+      if(mediaStream){ mediaStream.getTracks().forEach(function(t){ t.stop(); }); mediaStream=null; }
+    };
+  };
+})();
+
+function _aidaHubRelTime(iso){
+  var d=new Date(iso), diffMin=Math.round((Date.now()-d.getTime())/60000);
+  if(!isFinite(diffMin)) return '';
+  if(diffMin<1) return 'now';
+  if(diffMin<60) return diffMin+'m';
+  if(diffMin<1440) return Math.round(diffMin/60)+'h';
+  return d.toLocaleDateString('en',{day:'2-digit',month:'short'});
+}
+
+// Idempotent — creates the launcher button and the (initially hidden) overlay
+// once per page load, the same "create on first use, no-op after" pattern
+// already used for the QR scanner FAB elsewhere in launchApp().
+// Builds the AIDA hub markup once — a straight port of the user's reference
+// index.html body (page-enter-fade, hex bg, backdrop, modal-backdrop, all
+// four modals, toast, stage/app-header/orbit-wrap/menu-items/conn-pill/
+// hints/footer) — and wires it up via _aidaHubInit(). Idempotent, same
+// "create on first use, no-op after" pattern already used for the QR
+// scanner FAB elsewhere in launchApp().
+function ensureAidaOverlay(){
+  if(!document.getElementById('aida-launcher-btn')){
+    const btn=document.createElement('button');
+    btn.id='aida-launcher-btn';btn.className='aida-launcher-btn';btn.title='Ask AIDA';
+    btn.innerHTML='<img class="aida-launcher-orb" src="/images/aida-logo.png" alt="AIDA">';
+    btn.onclick=()=>openAidaOverlay();
+    document.body.appendChild(btn);
   }
-  return aidaMessages.map(m=>`<div class="aida-msg aida-msg-${m.role}">${esc(m.content)}</div>`).join('');
+  if(!document.getElementById('aida-overlay')){
+    const ov=document.createElement('div');
+    ov.id='aida-overlay';ov.className='aida-overlay';
+    ov.innerHTML=`
+      <div class="page-enter-fade"></div>
+      <svg id="hexBgSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="backdrop" id="backdrop"></div>
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+
+      <div class="msg-modal" id="msgModal" role="dialog" aria-modal="true" aria-label="Messages">
+        <div class="msg-modal-header">
+          <span>Messages</span>
+          <button class="msg-modal-close" id="msgModalClose" aria-label="Close messages">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="msg-modal-body" id="aidaMsgBody"></div>
+        <div class="msg-modal-inputbar">
+          <input type="text" class="msg-input" id="aidaMsgInput" placeholder="Type a message to AIDA…" autocomplete="off">
+          <button class="msg-send-btn" id="aidaMsgSend" aria-label="Send" title="Send">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M13 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="floating-modal" id="profileModal" role="dialog" aria-modal="true" aria-label="Profile">
+        <div class="fm-header">
+          <div class="fm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></div>
+          <span class="fm-title">Profile</span>
+          <button class="fm-close" id="profileModalClose" aria-label="Close profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="fm-body">
+          <div class="profile-card">
+            <div class="profile-avatar" id="aidaProfileAvatar">?</div>
+            <div>
+              <div class="profile-name" id="aidaProfileName">—</div>
+              <div class="profile-role" id="aidaProfileRole">—</div>
+            </div>
+          </div>
+          <div class="profile-detail-row">
+            <span class="profile-detail-label">Email</span>
+            <span class="profile-detail-value" id="aidaProfileEmail">—</span>
+          </div>
+          <div class="profile-detail-row">
+            <span class="profile-detail-label">Role</span>
+            <span class="profile-detail-value" id="aidaProfileRole2">—</span>
+          </div>
+          <div class="profile-detail-row">
+            <span class="profile-detail-label">Project</span>
+            <span class="profile-detail-value" id="aidaProfileProject">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="floating-modal" id="helpModal" role="dialog" aria-modal="true" aria-label="Help">
+        <div class="fm-header">
+          <div class="fm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2.9-1.2 1.9"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg></div>
+          <span class="fm-title">Help</span>
+          <button class="fm-close" id="helpModalClose" aria-label="Close help">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="fm-body">
+          <div class="help-row">
+            <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></div>
+            <div><div class="help-title">Profile</div><div class="help-desc">View and manage your profile information.</div></div>
+          </div>
+          <div class="help-row">
+            <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H9l-4 4V5z"/></svg></div>
+            <div><div class="help-title">Messages</div><div class="help-desc">Preview your recent conversations.</div></div>
+          </div>
+          <div class="help-row">
+            <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2.9-1.2 1.9"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg></div>
+            <div><div class="help-title">Help</div><div class="help-desc">View a quick guide explaining the available features.</div></div>
+          </div>
+          <div class="help-row">
+            <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H5v14h4"/><path d="M13 12h8m0 0-3-3m3 3-3 3"/></svg></div>
+            <div><div class="help-title">Logout</div><div class="help-desc">Sign out of the application securely.</div></div>
+          </div>
+          <div class="help-row">
+            <div class="help-icon">🎙</div>
+            <div><div class="help-title">Talking to AIDA</div><div class="help-desc">Tap the center icon to connect, hold Space to talk, release to hear the reply.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="logoutToast">
+        <span class="toast-icon" id="aidaToastIcon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path d="M5 12l4.5 4.5L19 7"/></svg></span>
+        <span id="aidaToastText">Signed out securely</span>
+      </div>
+
+      <div class="floating-modal" id="logoutModal" role="dialog" aria-modal="true" aria-label="Log out">
+        <div class="fm-header">
+          <div class="fm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H5v14h4"/><path d="M13 12h8m0 0-3-3m3 3-3 3"/></svg></div>
+          <span class="fm-title">Log out</span>
+          <button class="fm-close" id="logoutModalCancel" aria-label="Cancel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="fm-body">
+          <p class="logout-copy" id="logoutCopy">Are you sure you want to log out?</p>
+          <div class="logout-actions">
+            <button class="logout-cancel-btn" id="logoutModalCancelBtn">Cancel</button>
+            <button class="primary-btn-sm" id="logoutModalConfirm">Log out</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="aida-close-btn" onclick="closeAidaOverlay()" title="Close"
+        style="position:absolute;top:16px;right:20px;width:36px;height:36px;border-radius:50%;border:1px solid #E4E2DE;background:#fff;color:#424242;font-size:15px;cursor:pointer;z-index:80;box-shadow:0 1px 4px rgba(0,0,0,.08)">✕</button>
+
+      <div class="stage">
+        <div class="app-header">
+          <svg viewBox="0 0 128 90" style="height:clamp(34px,6vh,70px);width:auto;margin-bottom:clamp(8px,2vh,18px)">
+            <rect x="2" y="2" width="124" height="86" rx="18" fill="#B7252D"/>
+            <text x="64" y="60" font-family="Arial, sans-serif" font-weight="900" font-size="48" fill="#fff" text-anchor="middle">OG</text>
+          </svg>
+          <div class="app-header-welcome">Welcome back</div>
+          <div class="app-header-name" id="drNameBtn" role="button" tabindex="0">there</div>
+        </div>
+
+        <div class="orbit-wrap" id="orbitWrap">
+          <div id="logoContainer"></div>
+
+          <div class="menu-item" data-pos="tr" data-side="right" role="menuitem" tabindex="-1" data-action="profile">
+            <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></div>
+            <div class="menu-pill"><span class="menu-label">Profile</span></div>
+          </div>
+          <div class="menu-item" data-pos="br" data-side="right" role="menuitem" tabindex="-1" data-action="messages">
+            <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h16v11H9l-4 4V5z"/></svg></div>
+            <div class="menu-pill"><span class="menu-label">Messages</span></div>
+          </div>
+          <div class="menu-item" data-pos="tl" data-side="left" role="menuitem" tabindex="-1" data-action="help">
+            <div class="menu-pill"><span class="menu-label">Help</span></div>
+            <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2.9-1.2 1.9"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg></div>
+          </div>
+          <div class="menu-item" data-pos="bl" data-side="left" role="menuitem" tabindex="-1" data-action="logout">
+            <div class="menu-pill"><span class="menu-label">Logout</span></div>
+            <div class="menu-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5H5v14h4"/><path d="M13 12h8m0 0-3-3m3 3-3 3"/></svg></div>
+          </div>
+        </div>
+
+        <div class="conn-pill" id="connPill">
+          <span class="conn-dot"></span>
+          <span id="connText">Tap to connect</span>
+        </div>
+
+        <div class="hint" id="hintText">Hold the icon for menu</div>
+        <div class="hint" id="voiceHintText">Press space to talk to Aida</div>
+        <div class="footer">&copy; OGPlus Services Pvt Limited</div>
+      </div>`;
+    document.body.appendChild(ov);
+    window._aidaHubInit();
+  }
+  document.getElementById('aida-launcher-btn').style.display='flex';
 }
 
-function toggleAidaVoiceMode(){
-  // Placeholder only, per brief scope ("voice support will be added, but
-  // build the architecture so it supports streaming speech later" — no
-  // speech wiring is implemented yet).
-  aidaVoiceMode=!aidaVoiceMode;
-  renderAida();
+// Closes the hub's own menu/modal first on Escape (handled inside
+// _aidaHubInit); only closes the whole overlay once nothing else is open,
+// so a single Escape never skips past whatever's on top.
+function _aidaEscHandler(e){
+  if(e.key!=='Escape') return;
+  const anythingElseOpen=document.querySelector('#aida-overlay .floating-modal.open, #aida-overlay .msg-modal.open, #aida-overlay .orbit-wrap.open');
+  if(anythingElseOpen) return;
+  closeAidaOverlay();
+}
+let _aidaEscBound=false;
+
+function openAidaOverlay(opts={}){
+  ensureAidaOverlay();
+  if(aidaOverlayOpen) return;
+  aidaOverlayOpen=true;
+  // Direct-link entry (skipPush): the browser is already sitting on .../aida
+  // with nothing meaningful to "go back" to, so treat the tenant root as the
+  // page underneath rather than the /aida URL itself.
+  _aidaPrevPath = opts.skipPush ? ('/'+(window.OGTRACK_SLUG||'')) : location.pathname;
+  if(!opts.skipPush){
+    const base=window.OGTRACK_HAS_SLUG?'/'+window.OGTRACK_SLUG:'';
+    const target=base+'/aida';
+    if(location.pathname!==target) history.pushState({aidaOverlay:true},'',target);
+  }
+  document.getElementById('aida-overlay').classList.add('open');
+  if(!_aidaEscBound){document.addEventListener('keydown',_aidaEscHandler);_aidaEscBound=true;}
+  // Kept for backend context continuity even though there's no visible
+  // history panel in this design — fire-and-forget.
+  if(!aidaHistoryLoaded){ aidaHistoryLoaded=true; loadAidaHistory(); }
 }
 
-// Builds the same context object described in the brief: current user,
-// role, tenant, company, current page/module/route — read from whatever
-// the app already has in memory (currentUser, currentView, currentProject),
-// never re-derived or guessed.
-function buildAidaContext(){
+function closeAidaOverlay(opts={}){
+  if(!aidaOverlayOpen) return;
+  aidaOverlayOpen=false;
+  document.getElementById('aida-overlay')?.classList.remove('open');
+  if(window._aidaHubOnClose) window._aidaHubOnClose();
+  if(!opts.skipPush){
+    const back=(_aidaPrevPath&&_aidaPrevPath!==location.pathname)?_aidaPrevPath:('/'+(window.OGTRACK_SLUG||''));
+    history.pushState({},'',back);
+  }
+}
+
+// Back/forward navigation should open/close the overlay to match the URL,
+// without pushing yet another history entry on top of the one the browser
+// just navigated to. Bound once at script load — not tied to login/logout,
+// since popstate can fire regardless of session state.
+if(!window._aidaPopstateBound){
+  window._aidaPopstateBound=true;
+  window.addEventListener('popstate',()=>{
+    const onAida=/\/aida\/?$/.test(location.pathname);
+    if(onAida&&!aidaOverlayOpen) openAidaOverlay({skipPush:true});
+    else if(!onAida&&aidaOverlayOpen) closeAidaOverlay({skipPush:true});
+  });
+}
+
+/* renderAidaOverlay() removed — the hub's markup is now built once by
+   ensureAidaOverlay() and mutated via classList toggles inside the
+   _aidaHubInit() IIFE, matching how the reference's own dashboard.js works
+   (no full re-render on every state change). */
+
+// The "page context" every route already knows how to fill in: which module/
+// route the user is on, their active project, and — where the current view
+// tracks one — the specific record they're looking at (sprint, bug, etc.),
+// so a follow-up like "what about this one" resolves without repeating
+// themselves. Read straight from whatever state the app already keeps in
+// memory for that view; never re-derived or guessed.
+function buildAidaPageContext(){
   return {
-    currentView,
-    currentModule: currentView, // 1:1 for now; a dedicated module-grouping concept can replace this later without changing the wire format
-    currentProject: currentProject||null,
+    route: _aidaPrevPath||location.pathname,
+    module: currentView,
+    project: currentProject ? {id:currentProject.id, name:currentProject.name} : null,
+    activeRecord: getAidaActiveRecord(),
   };
 }
 
-async function sendAidaMessage(){
-  const input=document.getElementById('aida-input');
-  const message=input?.value.trim();
-  if(!message||aidaBusy) return;
-  aidaMessages.push({role:'user',content:message});
-  input.value='';
-  aidaBusy=true;
-  renderAida();
-  try{
-    const r=await fetch('/api/aida/chat',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        message,
-        userId:currentUser.id,
-        userName:currentUser.name,
-        role:currentUser.role,
-        companyId:currentUser.companyId,
-        context:buildAidaContext(),
-      }),
-    });
-    const data=await r.json();
-    if(!r.ok) throw new Error(data.error||'AIDA could not respond right now.');
-    aidaMessages.push({role:'assistant',content:data.reply||'(no response)'});
-  }catch(e){
-    aidaMessages.push({role:'assistant',content:e.message||'Something went wrong — please try again.'});
-  }finally{
-    aidaBusy=false;
-    renderAida();
+function getAidaActiveRecord(){
+  if(currentView==='sprints'){
+    const id=_boardSprintId||_editSprintId;
+    if(!id) return null;
+    const s=sprints.find(x=>x.id===id);
+    return {type:'sprint', id, label:s?.name||null};
   }
+  if((currentView==='bugs'||currentView==='mybugs')&&openDetailId){
+    const b=bugs.find(x=>x.id===openDetailId);
+    return {type:'bug', id:openDetailId, label:b?.title||null};
+  }
+  if(currentView==='sub_tickets'&&_editSubTicketId){
+    const t=subTickets.find(x=>x.id===_editSubTicketId);
+    return {type:'sub_ticket', id:_editSubTicketId, label:t?.title||null};
+  }
+  if(currentView==='hr_jobs'&&_editJobId){
+    const j=hrJobs.find(x=>x.id===_editJobId);
+    return {type:'job', id:_editJobId, label:j?.title||null};
+  }
+  if(currentView==='hr_interviews'&&_editIntId){
+    return {type:'interview', id:_editIntId};
+  }
+  if(currentView==='messages'&&activeConvoId){
+    const c=conversations.find(x=>x.id===activeConvoId);
+    return {type:'conversation', id:activeConvoId, label:c?.name||null};
+  }
+  return null; // this view has no single "active record" concept — module/route context is still sent above
+}
+
+async function loadAidaHistory(){
+  try{
+    const r=await fetch('/api/aida/history');
+    if(!r.ok) return; // no history endpoint / nothing saved yet — start with an empty panel
+    const data=await r.json();
+    aidaMessages = Array.isArray(data?.messages) ? data.messages : (Array.isArray(data) ? data : []);
+  }catch(e){ /* keep whatever's already in memory */ }
+}
+
+// ── AIDA voice playback (ElevenLabs, streamed over the existing socket) ─────
+// Chunks arrive as { turnId, seq, isFinal, audioBase64, mimeType } on
+// 'aida:voice-chunk:<userId>' (this is a tenant client — the socket room is
+// shared by every user at the company, hence the per-user suffix). Playback
+// starts the instant chunk 0 is decoded — it never waits for isFinal — and
+// each chunk is scheduled to start exactly when the previous one ends, so
+// there's no gap or overlap. Out-of-order arrivals are buffered by seq and
+// drained in order.
+let _aidaVoiceCurrentTurnId=null; // the only turnId whose audio is allowed to play right now
+let _aidaVoiceCtx=null;
+let _aidaVoiceNextPlayTime=0; // scheduled end time of the last queued chunk, in the AudioContext's clock
+let _aidaVoiceBuffers={}; // turnId -> { nextSeq, pending: Map<seq, chunk>, finalSeq }
+
+function _aidaGetVoiceCtx(){
+  if(!_aidaVoiceCtx) _aidaVoiceCtx=new (window.AudioContext||window.webkitAudioContext)();
+  // Browsers only let an AudioContext actually produce sound once it's been
+  // resumed inside a real user gesture — a context first created later,
+  // asynchronously, when a voice chunk arrives over the socket (well after
+  // the click that triggered it) can otherwise sit "suspended" forever with
+  // no error, no sound, and nothing visibly wrong. resume() on an
+  // already-running context is a harmless no-op, so this is safe to call
+  // from anywhere, not just the one gesture-time call site below.
+  if(_aidaVoiceCtx.state==='suspended') _aidaVoiceCtx.resume().catch(()=>{});
+  return _aidaVoiceCtx;
+}
+function _aidaBase64ToArrayBuffer(b64){
+  const bin=atob(b64);
+  const bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function handleAidaVoiceChunk(chunk){
+  const {turnId,seq,isFinal,audioBase64}=chunk||{};
+  console.log('[AIDA voice] chunk received',{turnId,seq,isFinal,hasAudio:!!audioBase64,currentTurn:_aidaVoiceCurrentTurnId});
+  if(turnId==null||seq==null||!audioBase64) return;
+  // A newer message has already been sent since this turn started speaking —
+  // drop its remaining audio instead of letting it cross-play into the turn
+  // that superseded it.
+  if(turnId!==_aidaVoiceCurrentTurnId){
+    console.log('[AIDA voice] dropped — turnId does not match the current turn');
+    return;
+  }
+  if(!_aidaVoiceBuffers[turnId]) _aidaVoiceBuffers[turnId]={nextSeq:0,pending:new Map(),finalSeq:null};
+  const state=_aidaVoiceBuffers[turnId];
+  state.pending.set(seq,{audioBase64,isFinal});
+  if(isFinal) state.finalSeq=seq;
+  await _aidaDrainVoiceQueue(turnId);
+}
+
+async function _aidaDrainVoiceQueue(turnId){
+  const state=_aidaVoiceBuffers[turnId];
+  if(!state) return;
+  while(state.pending.has(state.nextSeq)){
+    const {audioBase64,isFinal}=state.pending.get(state.nextSeq);
+    state.pending.delete(state.nextSeq);
+    const seqJustPlayed=state.nextSeq;
+    state.nextSeq++;
+    await _aidaPlayVoiceChunk(turnId,audioBase64);
+    if(isFinal&&seqJustPlayed===state.finalSeq) _aidaScheduleSpeakingEnd(turnId);
+  }
+}
+
+async function _aidaPlayVoiceChunk(turnId,audioBase64){
+  try{
+    const ctx=_aidaGetVoiceCtx();
+    const audioBuf=await ctx.decodeAudioData(_aidaBase64ToArrayBuffer(audioBase64));
+    const src=ctx.createBufferSource();
+    src.buffer=audioBuf;
+    src.connect(ctx.destination);
+    const startAt=Math.max(ctx.currentTime,_aidaVoiceNextPlayTime);
+    src.start(startAt);
+    _aidaVoiceNextPlayTime=startAt+audioBuf.duration;
+    console.log('[AIDA voice] playing chunk',{turnId,audioContextState:ctx.state,startAt,duration:audioBuf.duration});
+    if(!aidaSpeaking&&turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=true; renderAidaOverlay(); }
+  }catch(e){ console.warn('[AIDA voice] chunk failed to decode/play:',e); /* one bad chunk shouldn't sink the rest of the turn */ }
+}
+
+function _aidaScheduleSpeakingEnd(turnId){
+  const ctx=_aidaGetVoiceCtx();
+  const msLeft=Math.max(0,(_aidaVoiceNextPlayTime-ctx.currentTime)*1000);
+  setTimeout(()=>{
+    if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; renderAidaOverlay(); }
+    delete _aidaVoiceBuffers[turnId];
+  },msLeft+30);
+}
+
+// If a turnId comes back but not one single chunk shows up within a
+// reasonable window, that's not a frontend timing issue anymore — it means
+// the backend accepted the request and simply never streamed anything for
+// it. Surface that plainly instead of leaving it looking like nothing
+// happened.
+function _aidaWatchForSilence(turnId){
+  setTimeout(()=>{
+    if(turnId===_aidaVoiceCurrentTurnId&&!_aidaVoiceBuffers[turnId]){
+      console.warn('[AIDA voice] no audio chunks arrived for turnId',turnId,'within 8s — the backend accepted the voice request but never streamed anything back for it.');
+    }
+  },8000);
+}
+
+// The text reply is already showing (delivered via the normal /chat
+// response) — a voice failure only ever cancels the "speaking" indicator,
+// it never hides or retracts the text.
+function handleAidaVoiceError({turnId,message}){
+  console.warn('[AIDA voice] backend reported a voice error:',message,'for turnId',turnId);
+  if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; renderAidaOverlay(); }
+  delete _aidaVoiceBuffers[turnId];
 }
 
 // Clears AIDA's server-side session memory on logout, matching the brief's
 // explicit requirement that memory must reset after logout and never
-// persist permanently. Best-effort — logout should never be blocked by this.
+// persist permanently. Best-effort, fired before the token is cleared (needs
+// the still-valid Authorization header) — logout should never be blocked by
+// this.
 async function clearAidaSessionOnLogout(){
+  closeAidaOverlay({skipPush:true});
+  const _btn=document.getElementById('aida-launcher-btn');
+  if(_btn) _btn.style.display='none';
+  if(window._aidaHubOnLogout) window._aidaHubOnLogout();
   if(!currentUser) return;
   try{
-    await fetch('/api/aida/clear-session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:currentUser.id})});
+    await fetch('/api/aida/session',{method:'DELETE'});
   }catch(e){ /* non-blocking */ }
   aidaMessages=[];
+  aidaHistoryLoaded=false;
 }
 </script>
 
