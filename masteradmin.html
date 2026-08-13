@@ -1258,6 +1258,7 @@ async function doLogin() {
     token = data.token;
     adminInfo = data.admin;
     localStorage.setItem('ma_token', token);
+    localStorage.setItem('ma_admin', JSON.stringify(adminInfo));
     showMain();
   } catch(e) {
     err.textContent = e.message;
@@ -1273,6 +1274,7 @@ function signOut() {
   clearAidaSessionOnLogout(); // fire-and-forget, needs the still-valid token — call before clearing it below
   token = null; adminInfo = null;
   localStorage.removeItem('ma_token');
+  localStorage.removeItem('ma_admin');
   document.getElementById('main-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
 }
@@ -2082,7 +2084,10 @@ function renderLogo(container) {
         }
         aidaMessages.push({role:'user',content:data.transcript||'(unrecognized)'});
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
-        showAidaToast(data.reply||'(no response)');
+        // No toast for the reply itself here — in voice mode the spoken
+        // reply IS the answer; flashing the transcript on screen too was
+        // redundant. Errors below still surface as a toast since there's
+        // no other feedback channel when the request fails outright.
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
       }catch(e){
         showAidaToast(e.message||'Something went wrong — please try again.');
@@ -2785,9 +2790,18 @@ async function clearAidaSessionOnLogout(){
     try {
       const r = await authFetch('/api/masteradmin/companies');
       if (r.ok) {
-        // Token still valid — parse admin name from JWT payload
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        adminInfo = { name: payload.name || 'Admin', email: payload.email };
+        // Token still valid — restore the real admin (name/email) saved at
+        // login time. Falls back to decoding the JWT payload only for a
+        // session that predates this fix (no ma_admin saved yet) — that
+        // payload may not carry a name claim at all, hence the literal
+        // 'Admin' placeholder in that fallback path only.
+        const stored = localStorage.getItem('ma_admin');
+        if (stored) {
+          adminInfo = JSON.parse(stored);
+        } else {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          adminInfo = { name: payload.name || 'Admin', email: payload.email };
+        }
         showMain();
         companies = await r.json();
         renderStats(); renderCompanies();

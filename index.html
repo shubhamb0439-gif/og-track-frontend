@@ -13002,7 +13002,10 @@ function renderLogo(container) {
         }
         aidaMessages.push({role:'user',content:data.transcript||'(unrecognized)'});
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
-        showAidaToast(data.reply||'(no response)');
+        // No toast for the reply itself here — in voice mode the spoken
+        // reply IS the answer; flashing the transcript on screen too was
+        // redundant. Errors below still surface as a toast since there's
+        // no other feedback channel when the request fails outright.
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
       }catch(e){
         showAidaToast(e.message||'Something went wrong — please try again.');
