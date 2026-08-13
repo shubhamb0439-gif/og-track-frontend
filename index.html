@@ -13018,9 +13018,25 @@ function renderLogo(container) {
       if(!aidaOverlayOpen) return; // AIDA isn't open — never steal Space from the rest of the app
       if(e.code!=='Space'&&e.key!==' ') return;
       if(e.repeat) return;
-      var tag=(e.target&&e.target.tagName)||'';
-      if(tag==='INPUT'||tag==='TEXTAREA'||(e.target&&e.target.isContentEditable)) return;
+      // Check the real focus target, not e.target — a keydown on document
+      // always reports document/body as e.target regardless of what's
+      // focused, so this must read document.activeElement to actually tell
+      // whether the user is typing somewhere (e.g. the Messages text input).
+      var ae=document.activeElement;
+      var tag=(ae&&ae.tagName)||'';
+      if(tag==='INPUT'||tag==='TEXTAREA'||(ae&&ae.isContentEditable)) return;
       e.preventDefault();
+      // Interrupt: if AIDA is currently speaking (or has chunks/filler still
+      // arriving for the turn that's in flight), cut local playback right
+      // now and tell the backend to stop sending more for it, then start
+      // recording immediately — same as a plain mic press otherwise. If
+      // AIDA is still just "thinking" (no chunks have arrived yet) there's
+      // nothing to interrupt, so this falls straight through to startListening().
+      var turnId=_aidaVoiceCurrentTurnId;
+      var isSpeakingNow=turnId!=null&&(aidaSpeaking||!!_aidaVoiceBuffers[turnId]);
+      if(isSpeakingNow){
+        _aidaCancelVoiceTurn(_aidaStopVoicePlayback());
+      }
       startListening();
     }
     function onSpaceUp(e){
@@ -13546,6 +13562,7 @@ let _aidaVoiceCurrentTurnId=null; // the only turnId whose audio is allowed to p
 let _aidaVoiceCtx=null;
 let _aidaVoiceNextPlayTime=0; // scheduled end time of the last queued chunk, in the AudioContext's clock
 let _aidaVoiceBuffers={}; // turnId -> { nextSeq, pending: Map<seq, chunk>, finalSeq }
+let _aidaActiveVoiceSources=[]; // AudioBufferSourceNodes currently playing or scheduled — stopped instantly on interrupt
 
 function _aidaGetVoiceCtx(){
   if(!_aidaVoiceCtx) _aidaVoiceCtx=new (window.AudioContext||window.webkitAudioContext)();
@@ -13607,8 +13624,10 @@ async function _aidaPlayVoiceChunk(turnId,audioBase64){
     const startAt=Math.max(ctx.currentTime,_aidaVoiceNextPlayTime);
     src.start(startAt);
     _aidaVoiceNextPlayTime=startAt+audioBuf.duration;
+    _aidaActiveVoiceSources.push(src);
+    src.onended=function(){ const i=_aidaActiveVoiceSources.indexOf(src); if(i>=0) _aidaActiveVoiceSources.splice(i,1); };
     console.log('[AIDA voice] playing chunk',{turnId,audioContextState:ctx.state,startAt,duration:audioBuf.duration});
-    if(!aidaSpeaking&&turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=true; renderAidaOverlay(); }
+    if(!aidaSpeaking&&turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=true; }
   }catch(e){ console.warn('[AIDA voice] chunk failed to decode/play:',e); /* one bad chunk shouldn't sink the rest of the turn */ }
 }
 
@@ -13616,9 +13635,32 @@ function _aidaScheduleSpeakingEnd(turnId){
   const ctx=_aidaGetVoiceCtx();
   const msLeft=Math.max(0,(_aidaVoiceNextPlayTime-ctx.currentTime)*1000);
   setTimeout(()=>{
-    if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; renderAidaOverlay(); }
+    if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; }
     delete _aidaVoiceBuffers[turnId];
   },msLeft+30);
+}
+
+// Space-bar interrupt: stop whatever's currently playing/queued for the
+// active turn RIGHT NOW, client-side only — no waiting on a network round
+// trip, so it feels instant. Returns the turnId that was interrupted (or
+// null if nothing was in flight), for the caller to tell the backend about
+// separately via _aidaCancelVoiceTurn().
+function _aidaStopVoicePlayback(){
+  _aidaActiveVoiceSources.forEach(function(src){ try{ src.stop(); }catch(e){} });
+  _aidaActiveVoiceSources=[];
+  if(_aidaVoiceCtx) _aidaVoiceNextPlayTime=_aidaVoiceCtx.currentTime;
+  const interruptedTurnId=_aidaVoiceCurrentTurnId;
+  delete _aidaVoiceBuffers[interruptedTurnId];
+  _aidaVoiceCurrentTurnId=null;
+  aidaSpeaking=false;
+  return interruptedTurnId;
+}
+
+function _aidaCancelVoiceTurn(turnId){
+  if(turnId==null) return;
+  // Fire-and-forget — the local cut in _aidaStopVoicePlayback() has already
+  // made the interrupt feel instant regardless of how long this takes.
+  fetch('/api/aida/voice-cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({turnId})}).catch(function(){});
 }
 
 // If a turnId comes back but not one single chunk shows up within a
@@ -13639,7 +13681,7 @@ function _aidaWatchForSilence(turnId){
 // it never hides or retracts the text.
 function handleAidaVoiceError({turnId,message}){
   console.warn('[AIDA voice] backend reported a voice error:',message,'for turnId',turnId);
-  if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; renderAidaOverlay(); }
+  if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; }
   delete _aidaVoiceBuffers[turnId];
 }
 
