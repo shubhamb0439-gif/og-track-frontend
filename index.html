@@ -3034,6 +3034,7 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group" style="max-width:140px"><label>Short Code * <span style="font-size:11px;color:var(--g3)">(used in Bug IDs)</span></label><input type="text" id="pm-code" placeholder="e.g. XR" maxlength="5" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'');this.dataset.userEdited='true'"></div>
       </div>
       <div class="form-row full"><div class="form-group"><label>Description</label><textarea id="pm-desc" placeholder="What is this project about?" style="min-height:55px"></textarea></div></div>
+      <div class="form-row"><div class="form-group" style="max-width:220px"><label>Estimated Completion Date</label><input type="date" id="pm-est-date"></div></div>
       <!-- Managers always shown -->
       <div class="form-row full"><div class="form-group"><label>Assign Managers</label><div class="multi-select" id="pm-managers"></div></div></div>
       <!-- Devs and Testers: shown to manager, hidden for superadmin (manager assigns them) -->
@@ -3326,6 +3327,13 @@ let allUsers       = [];
 let allProjects    = [];
 let allCustomRoles = [];
 
+// Single source of truth for the app's built-in (non-custom) roles and the
+// admin-tier roles among them. Previously hand-duplicated with drifting
+// contents across launchApp()/buildSidebar()/renderDashboard().
+const BUILTIN_ROLES = ['masteradmin','superadmin','manager','developer','tester','senior_accountant','accountant','accounts_manager','hr','intern'];
+const ADMIN_ROLES = ['masteradmin','superadmin'];
+function isAdminRole(role){ return ADMIN_ROLES.includes(role); }
+
 // Applies the masteradmin-configured hexagon background watermark for the
 // current company, if enabled. Called once at bootstrap (from the branding
 // IIFE, if the function is already defined by then) and again here at
@@ -3377,6 +3385,7 @@ let dashFilter     = null;
 let dashSeverity   = '';
 let dashStatus     = '';
 let dashComponent  = '';
+let dashProject    = '';
 let searchQuery    = '';
 let tableSearch    = '';
 let histSearch     = '';
@@ -3724,7 +3733,7 @@ async function launchApp(){
     document.getElementById('sp-name').textContent=currentProject.name;
     document.getElementById('content-area').innerHTML='<div class="loading">Loading bugs...</div>';
     await loadBugs();
-  } else if(!['masteradmin','superadmin','manager','developer','tester'].includes(currentUser.role) && !(allCustomRoles.find(r=>r.id===currentUser.role||r.name===currentUser.role)?.permissions||[]).includes('projects')){
+  } else if(!BUILTIN_ROLES.includes(currentUser.role) && !(allCustomRoles.find(r=>r.id===currentUser.role||r.name===currentUser.role)?.permissions||[]).includes('projects')){
     // A custom role without the 'projects' permission has no business being
     // funneled into the Projects/Bugs picker flow at all — that flow (and
     // its "No projects assigned yet" message) only makes sense for roles
@@ -3778,12 +3787,11 @@ async function launchApp(){
 
 function buildSidebar(){
   const role=currentUser.role;
-  const BUILTIN_ROLES=['masteradmin','superadmin','manager','developer','tester','senior_accountant','accountant','accounts_manager','hr','intern'];
   let navItems;
   if(BUILTIN_ROLES.includes(role)){
     const items={
       masteradmin:      [['companies','Companies','#C0392B'],['company_modules','Modules','#8E44AD'],['admin','User Management','#D0D0D0'],['messages','Messages','#E74C3C']],
-      superadmin:       [['ceo_dashboard','Exec Dashboard','#C0392B'],['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      superadmin:       [['ceo_dashboard','Dashboard','#C0392B'],['admin_bugs','All Bugs','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       tester:           [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['bugs','All Bugs','#7F7F7F'],['mybugs','My Bugs','#D0D0D0'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       developer:        [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['mybugs','My Bugs','#7F7F7F'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
@@ -3803,7 +3811,16 @@ function buildSidebar(){
       // system entirely. Ops Dashboard is NOT included here: it's a real,
       // masteradmin-toggleable module like Sales/Inventory/Manufacturing,
       // gated normally below.
-      const alwaysOnNavKeys=['dashboard','attendance','history','messages'];
+      // ceo_dashboard/admin_bugs are superadmin's own Dashboard/All Bugs nav
+      // keys — kept distinct from the generic 'dashboard' key (which every
+      // other role's Dashboard entry uses) so superadmin's Dashboard always
+      // renders the Exec Dashboard rather than the shared generic view. But
+      // no company's stored module list has ever contained those two exact
+      // strings (masteradmin's Module Manager only exposes 'dashboard'), so
+      // without this exemption they were being silently dropped from the
+      // sidebar entirely for every tenant, same as 'dashboard' would be if
+      // it weren't already in this list.
+      const alwaysOnNavKeys=['dashboard','ceo_dashboard','admin_bugs','attendance','history','messages'];
       navItems=navItems.filter(item=>{
         if(item&&item.group) return allowed.includes(groupModuleKey[item.group]||item.group);
         return alwaysOnNavKeys.includes(item[0])||allowed.includes(item[0]);
@@ -4051,7 +4068,7 @@ function renderNotifList(){
   el.innerHTML=notifications.map(n=>`<div class="notif-item ${n.read?'':'unread'}"><div class="notif-icon">${n.icon}</div><div class="notif-body"><p>${n.msg}</p><div class="time">${fmt(n.time)}</div></div></div>`).join('');
 }
 function markAllRead(){notifications.forEach(n=>n.read=true);renderNotifBadge();renderNotifList();}
-function searchMatch(b,q){return[b.id,b.title,b.component,b.reporter,b.assignee,b.status,b.severity,b.projectName].some(v=>v?.toLowerCase().includes(q));}
+function searchMatch(b,q){return[b.id,b.title,b.extra?.component,b.reporter,b.assignee,b.status,b.extra?.severity,b.projectName].some(v=>v?.toLowerCase().includes(q));}
 
 // ── Views ─────────────────────────────────────────────────────────────────────
 function showView(v){
@@ -4069,7 +4086,7 @@ function showView(v){
   document.querySelectorAll('.nav-group').forEach(g=>{
     if(g.querySelector('#nav-'+v)) g.classList.add('open');
   });
-  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries'}[v]||v;
+  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',admin_bugs:'All Bugs',bugs:'All Bugs',mybugs:'My Bugs',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries'}[v]||v;
   document.getElementById('filter-bar').style.display=(v==='bugs'||v==='mybugs')?'flex':'none';
   // Animate content area on tab switch
   const ca = document.getElementById('content-area');
@@ -4098,6 +4115,7 @@ function renderView(){
   if(currentView==='history')    return renderHistory();
   if(currentView==='messages')   return renderMessages();
   if(currentView==='dashboard')  return renderDashboard();
+  if(currentView==='admin_bugs') return renderAdminBugs();
   if(currentView==='attendance')  return renderAttendance();
   if(currentView==='roles')       return renderRoles();
   if(currentView==='acc_clients') return renderAccClients();
@@ -4138,7 +4156,6 @@ function renderDashboard(){
   // Manufacturing-only Administrative Assistant role. Show them Ops
   // Dashboard content instead, which is actually relevant to what they can
   // access.
-  const BUILTIN_ROLES=['masteradmin','superadmin','manager','developer','tester','senior_accountant','accountant','accounts_manager','hr','intern'];
   if(!BUILTIN_ROLES.includes(role)){
     const cr=allCustomRoles.find(r=>r.id===role||r.name===role);
     const perms=cr?.permissions||[];
@@ -4159,17 +4176,18 @@ function renderDashboard(){
   let stats='';
   if(role==='developer') stats=`<div class="stats-grid">${card('Assigned',base.length,'grey','')}${card('Open',open,'red','Open')}${card('In Progress',prog,'grey','In Progress')}${card('Resolved',fixed,'grey','Resolved')}</div>`;
   else if(role==='tester') stats=`<div class="stats-grid">${card('Raised',base.length,'grey','')}${card('Open',open,'red','Open')}${card('Retest',fixed,'grey','Resolved')}${card('Closed',closed,'grey','Closed')}</div>`;
+  else if(isAdminRole(role)||role==='manager') stats=`<h3 style="margin:0 0 10px">${role==='manager'?'Team':'Admin'} Overview — All Projects</h3><div class="stats-grid">${card('Total',bugs.length,'grey','')}${card('Open',bugs.filter(b=>b.status==='Open').length,'red','Open')}${card('In Progress',bugs.filter(b=>b.status==='In Progress').length,'grey','In Progress')}${card('Closed',bugs.filter(b=>b.status==='Closed').length,'grey','Closed')}</div>`;
   else stats=`<div class="stats-grid">${card('Total',bugs.length,'grey','')}${card('Open',bugs.filter(b=>b.status==='Open').length,'red','Open')}${card('In Progress',bugs.filter(b=>b.status==='In Progress').length,'grey','In Progress')}${card('Closed',bugs.filter(b=>b.status==='Closed').length,'grey','Closed')}</div>`;
 
   let filtered=[...base];
   if(dashFilter){const parts=dashFilter.split('|');filtered=filtered.filter(b=>parts.includes(b.status)||(parts.includes('Resolved')&&b.status==='Fixed'));}
-  if(dashSeverity)  filtered=filtered.filter(b=>b.severity===dashSeverity);
+  if(dashSeverity)  filtered=filtered.filter(b=>b.extra?.severity===dashSeverity);
   if(dashStatus)    filtered=filtered.filter(b=>dashStatus==='Resolved'?(b.status==='Resolved'||b.status==='Fixed'):b.status===dashStatus);
-  if(dashComponent) filtered=filtered.filter(b=>b.component===dashComponent);
+  if(dashComponent) filtered=filtered.filter(b=>b.extra?.component===dashComponent);
   if(searchQuery){const q=searchQuery.toLowerCase();filtered=filtered.filter(b=>searchMatch(b,q));}
 
   // Get unique components from bugs for filter
-  const allComponents = [...new Set(base.map(b=>b.component).filter(Boolean))].sort();
+  const allComponents = [...new Set(base.map(b=>b.extra?.component).filter(Boolean))].sort();
 
   const hasFilter = searchQuery||dashFilter||dashSeverity||dashStatus||dashComponent;
   document.getElementById('content-area').innerHTML=stats+`
@@ -4211,7 +4229,7 @@ function renderDashboard(){
             return `<tr onclick="viewBug('${b.id}')" style="cursor:pointer">
               <td style="color:var(--g3);font-size:11px;white-space:nowrap">${b.id}</td>
               <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.title}</td>
-              <td class="hide-mobile">${b.component}</td>
+              <td class="hide-mobile">${b.extra?.component}</td>
               <td><span class="${badgeClass('status',b.status)}">${b.status}</span></td>
               <td class="hide-mobile" style="font-size:12px">${testerEntry?testerEntry.action+' by '+testerEntry.who:'—'}</td>
               <td class="hide-mobile" style="font-size:11px;color:var(--g3)">${testerEntry?fmt(testerEntry.when).split(',')[0]:'—'}</td>
@@ -4232,17 +4250,74 @@ function renderDashboard(){
         </div>`;
     })():''}`;
 }
-function setDashFilter(v){dashFilter=dashFilter===v?null:v;renderDashboard();}
+function setDashFilter(v){dashFilter=dashFilter===v?null:v;renderView();}
 let _dashSearchTimer;
 function onDashSearch(v){
   searchQuery=v;
   clearTimeout(_dashSearchTimer);
   _dashSearchTimer=setTimeout(()=>{
-    renderDashboard();
+    renderView();
     requestAnimationFrame(()=>{const i=document.getElementById('dash-search');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}});
   },220);
 }
-function clearDash(){dashFilter=null;searchQuery='';dashSeverity='';dashStatus='';dashComponent='';renderDashboard();}
+function clearDash(){dashFilter=null;searchQuery='';dashSeverity='';dashStatus='';dashComponent='';dashProject='';renderView();}
+
+// ── Admin (superadmin) all-bugs view ─────────────────────────────────────────
+// A dedicated view/currentView key so the Admin's second nav entry never
+// shares a route with Manager's/Tester's/Developer's own "Dashboard" —
+// visiting it can never render (or be mistaken for) another role's landing
+// page, unlike the old setup where Admin's second entry also pointed at the
+// generic shared 'dashboard' view.
+function renderAdminBugs(){
+  function card(label,val,colorClass,fv){
+    const active=dashFilter===fv;
+    return `<div class="stat-card clickable${active?' active':''}" onclick="setDashFilter('${fv}')"><div class="label">${label}</div><div class="value ${colorClass}">${val}</div></div>`;
+  }
+  const stats=`<h3 style="margin:0 0 10px">Admin Overview — All Projects</h3><div class="stats-grid">${card('Total',bugs.length,'grey','')}${card('Open',bugs.filter(b=>b.status==='Open').length,'red','Open')}${card('In Progress',bugs.filter(b=>b.status==='In Progress').length,'grey','In Progress')}${card('Closed',bugs.filter(b=>b.status==='Closed').length,'grey','Closed')}</div>`;
+
+  let filtered=[...bugs];
+  if(dashFilter){const parts=dashFilter.split('|');filtered=filtered.filter(b=>parts.includes(b.status)||(parts.includes('Resolved')&&b.status==='Fixed'));}
+  if(dashSeverity)  filtered=filtered.filter(b=>b.extra?.severity===dashSeverity);
+  if(dashStatus)    filtered=filtered.filter(b=>dashStatus==='Resolved'?(b.status==='Resolved'||b.status==='Fixed'):b.status===dashStatus);
+  if(dashComponent) filtered=filtered.filter(b=>b.extra?.component===dashComponent);
+  if(dashProject)   filtered=filtered.filter(b=>b.projectName===dashProject);
+  if(searchQuery){const q=searchQuery.toLowerCase();filtered=filtered.filter(b=>searchMatch(b,q));}
+
+  const allComponents = [...new Set(bugs.map(b=>b.extra?.component).filter(Boolean))].sort();
+  const allProjectNames = [...new Set(bugs.map(b=>b.projectName).filter(Boolean))].sort();
+  const hasFilter = searchQuery||dashFilter||dashSeverity||dashStatus||dashComponent||dashProject;
+  document.getElementById('content-area').innerHTML=stats+`
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <input type="text" id="dash-search" placeholder="Search ID, title, assignee..." value="${searchQuery}"
+        oninput="onDashSearch(this.value)"
+        style="flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit">
+      <select id="dash-proj" onchange="dashProject=this.value;renderView()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
+        <option value="">All Projects</option>
+        ${allProjectNames.map(p=>`<option value="${p}" ${dashProject===p?'selected':''}>${p}</option>`).join('')}
+      </select>
+      <select id="dash-sev" onchange="dashSeverity=this.value;renderView()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
+        <option value="">All Severity</option>
+        <option value="Critical" ${dashSeverity==='Critical'?'selected':''}>Critical</option>
+        <option value="High"     ${dashSeverity==='High'?'selected':''}>High</option>
+        <option value="Medium"   ${dashSeverity==='Medium'?'selected':''}>Medium</option>
+        <option value="Low"      ${dashSeverity==='Low'?'selected':''}>Low</option>
+      </select>
+      <select id="dash-sta" onchange="dashStatus=this.value;renderView()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
+        <option value="">All Status</option>
+        <option value="Open"        ${dashStatus==='Open'?'selected':''}>Open</option>
+        <option value="In Progress" ${dashStatus==='In Progress'?'selected':''}>In Progress</option>
+        <option value="Resolved"     ${dashStatus==='Resolved'?'selected':''}>Resolved</option>
+        <option value="Closed"      ${dashStatus==='Closed'?'selected':''}>Closed</option>
+        <option value="Wont Fix"    ${dashStatus==='Wont Fix'?'selected':''}>Wont Fix</option>
+      </select>
+      <select id="dash-comp" onchange="dashComponent=this.value;renderView()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
+        <option value="">All Components</option>
+        ${allComponents.map(c=>`<option value="${c}" ${dashComponent===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+      <button id="dash-clear-btn" class="clear-btn" onclick="clearDash()" style="display:${hasFilter?'inline-block':'none'}">✕ Clear</button>
+    </div>
+    <div class="table-wrap"><div class="table-toolbar"><h3>${filtered.length} bug${filtered.length!==1?'s':''}</h3></div><div class="table-scroll">${tableHTML(filtered,true)}</div></div>`;
+}
 
 // ── Bug Table ─────────────────────────────────────────────────────────────────
 function renderBugTable(){
@@ -4253,7 +4328,7 @@ function renderBugTable(){
   const fs=document.getElementById('filter-status')?.value;
   const fv=document.getElementById('filter-sev')?.value;
   if(fs) data=data.filter(b=>fs==='Resolved'?(b.status==='Resolved'||b.status==='Fixed'):b.status===fs);
-  if(fv) data=data.filter(b=>b.severity===fv);
+  if(fv) data=data.filter(b=>b.extra?.severity===fv);
   if(tableSearch){const q=tableSearch.toLowerCase();data=data.filter(b=>searchMatch(b,q));}
   document.getElementById('content-area').innerHTML=`
     <div class="search-bar">
@@ -4294,9 +4369,9 @@ function tableHTML(data,showProject=false){
     ${data.map(b=>`<tr onclick="viewBug('${b.id}')" style="cursor:pointer">
       <td style="color:var(--g3);font-size:11px;white-space:nowrap">${b.id}</td>
       <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${b.title}</td>
-      <td class="hide-mobile">${b.component}</td>
+      <td class="hide-mobile">${b.extra?.component}</td>
       ${showProject?`<td class="hide-mobile" style="font-size:11px;color:var(--g3)">${b.projectName||'—'}</td>`:''}
-      <td><span class="${badgeClass('sev',b.severity)}">${b.severity}</span></td>
+      <td><span class="${badgeClass('sev',b.extra?.severity)}">${b.extra?.severity}</span></td>
       <td><span class="${badgeClass('status',b.status)}">${b.status}</span></td>
       <td class="hide-mobile">${b.reporter}</td>
       <td class="hide-mobile">${b.assignee||'<span style="color:var(--g4)">—</span>'}</td>
@@ -4325,6 +4400,7 @@ function renderProjects(){
         <div class="pcard-name">${p.name}</div>
       </div>
       <div class="pcard-desc">${p.description||'No description'}</div>
+      ${p.estimatedCompletion?`<div style="font-size:11px;color:var(--g3);margin-bottom:8px">🗓 Est. completion: ${new Date(p.estimatedCompletion).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div>`:''}
       <div class="pcard-stats">
         <span class="pcard-stat pcard-open">${pb.filter(b=>b.status==='Open').length} open</span>
         <span class="pcard-stat pcard-prog">${pb.filter(b=>b.status==='In Progress').length} in progress</span>
@@ -4367,6 +4443,7 @@ function openProjectModal(){
   codeEl.removeAttribute('data-user-edited');
   codeEl.readOnly=false;
   document.getElementById('pm-desc').value='';
+  document.getElementById('pm-est-date').value='';
   setupProjectModalForRole([],[],[]);
   document.getElementById('project-modal').classList.add('open');
 }
@@ -4380,6 +4457,7 @@ function editProject(id){
   codeEl.dataset.userEdited='true';
   codeEl.readOnly=!!p.shortCode; // lock if already set (bugs use this prefix)
   document.getElementById('pm-desc').value=p.description||'';
+  document.getElementById('pm-est-date').value=p.estimatedCompletion?p.estimatedCompletion.slice(0,10):'';
   setupProjectModalForRole(p.developers||[],p.testers||[],p.managers||[]);
   document.getElementById('project-modal').classList.add('open');
 }
@@ -4452,6 +4530,7 @@ async function saveProject(){
   if(!name){showToast('Project name is required','alert');return;}
   const shortCode=document.getElementById('pm-code').value.trim().toUpperCase();
   if(!shortCode){showToast('Short Code is required (e.g. XR, VS)','alert');return;}
+  const estimatedCompletion=document.getElementById('pm-est-date').value||null;
 
   let payload;
   if(currentUser.role==='superadmin'){
@@ -4461,6 +4540,7 @@ async function saveProject(){
       name,
       shortCode,
       description:document.getElementById('pm-desc').value,
+      estimatedCompletion,
       managers:getChecked('pm-managers'),
       // Preserve existing devs/testers if editing
       developers:existing?.developers||[],
@@ -4472,6 +4552,7 @@ async function saveProject(){
       name,
       shortCode,
       description:document.getElementById('pm-desc').value,
+      estimatedCompletion,
       developers:getChecked('pm-devs'),
       testers:getChecked('pm-testers'),
       managers:getChecked('pm-managers'),
@@ -4706,18 +4787,19 @@ async function saveBug(){
 
 function openEditBugModal(id){
   const bug=bugs.find(b=>b.id===id);if(!bug)return;
+  closeModal('detail-modal');openDetailId=null;
   document.getElementById('new-bug-modal').querySelector('h2').textContent='Edit Bug';
   document.querySelector('#new-bug-modal .btn-primary').textContent='Save Changes';
   document.querySelector('#new-bug-modal .btn-primary').onclick=()=>updateBug(id);
   document.getElementById('f-title').value=bug.title||'';
-  document.getElementById('f-component').value=bug.component||'';
+  document.getElementById('f-component').value=bug.extra?.component||'';
   document.getElementById('f-desc').value=bug.description||'';
-  document.getElementById('f-steps').value=bug.steps||'';
-  document.getElementById('f-expected').value=bug.expected||'';
-  document.getElementById('f-actual').value=bug.actual||'';
-  document.getElementById('f-severity').value=bug.severity||'High';
-  document.getElementById('f-priority').value=bug.priority||'High';
-  document.getElementById('f-repro-rate').value=bug.reproRate||'';
+  document.getElementById('f-steps').value=bug.extra?.steps||'';
+  document.getElementById('f-expected').value=bug.extra?.expected||'';
+  document.getElementById('f-actual').value=bug.extra?.actual||'';
+  document.getElementById('f-severity').value=bug.extra?.severity||'High';
+  document.getElementById('f-priority').value=bug.extra?.priority||'High';
+  document.getElementById('f-repro-rate').value=bug.extra?.reproRate||'';
   document.getElementById('f-reporter').value=bug.reporter||'';
   document.getElementById('f-project').value=bug.projectName||'—';
   const devs=allUsers.filter(u=>u.role==='developer'&&u.status==='active');
@@ -4783,23 +4865,23 @@ function viewBug(id){
       <div class="detail-grid">
         <div class="detail-field"><div class="dl">Project</div><div class="dv">${bug.projectName||'—'}</div></div>
         <div class="detail-field"><div class="dl">Status</div><div class="dv"><span class="${badgeClass('status',bug.status)}">${bug.status}</span></div></div>
-        <div class="detail-field"><div class="dl">Severity</div><div class="dv"><span class="${badgeClass('sev',bug.severity)}">${bug.severity}</span></div></div>
-        <div class="detail-field"><div class="dl">Priority</div><div class="dv"><span class="${badgeClass('sev',bug.priority)}">${bug.priority}</span></div></div>
-        <div class="detail-field"><div class="dl">Component</div><div class="dv">${bug.component}</div></div>
+        <div class="detail-field"><div class="dl">Severity</div><div class="dv"><span class="${badgeClass('sev',bug.extra?.severity)}">${bug.extra?.severity}</span></div></div>
+        <div class="detail-field"><div class="dl">Priority</div><div class="dv"><span class="${badgeClass('sev',bug.extra?.priority)}">${bug.extra?.priority}</span></div></div>
+        <div class="detail-field"><div class="dl">Component</div><div class="dv">${bug.extra?.component}</div></div>
         <div class="detail-field"><div class="dl">Assigned To</div><div class="dv">${bug.assignee||'Unassigned'}</div></div>
         <div class="detail-field"><div class="dl">Reporter</div><div class="dv">${bug.reporter}</div></div>
-        <div class="detail-field"><div class="dl">Repro Rate</div><div class="dv">${isTesterCapable?`<select onchange="patchBug('${bug.id}',{reproRate:this.value,updatedAt:new Date().toISOString()})" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px"><option value="">— Select —</option>${['100%','80%','60%','40%','20%','10%','Once'].map(o=>`<option${bug.reproRate===o?' selected':''}>${o}</option>`).join('')}</select>`:bug.reproRate||'<span style="color:var(--g4)">—</span>'}</div></div>
+        <div class="detail-field"><div class="dl">Repro Rate</div><div class="dv">${isTesterCapable?`<select onchange="patchBug('${bug.id}',{reproRate:this.value,updatedAt:new Date().toISOString()})" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px"><option value="">— Select —</option>${['100%','80%','60%','40%','20%','10%','Once'].map(o=>`<option${bug.extra?.reproRate===o?' selected':''}>${o}</option>`).join('')}</select>`:bug.extra?.reproRate||'<span style="color:var(--g4)">—</span>'}</div></div>
         <div class="detail-field"><div class="dl">Created</div><div class="dv" style="font-size:12px">${fmt(bug.createdAt)}</div></div>
         ${bug.resolvedAt?`<div class="detail-field"><div class="dl">Resolved</div><div class="dv" style="font-size:12px">${fmt(bug.resolvedAt)}</div></div>`:''}
         ${bug.retestedAt?`<div class="detail-field"><div class="dl">Retested</div><div class="dv" style="font-size:12px">${fmt(bug.retestedAt)}</div></div>`:''}
       </div>
     </div>
     <div class="detail-section"><h4>Description</h4><p style="font-size:13px;line-height:1.6">${bug.description||'—'}</p></div>
-    <div class="detail-section"><h4>Steps to reproduce</h4><pre style="font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--g2)">${bug.steps||'—'}</pre></div>
+    <div class="detail-section"><h4>Steps to reproduce</h4><pre style="font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--g2)">${bug.extra?.steps||'—'}</pre></div>
     <div class="detail-section"><h4>Expected vs Actual</h4>
       <div class="detail-grid">
-        <div class="detail-field"><div class="dl">Expected</div><div class="dv">${bug.expected||'—'}</div></div>
-        <div class="detail-field"><div class="dl">Actual</div><div class="dv">${bug.actual||'—'}</div></div>
+        <div class="detail-field"><div class="dl">Expected</div><div class="dv">${bug.extra?.expected||'—'}</div></div>
+        <div class="detail-field"><div class="dl">Actual</div><div class="dv">${bug.extra?.actual||'—'}</div></div>
       </div>
     </div>
     <div class="detail-section"><h4>Fix summary</h4>
@@ -5004,7 +5086,7 @@ async function deleteBug(id, silent=false){
 function renderHistory(){
   let allEntries=[];
   bugs.forEach(bug=>{
-    (bug.audit||[]).forEach(e=>allEntries.push({...e,bugId:bug.id,bugTitle:bug.title,bugStatus:bug.status,bugComponent:bug.component,projectName:bug.projectName}));
+    (bug.audit||[]).forEach(e=>allEntries.push({...e,bugId:bug.id,bugTitle:bug.title,bugStatus:bug.status,bugComponent:bug.extra?.component,projectName:bug.projectName}));
   });
   allEntries.sort((a,b)=>new Date(b.when)-new Date(a.when));
   if(histSearch){const q=histSearch.toLowerCase();allEntries=allEntries.filter(e=>[e.bugId,e.bugTitle,e.who,e.action,e.bugComponent,e.note,e.projectName].some(v=>v?.toLowerCase().includes(q)));}
@@ -8477,7 +8559,7 @@ function _bugCard(b,isManager){
       <span style="font-size:11px;color:var(--g3);font-weight:600">${b.id}</span>
     </div>
     <div style="font-weight:600;font-size:13px;margin-bottom:4px">${b.title}</div>
-    ${b.severity?`<div style="font-size:11px;color:var(--g3);margin-bottom:4px">${b.severity}</div>`:''}
+    ${b.extra?.severity?`<div style="font-size:11px;color:var(--g3);margin-bottom:4px">${b.extra.severity}</div>`:''}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
       <span style="font-size:11px;color:var(--g3)">${b.assignee||'Unassigned'}</span>
       <div style="display:flex;gap:4px">
