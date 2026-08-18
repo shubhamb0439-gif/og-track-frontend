@@ -3223,10 +3223,10 @@ body { transition: background .3s ease, color .3s ease; }
   <div class="modal" style="max-width:560px">
     <div class="modal-header"><h2 id="testcase-modal-title">New Test Case</h2><button class="modal-close" onclick="closeModal('testcase-modal')">×</button></div>
     <div class="modal-body">
+      <div class="form-group"><label>Test Case ID</label><input id="tcm-id-display" disabled placeholder="Auto-generated on save" style="background:var(--g5);color:var(--g3)"></div>
       <div class="form-group"><label>Title *</label><input id="tcm-title" placeholder="e.g. Login with valid credentials"></div>
-      <div class="form-group"><label>Description / Steps</label><textarea id="tcm-desc" style="min-height:90px" placeholder="1. Go to login page&#10;2. Enter valid email/password&#10;3. Click Login"></textarea></div>
+      <div class="form-group"><label>Pre-condition</label><textarea id="tcm-precondition" style="min-height:70px" placeholder="What must be true before running this test?"></textarea></div>
       <div class="form-group"><label>Expected Result</label><textarea id="tcm-expected" style="min-height:60px" placeholder="What should happen?"></textarea></div>
-      <div class="form-group"><label>Actual Result</label><textarea id="tcm-actual" style="min-height:60px" placeholder="What actually happened? (fill in after running the test)"></textarea></div>
       <div class="form-group"><label>Status</label>
         <select id="tcm-status" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
           <option value="Not Run">Not Run</option>
@@ -3241,6 +3241,33 @@ body { transition: background .3s ease, color .3s ease; }
       <button class="btn btn-ghost" onclick="closeModal('testcase-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTestCase()">Save Test Case</button>
     </div>
+  </div>
+</div>
+
+<!-- Test Case Result Modal — opens whenever an existing test case's status is
+     changed to anything other than Pass, from either the inline table
+     dropdown or the edit modal. Actual Result / Is it bugged only ever get
+     filled in here, never at creation time. -->
+<div class="modal-overlay" id="testcase-result-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2 id="testcase-result-title">Record Test Result</h2><button class="modal-close" onclick="cancelTestCaseResult()">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Actual Result *</label><textarea id="tcr-actual" style="min-height:80px" placeholder="What actually happened?"></textarea></div>
+      <div class="form-group"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="tcr-bugged" style="width:16px;height:16px;accent-color:var(--red);cursor:pointer"> Is it bugged?</label></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cancelTestCaseResult()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmTestCaseResult()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Test Case Detail Modal -->
+<div class="modal-overlay" id="testcase-detail-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="testcase-detail-title">Test Case Detail</h2><button class="modal-close" onclick="closeModal('testcase-detail-modal')">×</button></div>
+    <div class="modal-body" id="testcase-detail-body"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('testcase-detail-modal')">Close</button></div>
   </div>
 </div>
 
@@ -3403,6 +3430,7 @@ let _sprintsLoaded = false;
 let testCases        = [];
 let _editTestCaseId  = null;
 let _testCasesLoaded = false;
+let _pendingTestCaseResult = null; // {id, status, extra} while the Record Test Result modal is open
 let subTickets     = [];
 let _subTicketsLoaded = false;
 let _subFilter     = 'all';
@@ -4467,31 +4495,52 @@ async function renderTestCases(){
     </div>
     ${!list.length?`<div class="empty-state"><p>No test cases yet.${canEdit?' Create your first test case to start tracking QA coverage.':''}</p></div>`:`
     <div class="table-wrap"><div class="table-scroll"><table><thead><tr>
-      <th>ID</th><th>Title</th><th class="hide-mobile">Expected Result</th><th class="hide-mobile">Actual Result</th><th>Status</th><th class="hide-mobile">Updated</th>${canEdit?'<th></th>':''}
+      <th>ID</th><th>Title</th><th>Status</th>${canEdit?'<th></th>':''}
     </tr></thead><tbody>
       ${list.map(tc=>`<tr>
         <td style="color:var(--g3);font-size:11px;white-space:nowrap">${tc.id}</td>
-        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tc.title}</td>
-        <td class="hide-mobile" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tc.expectedResult||'<span style="color:var(--g4)">—</span>'}</td>
-        <td class="hide-mobile" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tc.actualResult||'<span style="color:var(--g4)">—</span>'}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="viewTestCase('${tc.id}')" title="View details">${tc.title}</td>
         <td>${canEdit?`<select onchange="updateTestCaseStatus('${tc.id}',this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:${_tcStatusColor(tc.status)};font-weight:600">
             ${statusOptions.map(s=>`<option value="${s}" ${tc.status===s?'selected':''}>${s}</option>`).join('')}
           </select>`:`<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:${_tcStatusColor(tc.status)}22;color:${_tcStatusColor(tc.status)}">${tc.status}</span>`}</td>
-        <td class="hide-mobile" style="font-size:11px;color:var(--g3)">${tc.updatedAt?fmt(tc.updatedAt).split(',')[0]:'<span style="color:var(--g4)">—</span>'}</td>
         ${canEdit?`<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openTestCaseModal('${tc.id}')">Edit</button> <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteTestCase('${tc.id}')">✕</button></td>`:''}
       </tr>`).join('')}
     </tbody></table></div></div>`}
   `;
 }
 
+function viewTestCase(id){
+  const tc=testCases.find(t=>t.id===id);if(!tc)return;
+  document.getElementById('testcase-detail-title').textContent=tc.id;
+  document.getElementById('testcase-detail-body').innerHTML=`
+    <div style="font-size:14px;font-weight:500;margin-bottom:14px">${tc.title}</div>
+    <div class="detail-section"><h4>Overview</h4>
+      <div class="detail-grid">
+        <div class="detail-field"><div class="dl">Status</div><div class="dv"><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:${_tcStatusColor(tc.status)}22;color:${_tcStatusColor(tc.status)}">${tc.status}</span></div></div>
+        <div class="detail-field"><div class="dl">Bugged</div><div class="dv">${tc.isBugged?'Yes':'No'}</div></div>
+        <div class="detail-field"><div class="dl">Updated</div><div class="dv" style="font-size:12px">${tc.updatedAt?fmt(tc.updatedAt):'—'}</div></div>
+        ${tc.createdAt?`<div class="detail-field"><div class="dl">Created</div><div class="dv" style="font-size:12px">${fmt(tc.createdAt)}</div></div>`:''}
+      </div>
+    </div>
+    <div class="detail-section"><h4>Pre-condition</h4><pre style="font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--g2)">${tc.precondition||'—'}</pre></div>
+    ${tc.description?`<div class="detail-section"><h4>Description / Steps</h4><pre style="font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--g2)">${tc.description}</pre></div>`:''}
+    <div class="detail-section"><h4>Expected vs Actual</h4>
+      <div class="detail-grid">
+        <div class="detail-field"><div class="dl">Expected Result</div><div class="dv">${tc.expectedResult||'—'}</div></div>
+        ${tc.status!=='Pass'?`<div class="detail-field"><div class="dl">Actual Result</div><div class="dv">${tc.actualResult||'—'}</div></div>`:''}
+      </div>
+    </div>`;
+  document.getElementById('testcase-detail-modal').classList.add('open');
+}
+
 function openTestCaseModal(id){
   _editTestCaseId=id||null;
   const tc=id?testCases.find(t=>t.id===id):null;
   document.getElementById('testcase-modal-title').textContent=tc?'Edit Test Case':'New Test Case';
+  document.getElementById('tcm-id-display').value=tc?.id||'';
   document.getElementById('tcm-title').value=tc?.title||'';
-  document.getElementById('tcm-desc').value=tc?.description||'';
+  document.getElementById('tcm-precondition').value=tc?.precondition||'';
   document.getElementById('tcm-expected').value=tc?.expectedResult||'';
-  document.getElementById('tcm-actual').value=tc?.actualResult||'';
   document.getElementById('tcm-status').value=tc?.status||'Not Run';
   document.getElementById('testcase-modal').classList.add('open');
 }
@@ -4499,19 +4548,31 @@ function openTestCaseModal(id){
 async function saveTestCase(){
   const title=document.getElementById('tcm-title').value.trim();
   if(!title){showToast('Test case title is required','alert');return;}
-  const payload={
+  const status=document.getElementById('tcm-status').value;
+  const basePayload={
     title,
-    description:document.getElementById('tcm-desc').value.trim(),
+    precondition:document.getElementById('tcm-precondition').value.trim(),
     expectedResult:document.getElementById('tcm-expected').value.trim(),
-    actualResult:document.getElementById('tcm-actual').value.trim(),
-    status:document.getElementById('tcm-status').value,
     projectId:currentProject.id,
   };
   if(_editTestCaseId){
+    const tc=testCases.find(t=>t.id===_editTestCaseId);
+    // Status is changing to something other than Pass on an existing test
+    // case — defer to the Record Test Result modal instead of saving here;
+    // Actual Result / Is it bugged are never collected in this modal.
+    if(tc&&tc.status!==status&&status!=='Pass'){
+      const id=_editTestCaseId;
+      _editTestCaseId=null;
+      closeModal('testcase-modal');
+      promptTestCaseResult(id,status,basePayload);
+      return;
+    }
+    const payload={...basePayload,status};
     const r=await fetch('/api/test-cases/'+_editTestCaseId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const saved=await r.json();
     testCases=testCases.map(t=>t.id===_editTestCaseId?saved:t);
   } else {
+    const payload={...basePayload,status};
     const r=await fetch('/api/test-cases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const saved=await r.json();
     testCases.push(saved);
@@ -4523,10 +4584,47 @@ async function saveTestCase(){
 }
 
 async function updateTestCaseStatus(id,status){
+  const tc=testCases.find(t=>t.id===id);
+  if(tc&&tc.status===status)return;
+  if(status!=='Pass'){ promptTestCaseResult(id,status,null); return; }
   const r=await fetch('/api/test-cases/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
   const saved=await r.json();
   testCases=testCases.map(t=>t.id===id?saved:t);
   showToast('Status updated ✓','success');
+  renderTestCases();
+}
+
+// Opens the Record Test Result modal. `extra` carries any other edited
+// fields (title/precondition/expectedResult) from the edit-modal flow so
+// they're saved together with the status change; null for the inline
+// table-dropdown flow, which only changes status.
+function promptTestCaseResult(id,status,extra){
+  _pendingTestCaseResult={id,status,extra};
+  document.getElementById('testcase-result-title').textContent=`Record Test Result — ${status}`;
+  document.getElementById('tcr-actual').value='';
+  document.getElementById('tcr-bugged').checked=false;
+  document.getElementById('testcase-result-modal').classList.add('open');
+}
+
+function cancelTestCaseResult(){
+  _pendingTestCaseResult=null;
+  closeModal('testcase-result-modal');
+  renderTestCases(); // redraw the inline status dropdown back to its unchanged value
+}
+
+async function confirmTestCaseResult(){
+  if(!_pendingTestCaseResult)return;
+  const actualResult=document.getElementById('tcr-actual').value.trim();
+  if(!actualResult){showToast('Actual Result is required','alert');return;}
+  const isBugged=document.getElementById('tcr-bugged').checked;
+  const {id,status,extra}=_pendingTestCaseResult;
+  const payload={...(extra||{}),status,actualResult,isBugged};
+  const r=await fetch('/api/test-cases/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const saved=await r.json();
+  testCases=testCases.map(t=>t.id===id?saved:t);
+  _pendingTestCaseResult=null;
+  closeModal('testcase-result-modal');
+  showToast('Test result recorded ✓','success');
   renderTestCases();
 }
 
