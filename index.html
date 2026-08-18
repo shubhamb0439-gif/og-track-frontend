@@ -2618,7 +2618,10 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group"><label>Priority</label><select id="f-priority"><option>Low</option><option>Medium</option><option selected>High</option><option>Critical</option></select></div>
       </div>
       <div class="form-row">
+        <div class="form-group"><label>Found by *</label><select id="f-found-by"><option value="">— Select —</option><option value="Automation">Automation</option><option value="Manual">Manual</option></select></div>
         <div class="form-group"><label>Repro Rate</label><select id="f-repro-rate"><option value="">— Select —</option><option>100%</option><option>80%</option><option>60%</option><option>40%</option><option>20%</option><option>10%</option><option>Once</option></select></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Assign To (Dev)</label><select id="f-assignee"><option value="">— Unassigned —</option></select></div>
       </div>
       <div class="form-row">
@@ -4992,6 +4995,7 @@ function openNewBugModal(){
   document.getElementById('f-repro-rate').value='';
   document.getElementById('f-severity').value='High';
   document.getElementById('f-priority').value='High';
+  document.getElementById('f-found-by').value='';
   document.getElementById('f-reporter').value=currentUser.name;
   document.getElementById('f-project').value=currentProject?.name||'—';
   const devs=allUsers.filter(u=>u.role==='developer'&&u.status==='active'&&
@@ -5037,7 +5041,9 @@ function handleStepsKeydown(e,ta){
 async function saveBug(){
   const title=document.getElementById('f-title').value.trim();
   const comp=document.getElementById('f-component').value.trim();
+  const foundBy=document.getElementById('f-found-by').value;
   if(!title||!comp){showToast('Title and Component are required','alert');return;}
+  if(!foundBy){showToast('Found by is required','alert');return;}
   const payload={title,component:comp,
     description:document.getElementById('f-desc').value,
     steps:document.getElementById('f-steps').value,
@@ -5045,6 +5051,7 @@ async function saveBug(){
     actual:document.getElementById('f-actual').value,
     severity:document.getElementById('f-severity').value,
     priority:document.getElementById('f-priority').value,
+    foundBy,
     reproRate:document.getElementById('f-repro-rate').value,
     assignee:document.getElementById('f-assignee').value,
     reporter:currentUser.name,
@@ -5069,6 +5076,7 @@ function openEditBugModal(id){
   document.getElementById('f-actual').value=bug.extra?.actual||'';
   document.getElementById('f-severity').value=bug.extra?.severity||'High';
   document.getElementById('f-priority').value=bug.extra?.priority||'High';
+  document.getElementById('f-found-by').value=bug.extra?.foundBy||'';
   document.getElementById('f-repro-rate').value=bug.extra?.reproRate||'';
   document.getElementById('f-reporter').value=bug.reporter||'';
   document.getElementById('f-project').value=bug.projectName||'—';
@@ -5089,6 +5097,7 @@ async function updateBug(id){
     actual:document.getElementById('f-actual').value,
     severity:document.getElementById('f-severity').value,
     priority:document.getElementById('f-priority').value,
+    foundBy:document.getElementById('f-found-by').value,
     reproRate:document.getElementById('f-repro-rate').value,
     assignee:document.getElementById('f-assignee').value,
     audit:[...(bug.audit||[]),{who:currentUser.name,action:'Bug edited',when:new Date().toISOString(),note:''}]};
@@ -5138,6 +5147,7 @@ function viewBug(id){
         <div class="detail-field"><div class="dl">Severity</div><div class="dv"><span class="${badgeClass('sev',bug.extra?.severity)}">${bug.extra?.severity}</span></div></div>
         <div class="detail-field"><div class="dl">Priority</div><div class="dv"><span class="${badgeClass('sev',bug.extra?.priority)}">${bug.extra?.priority}</span></div></div>
         <div class="detail-field"><div class="dl">Component</div><div class="dv">${bug.extra?.component}</div></div>
+        <div class="detail-field"><div class="dl">Found By</div><div class="dv">${bug.extra?.foundBy||'—'}</div></div>
         <div class="detail-field"><div class="dl">Assigned To</div><div class="dv">${bug.assignee||'Unassigned'}</div></div>
         <div class="detail-field"><div class="dl">Reporter</div><div class="dv">${bug.reporter}</div></div>
         <div class="detail-field"><div class="dl">Repro Rate</div><div class="dv">${isTesterCapable?`<select onchange="patchBug('${bug.id}',{reproRate:this.value,updatedAt:new Date().toISOString()})" style="padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px"><option value="">— Select —</option>${['100%','80%','60%','40%','20%','10%','Once'].map(o=>`<option${bug.extra?.reproRate===o?' selected':''}>${o}</option>`).join('')}</select>`:bug.extra?.reproRate||'<span style="color:var(--g4)">—</span>'}</div></div>
