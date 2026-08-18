@@ -502,6 +502,11 @@ tr:hover td{background:#fafafa;}tr[onclick]{cursor:pointer;}tr[onclick]:hover td
 .badge-wontfix{background:var(--g2);color:#fff;}
 .action-btn{padding:3px 9px;border-radius:5px;border:1px solid var(--border);background:none;font-size:11px;cursor:pointer;color:var(--g2);white-space:nowrap;}
 .action-btn:hover{background:var(--g5);}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:none;background:none;border-radius:6px;color:var(--g3);cursor:pointer;flex-shrink:0;}
+.icon-btn:hover{background:var(--g5);color:var(--g1);}
+.icon-btn.danger:hover{background:var(--red-light);color:var(--red);}
+.tc-table{min-width:0;}
+.tc-table th,.tc-table td{padding:6px 10px;}
 
 /* ── FILTER BAR ── */
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -4494,16 +4499,23 @@ async function renderTestCases(){
       ${canEdit?`<button class="btn btn-primary btn-sm" onclick="openTestCaseModal(null)">+ Test Case</button>`:''}
     </div>
     ${!list.length?`<div class="empty-state"><p>No test cases yet.${canEdit?' Create your first test case to start tracking QA coverage.':''}</p></div>`:`
-    <div class="table-wrap"><div class="table-scroll"><table><thead><tr>
-      <th>ID</th><th>Title</th><th>Status</th>${canEdit?'<th></th>':''}
+    <div class="table-wrap"><div class="table-scroll"><table class="tc-table"><thead><tr>
+      <th style="width:88px">ID</th><th>Title</th><th style="width:108px">Status</th>${canEdit?'<th style="width:64px"></th>':''}
     </tr></thead><tbody>
       ${list.map(tc=>`<tr>
-        <td style="color:var(--g3);font-size:11px;white-space:nowrap">${tc.id}</td>
-        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer" onclick="viewTestCase('${tc.id}')" title="View details">${tc.title}</td>
+        <td style="color:var(--g3);font-size:10px;white-space:nowrap">${tc.id}</td>
+        <td style="cursor:pointer;white-space:normal;word-break:break-word;line-height:1.4" onclick="viewTestCase('${tc.id}')" title="View details">${tc.title}</td>
         <td>${canEdit?`<select onchange="updateTestCaseStatus('${tc.id}',this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:${_tcStatusColor(tc.status)};font-weight:600">
             ${statusOptions.map(s=>`<option value="${s}" ${tc.status===s?'selected':''}>${s}</option>`).join('')}
           </select>`:`<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:${_tcStatusColor(tc.status)}22;color:${_tcStatusColor(tc.status)}">${tc.status}</span>`}</td>
-        ${canEdit?`<td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="openTestCaseModal('${tc.id}')">Edit</button> <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteTestCase('${tc.id}')">✕</button></td>`:''}
+        ${canEdit?`<td style="white-space:nowrap;text-align:right"><div style="display:inline-flex;gap:2px">
+            <button class="icon-btn" onclick="openTestCaseModal('${tc.id}')" title="Edit" aria-label="Edit test case">
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 2.5l3 3L6 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="icon-btn danger" onclick="deleteTestCase('${tc.id}')" title="Delete" aria-label="Delete test case">
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h12M7 5V3.5a1 1 0 011-1h2a1 1 0 011 1V5m-7 0v9a1 1 0 001 1h6a1 1 0 001-1V5"/><line x1="7.5" y1="8" x2="7.5" y2="12"/><line x1="10.5" y1="8" x2="10.5" y2="12"/></svg>
+            </button>
+          </div></td>`:''}
       </tr>`).join('')}
     </tbody></table></div></div>`}
   `;
@@ -4575,7 +4587,10 @@ async function saveTestCase(){
     const payload={...basePayload,status};
     const r=await fetch('/api/test-cases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const saved=await r.json();
-    testCases.push(saved);
+    // The 'testcase:created' socket broadcast echoes back to the same client
+    // that created it and can arrive before this fetch resolves — guard
+    // against both paths adding the same record to testCases.
+    if(!testCases.find(t=>t.id===saved.id)) testCases.push(saved);
   }
   closeModal('testcase-modal');
   showToast(_editTestCaseId?'Test case updated ✓':'Test case created ✓','success');
