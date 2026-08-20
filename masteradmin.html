@@ -2047,6 +2047,13 @@ function renderLogo(container) {
       isListening=true;
       logoBtn.classList.add('is-listening');
       recordedChunks=[];
+      // Fresh per-turn — decides later whether the server's own filler chunk
+      // still needs to play, or whether a local one already covered it.
+      _aidaLocalFillerPlayedForTurn=false;
+      // Fire-and-forget: each clip is small (20-55KB) and finishes well
+      // within the time the user is still talking, so it's ready the
+      // instant they stop — this must never block starting the recording.
+      _aidaEnsureFillersLoaded();
       try{
         mediaRecorder=new MediaRecorder(mediaStream);
         mediaRecorder.ondataavailable=function(e){ if(e.data.size>0) recordedChunks.push(e.data); };
@@ -2055,6 +2062,10 @@ function renderLogo(container) {
     }
     function stopListening(){
       if(!isListening) return;
+      // Instant, local, zero-latency reaction — played before anything else,
+      // including the mediaRecorder stop/upload below, since even the
+      // backend's own filler can't beat the network round trip this avoids.
+      _aidaPlayLocalFiller();
       isListening=false;
       logoBtn.classList.remove('is-listening');
       startSpeaking();
@@ -2662,6 +2673,53 @@ let _aidaVoiceNextPlayTime=0; // scheduled end time of the last queued chunk, in
 let _aidaVoiceBuffers={}; // turnId -> { nextSeq, pending: Map<seq, chunk>, finalSeq }
 let _aidaActiveVoiceSources=[]; // AudioBufferSourceNodes currently playing or scheduled — stopped instantly on interrupt
 
+// ── Local filler playback — a zero-latency "AIDA heard you" reaction ───────
+// The backend's own filler (aida:voice-chunk with filler:true) can never be
+// truly instant: it still needs the recording to finish uploading and the
+// server to receive it first. Playing a cached, pre-recorded clip locally
+// the instant recording stops — before that upload even begins — is the
+// only way to get a genuinely zero-latency reaction. This is additive: the
+// server-triggered filler still exists as a fallback/general mechanism; see
+// the filler-suppression check in _aidaDrainVoiceQueue() below.
+let _aidaFillerLoadPromise=null; // in-flight/completed manifest+prefetch load, so callers never double-fetch
+let _aidaThinkingFillers=[]; // [{file,text,audio:HTMLAudioElement}], preloaded once the manifest resolves
+let _aidaLastLocalFillerIndex=-1; // avoid playing the same clip twice in a row
+let _aidaLocalFillerPlayedForTurn=false; // reset per-recording in startListening()
+
+function _aidaEnsureFillersLoaded(){
+  if(_aidaFillerLoadPromise) return _aidaFillerLoadPromise;
+  _aidaFillerLoadPromise=(async function(){
+    try{
+      const r=await fetch('/aida-fillers/manifest.json');
+      if(!r.ok) return;
+      const manifest=await r.json();
+      const thinking=Array.isArray(manifest.thinking)?manifest.thinking:[];
+      _aidaThinkingFillers=thinking.map(function(f){
+        const audio=new Audio('/aida-fillers/'+f.file);
+        audio.preload='auto';
+        return {file:f.file,audio:audio};
+      });
+    }catch(e){ console.warn('[AIDA voice] failed to load local filler manifest:',e); }
+  })();
+  return _aidaFillerLoadPromise;
+}
+
+function _aidaPlayLocalFiller(){
+  if(!_aidaThinkingFillers.length) return;
+  let idx=0;
+  if(_aidaThinkingFillers.length>1){
+    do{ idx=Math.floor(Math.random()*_aidaThinkingFillers.length); }while(idx===_aidaLastLocalFillerIndex);
+  }
+  _aidaLastLocalFillerIndex=idx;
+  const entry=_aidaThinkingFillers[idx];
+  try{
+    entry.audio.currentTime=0;
+    const p=entry.audio.play();
+    if(p&&p.catch) p.catch(function(e){ console.warn('[AIDA voice] local filler playback failed:',e); });
+  }catch(e){ console.warn('[AIDA voice] local filler playback failed:',e); }
+  _aidaLocalFillerPlayedForTurn=true;
+}
+
 function _aidaGetVoiceCtx(){
   if(!_aidaVoiceCtx) _aidaVoiceCtx=new (window.AudioContext||window.webkitAudioContext)();
   // See the call site in sendAidaMessage() — resuming here too is a harmless
@@ -2678,19 +2736,28 @@ function _aidaBase64ToArrayBuffer(b64){
 }
 
 async function handleAidaVoiceChunk(chunk){
-  const {turnId,seq,isFinal,audioBase64}=chunk||{};
+  const {turnId,seq,isFinal,audioBase64,filler}=chunk||{};
   console.log('[AIDA voice] chunk received',{turnId,seq,isFinal,hasAudio:!!audioBase64,currentTurn:_aidaVoiceCurrentTurnId});
   if(turnId==null||seq==null||!audioBase64) return;
-  // A newer message has already been sent since this turn started speaking —
-  // drop its remaining audio instead of letting it cross-play into the turn
-  // that superseded it.
-  if(turnId!==_aidaVoiceCurrentTurnId){
+  if(_aidaVoiceCurrentTurnId==null){
+    // No turn is being tracked yet — the backend streams audio while the
+    // reply is still generating, so a chunk (including the filler, seq:-1)
+    // can legitimately arrive before the /chat or /voice-input HTTP response
+    // does. Adopt it as the current turn instead of dropping it; the HTTP
+    // response's own turnId assignment becomes a harmless no-op
+    // re-assignment once that happens, and still runs as a fallback for
+    // when the HTTP response genuinely arrives first (e.g. a short reply).
+    _aidaVoiceCurrentTurnId=turnId;
+  } else if(turnId!==_aidaVoiceCurrentTurnId){
+    // A newer message has already been sent since this turn started speaking —
+    // drop its remaining audio instead of letting it cross-play into the turn
+    // that superseded it.
     console.log('[AIDA voice] dropped — turnId does not match the current turn');
     return;
   }
   if(!_aidaVoiceBuffers[turnId]) _aidaVoiceBuffers[turnId]={nextSeq:0,pending:new Map(),finalSeq:null};
   const state=_aidaVoiceBuffers[turnId];
-  state.pending.set(seq,{audioBase64,isFinal});
+  state.pending.set(seq,{audioBase64,isFinal,filler});
   if(isFinal) state.finalSeq=seq;
   await _aidaDrainVoiceQueue(turnId);
 }
@@ -2699,11 +2766,17 @@ async function _aidaDrainVoiceQueue(turnId){
   const state=_aidaVoiceBuffers[turnId];
   if(!state) return;
   while(state.pending.has(state.nextSeq)){
-    const {audioBase64,isFinal}=state.pending.get(state.nextSeq);
+    const {audioBase64,isFinal,filler}=state.pending.get(state.nextSeq);
     state.pending.delete(state.nextSeq);
     const seqJustPlayed=state.nextSeq;
     state.nextSeq++;
-    await _aidaPlayVoiceChunk(turnId,audioBase64);
+    // A local filler already covered this turn's "thinking" reaction — skip
+    // playing the server's own filler audio to avoid two overlapping
+    // reactions, but everything else about this chunk (sequencing,
+    // finalSeq/speaking-end bookkeeping) still happens exactly as normal.
+    if(!(filler&&_aidaLocalFillerPlayedForTurn)){
+      await _aidaPlayVoiceChunk(turnId,audioBase64);
+    }
     if(isFinal&&seqJustPlayed===state.finalSeq) _aidaScheduleSpeakingEnd(turnId);
   }
 }

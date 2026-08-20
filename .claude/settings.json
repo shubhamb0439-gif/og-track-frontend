@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export NODE_PATH=\"C:\\\\Users\\\\Shubham Barick\\\\AppData\\\\Local\\\\npm-cache\\\\_npx\\\\e41f203b7505f1fb\\\\node_modules\")",
+      "Bash(node aida_test.js tenant)"
+    ]
+  }
+}
