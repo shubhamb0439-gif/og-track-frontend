@@ -12366,11 +12366,14 @@ async function onMfgAssemblyBomOrQtyChange(){
       <div style="font-weight:600;margin:10px 0 6px">Required Components & Stock Sources</div>
       ${data.lines.map(line=>{
         // Availability is the pooled total across every vendor/lot for this
-        // component (line.sufficient, already computed server-side) — no
-        // single vendor needs to cover the requirement alone. The build
-        // consumes FIFO across lots automatically; there's nothing to
-        // choose here, so this is read-only.
-        const insufficient = !line.sufficient;
+        // component — no single vendor needs to cover the requirement alone.
+        // Prefer the server's own line.sufficient, but fall back to
+        // computing it from totalAvailable/required directly if that field
+        // is ever missing or not a real boolean — those two numbers are
+        // unambiguous and always present, so this can never falsely flag a
+        // line insufficient just because a field came back undefined.
+        const sufficient = typeof line.sufficient==='boolean' ? line.sufficient : (Number(line.totalAvailable)>=Number(line.required));
+        const insufficient = !sufficient;
         const sortedVendors = (line.vendors||[]).slice().sort((a,b)=>b.available-a.available);
         return `<div style="padding:10px;border:1px solid ${insufficient?'#C0392B':'var(--border)'};background:${insufficient?'#C0392B15':'transparent'};border-radius:8px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between">
