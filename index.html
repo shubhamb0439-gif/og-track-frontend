@@ -13963,14 +13963,21 @@ let _aidaLocalFillerPlayedForTurn=false; // reset per-recording in startListenin
 
 function _aidaEnsureFillersLoaded(){
   if(_aidaFillerLoadPromise) return _aidaFillerLoadPromise;
+  // Bare relative paths here would hit the page's OWN origin (the static
+  // frontend host), not the backend — these files live on the backend, on a
+  // different origin in production, same as every /api/... call. Unlike
+  // those calls, /aida-fillers/... isn't covered by the fetch adapter above
+  // (it only rewrites paths starting with /api/), so this has to prefix
+  // OGTRACK_API_BASE itself.
+  const base=window.OGTRACK_API_BASE||'';
   _aidaFillerLoadPromise=(async function(){
     try{
-      const r=await fetch('/aida-fillers/manifest.json');
+      const r=await fetch(base+'/aida-fillers/manifest.json');
       if(!r.ok) return;
       const manifest=await r.json();
       const thinking=Array.isArray(manifest.thinking)?manifest.thinking:[];
       _aidaThinkingFillers=thinking.map(function(f){
-        const audio=new Audio('/aida-fillers/'+f.file);
+        const audio=new Audio(base+'/aida-fillers/'+f.file);
         audio.preload='auto';
         return {file:f.file,audio:audio};
       });
@@ -13987,12 +13994,28 @@ function _aidaPlayLocalFiller(){
   }
   _aidaLastLocalFillerIndex=idx;
   const entry=_aidaThinkingFillers[idx];
+  // Resetting currentTime is its own try/catch, separate from play() — on a
+  // clip whose metadata hasn't finished loading yet this can throw
+  // InvalidStateError, and that must never prevent play() itself from being
+  // attempted (this is called synchronously off a real user gesture — the
+  // keyup that stops recording — so nothing here can afford to bail early
+  // before reaching play()).
+  try{ entry.audio.currentTime=0; }catch(e){}
   try{
-    entry.audio.currentTime=0;
     const p=entry.audio.play();
-    if(p&&p.catch) p.catch(function(e){ console.warn('[AIDA voice] local filler playback failed:',e); });
+    if(p&&typeof p.then==='function'){
+      // Only counts as "played" once the browser confirms it actually
+      // started — if this rejects (e.g. NotAllowedError because the user
+      // gesture didn't carry through), nothing played locally, so the
+      // server's own filler must NOT be suppressed.
+      p.then(function(){ _aidaLocalFillerPlayedForTurn=true; })
+       .catch(function(e){ console.warn('[AIDA voice] local filler playback failed:',e); });
+    } else {
+      // Some browsers return undefined synchronously with no way to detect
+      // failure — assume success since there's no promise to check.
+      _aidaLocalFillerPlayedForTurn=true;
+    }
   }catch(e){ console.warn('[AIDA voice] local filler playback failed:',e); }
-  _aidaLocalFillerPlayedForTurn=true;
 }
 
 function _aidaGetVoiceCtx(){
