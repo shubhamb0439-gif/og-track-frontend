@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ember & Oak Coffee Co. — Coming Soon</title>
+<style>
+  :root{
+    --coffee-dark:#2b1810;
+    --coffee:#4a2c1d;
+    --coffee-light:#6f4530;
+    --cream:#f5e9da;
+    --cream-soft:#fff8f0;
+    --accent:#C0392B;
+    --accent2:#E67E22;
+    --gold:#d9a066;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{
+    font-family:var(--font);
+    background:var(--coffee-dark);
+    color:var(--cream);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  body{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:24px;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(217,160,102,0.18), transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(192,57,43,0.20), transparent 45%),
+      linear-gradient(160deg, #1c1008 0%, #2b1810 45%, #3a2416 100%);
+  }
+
+  /* floating steam / bean decorations */
+  .bg-decor{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    overflow:hidden;
+  }
+  .bean{
+    position:absolute;
+    width:26px;
+    height:36px;
+    background:var(--coffee-light);
+    border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+    opacity:0.15;
+    animation:float 14s ease-in-out infinite;
+  }
+  .bean::after{
+    content:"";
+    position:absolute;
+    top:6px;
+    left:50%;
+    width:2px;
+    height:24px;
+    background:var(--coffee-dark);
+    transform:translateX(-50%) rotate(8deg);
+    border-radius:2px;
+  }
+  .bean:nth-child(1){top:8%;left:6%;animation-delay:0s;transform:rotate(15deg);}
+  .bean:nth-child(2){top:70%;left:10%;animation-delay:2s;transform:rotate(-10deg) scale(1.4);}
+  .bean:nth-child(3){top:20%;left:88%;animation-delay:4s;transform:rotate(40deg) scale(0.8);}
+  .bean:nth-child(4){top:80%;left:80%;animation-delay:1s;transform:rotate(-25deg) scale(1.2);}
+  .bean:nth-child(5){top:45%;left:50%;animation-delay:3s;transform:rotate(60deg) scale(0.6);}
+  .bean:nth-child(6){top:5%;left:45%;animation-delay:5s;transform:rotate(-40deg) scale(1.1);}
+
+  @keyframes float{
+    0%,100%{transform:translateY(0) rotate(0deg);}
+    50%{transform:translateY(-30px) rotate(12deg);}
+  }
+
+  .card{
+    position:relative;
+    z-index:1;
+    max-width:640px;
+    width:100%;
+    background:rgba(245,233,218,0.04);
+    border:1px solid rgba(217,160,102,0.25);
+    backdrop-filter:blur(6px);
+    border-radius:24px;
+    padding:52px 44px 44px;
+    text-align:center;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
+    animation:riseIn 0.9s ease both;
+  }
+
+  @keyframes riseIn{
+    from{opacity:0;transform:translateY(24px);}
+    to{opacity:1;transform:translateY(0);}
+  }
+
+  .cup-wrap{
+    display:flex;
+    justify-content:center;
+    margin-bottom:18px;
+  }
+  .cup{
+    position:relative;
+    width:74px;
+    height:64px;
+  }
+  .cup .body{
+    position:absolute;
+    bottom:0;
+    left:0;
+    width:74px;
+    height:52px;
+    background:linear-gradient(160deg,var(--gold),var(--accent2));
+    border-radius:0 0 30px 30px;
+    box-shadow:inset 0 -8px 14px rgba(0,0,0,0.25);
+  }
+  .cup .rim{
+    position:absolute;
+    top:0;
+    left:0;
+    width:74px;
+    height:14px;
+    background:var(--cream-soft);
+    border-radius:10px;
+  }
+  .cup .handle{
+    position:absolute;
+    top:14px;
+    right:-18px;
+    width:22px;
+    height:26px;
+    border:6px solid var(--gold);
+    border-left:none;
+    border-radius:0 14px 14px 0;
+  }
+  .steam{
+    position:absolute;
+    top:-30px;
+    left:50%;
+    width:6px;
+    height:26px;
+    background:rgba(245,233,218,0.55);
+    border-radius:6px;
+    transform:translateX(-50%);
+    animation:steamRise 2.6s ease-in-out infinite;
+    filter:blur(1px);
+  }
+  .steam.s2{left:38%;animation-delay:0.6s;height:20px;}
+  .steam.s3{left:62%;animation-delay:1.2s;height:20px;}
+  @keyframes steamRise{
+    0%{opacity:0;transform:translate(-50%,10px) scaleY(0.6);}
+    30%{opacity:0.8;}
+    100%{opacity:0;transform:translate(-50%,-24px) scaleY(1.2);}
+  }
+
+  .eyebrow{
+    display:inline-block;
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:14px;
+    font-weight:600;
+  }
+
+  h1{
+    font-family:Georgia,'Times New Roman',serif;
+    font-size:44px;
+    line-height:1.15;
+    color:var(--cream-soft);
+    margin-bottom:6px;
+    letter-spacing:0.5px;
+  }
+  h1 span{
+    color:var(--accent2);
+  }
+
+  .tagline{
+    font-size:15px;
+    color:#d8c3ac;
+    margin-bottom:28px;
+    max-width:440px;
+    margin-left:auto;
+    margin-right:auto;
+    line-height:1.6;
+  }
+
+  .coming-soon-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    background:linear-gradient(120deg,var(--accent),var(--accent2));
+    color:#fff;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    padding:10px 22px;
+    border-radius:999px;
+    box-shadow:0 10px 24px -8px rgba(192,57,43,0.6);
+    margin-bottom:30px;
+  }
+  .coming-soon-badge .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:#fff;
+    animation:pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;transform:scale(1);}
+    50%{opacity:0.4;transform:scale(1.4);}
+  }
+
+  .divider{
+    width:64px;
+    height:2px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);
+    margin:0 auto 28px;
+  }
+
+  .features{
+    display:flex;
+    justify-content:center;
+    gap:22px;
+    flex-wrap:wrap;
+    margin-bottom:32px;
+  }
+  .feature{
+    width:120px;
+    font-size:12.5px;
+    color:#e4d4c0;
+  }
+  .feature .icon{
+    font-size:26px;
+    display:block;
+    margin-bottom:8px;
+  }
+
+  form.notify{
+    display:flex;
+    gap:10px;
+    max-width:400px;
+    margin:0 auto 14px;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  form.notify input[type="email"]{
+    flex:1;
+    min-width:200px;
+    padding:13px 16px;
+    border-radius:999px;
+    border:1px solid rgba(217,160,102,0.4);
+    background:rgba(255,255,255,0.06);
+    color:var(--cream-soft);
+    font-size:14px;
+    outline:none;
+    font-family:inherit;
+  }
+  form.notify input[type="email"]::placeholder{
+    color:#b9a48c;
+  }
+  form.notify input[type="email"]:focus{
+    border-color:var(--accent2);
+    box-shadow:0 0 0 3px rgba(230,126,34,0.25);
+  }
+  form.notify button{
+    padding:13px 24px;
+    border:none;
+    border-radius:999px;
+    background:linear-gradient(120deg,var(--accent),var(--accent2));
+    color:#fff;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+    font-family:inherit;
+  }
+  form.notify button:hover{
+    transform:translateY(-2px);
+    box-shadow:0 12px 20px -8px rgba(192,57,43,0.55);
+  }
+  form.notify button:active{
+    transform:translateY(0);
+  }
+
+  .form-note{
+    font-size:11.5px;
+    color:#a9967f;
+    margin-bottom:8px;
+  }
+
+  .success-msg{
+    display:none;
+    font-size:13px;
+    color:#8fd19e;
+    margin-top:10px;
+    font-weight:600;
+  }
+  .success-msg.show{display:block;}
+
+  .social{
+    margin-top:30px;
+    display:flex;
+    justify-content:center;
+    gap:16px;
+  }
+  .social a{
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(217,160,102,0.3);
+    color:var(--cream-soft);
+    text-decoration:none;
+    font-size:15px;
+    transition:background .2s ease, transform .2s ease;
+  }
+  .social a:hover{
+    background:var(--accent2);
+    transform:translateY(-3px);
+  }
+
+  footer{
+    position:relative;
+    z-index:1;
+    margin-top:26px;
+    font-size:12px;
+    color:#8a765f;
+    text-align:center;
+  }
+
+  @media (max-width:520px){
+    h1{font-size:32px;}
+    .card{padding:38px 22px 32px;}
+    .features{gap:14px;}
+    .feature{width:100px;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="bg-decor">
+    <div class="bean"></div>
+    <div class="bean"></div>
+    <div class="bean"></div>
+    <div class="bean"></div>
+    <div class="bean"></div>
+    <div class="bean"></div>
+  </div>
+
+  <div class="card">
+    <div class="cup-wrap">
+      <div class="cup">
+        <div class="steam"></div>
+        <div class="steam s2"></div>
+        <div class="steam s3"></div>
+        <div class="rim"></div>
+        <div class="body"></div>
+        <div class="handle"></div>
+      </div>
+    </div>
+
+    <span class="eyebrow">Ember &amp; Oak Coffee Co.</span>
+    <h1>Something warm is<br><span>brewing.</span></h1>
+    <p class="tagline">
+      A cozy new coffee shop is on its way — hand-roasted beans, pastries baked
+      fresh every morning, and a corner just for you. We're putting the finishing
+      touches on the space, so grab a seat, we'll be ready soon.
+    </p>
+
+    <div class="coming-soon-badge"><span class="dot"></span> Coming Soon</div>
+
+    <div class="divider"></div>
+
+    <div class="features">
+      <div class="feature"><span class="icon">☕</span>Small-batch roasts</div>
+      <div class="feature"><span class="icon">🥐</span>Fresh pastries daily</div>
+      <div class="feature"><span class="icon">🌿</span>Cozy, plant-filled space</div>
+      <div class="feature"><span class="icon">📶</span>Free wifi &amp; good vibes</div>
+    </div>
+
+    <form class="notify" onsubmit="return handleNotifySubmit(event)">
+      <input type="email" id="notify-email" placeholder="you@example.com" required>
+      <button type="submit">Notify Me</button>
+    </form>
+    <div class="form-note">We'll only email you once — when the doors open.</div>
+    <div class="success-msg" id="notify-success">☕ Thanks! We'll let you know the moment we open.</div>
+
+    <div class="social">
+      <a href="#" title="Instagram" aria-label="Instagram">📷</a>
+      <a href="#" title="Facebook" aria-label="Facebook">📘</a>
+      <a href="#" title="Twitter / X" aria-label="Twitter">🐦</a>
+    </div>
+  </div>
+
+  <footer>&copy; <span id="year"></span> Ember &amp; Oak Coffee Co. — All rights reserved.</footer>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  function handleNotifySubmit(e){
+    e.preventDefault();
+    var input = document.getElementById('notify-email');
+    var success = document.getElementById('notify-success');
+    if(input.value){
+      success.classList.add('show');
+      input.value = '';
+      input.blur();
+    }
+    return false;
+  }
+</script>
+
+</body>
+</html>
