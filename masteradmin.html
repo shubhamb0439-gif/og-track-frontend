@@ -1869,8 +1869,21 @@ function renderLogo(container) {
   var logoBtn, orbitWrap, backdrop, hintText, iconHit, connPill, connText,
       modalBackdrop, msgModal, msgModalClose, msgInput, msgSendBtn, profileModal, profileModalClose,
       helpModal, helpModalClose, logoutToast, drNameBtn, logoutModal,
-      logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems;
+      logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems,
+      aidaJobsModal, aidaJobsModalClose, aidaJobsBody;
   var msgSending=false;
+  // AIDA Job panel state (Phase 1 self-fix approval flow) — kept in this
+  // closure like everything else here, since the panel's rendered HTML is
+  // wired via event delegation on aidaJobsBody rather than inline onclick,
+  // so none of it needs to leak onto window.
+  var aidaJobsList=[];
+  var aidaJobsLoading=false;
+  var aidaJobsError=null;
+  var aidaJobDetail=null;      // {job,events,ciStatus} for the currently open job, once loaded
+  var aidaJobDetailId=null;    // which job id the detail view is showing (or loading)
+  var aidaJobDetailLoading=false;
+  var aidaJobDetailError=null;
+  var aidaJobActionBusy=false; // true while an approve/reject POST is in flight
 
   window._aidaHubInit=function(){
     if(inited) return;
@@ -1899,6 +1912,9 @@ function renderLogo(container) {
     logoutModalCancel=document.getElementById('logoutModalCancel');
     logoutModalCancelBtn=document.getElementById('logoutModalCancelBtn');
     logoutModalConfirm=document.getElementById('logoutModalConfirm');
+    aidaJobsModal=document.getElementById('aidaJobsModal');
+    aidaJobsModalClose=document.getElementById('aidaJobsModalClose');
+    aidaJobsBody=document.getElementById('aidaJobsBody');
     menuItems=Array.prototype.slice.call(document.querySelectorAll('#aida-overlay .menu-item'));
 
     function openMenu(){
@@ -2190,14 +2206,16 @@ function renderLogo(container) {
     logoutModalCancel.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
     logoutModalCancelBtn.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
     logoutModalConfirm.addEventListener('click',function(){ closeFloatingModal(logoutModal); performLogout(); });
+    aidaJobsModalClose.addEventListener('click',function(){ closeFloatingModal(aidaJobsModal); });
     modalBackdrop.addEventListener('click',function(){
-      closeFloatingModal(profileModal); closeFloatingModal(helpModal); closeFloatingModal(logoutModal);
+      closeFloatingModal(profileModal); closeFloatingModal(helpModal); closeFloatingModal(logoutModal); closeFloatingModal(aidaJobsModal);
     });
     document.addEventListener('keydown',function(e){
       if(e.key!=='Escape'||!aidaOverlayOpen) return;
       if(profileModal.classList.contains('open')) closeFloatingModal(profileModal);
       if(helpModal.classList.contains('open')) closeFloatingModal(helpModal);
       if(logoutModal.classList.contains('open')) closeFloatingModal(logoutModal);
+      if(aidaJobsModal.classList.contains('open')) closeFloatingModal(aidaJobsModal);
     });
 
     drNameBtn.addEventListener('click',function(){ openFloatingModal(logoutModal,drNameBtn); });
@@ -2246,6 +2264,223 @@ function renderLogo(container) {
       document.getElementById('aidaProfileProject').textContent=String(companies?companies.length:0);
     }
 
+    // ── AIDA Job panel — Phase 1 self-fix approval flow ───────────────────
+    // AIDA can diagnose/fix real bugs in an authorized repo, push a branch,
+    // and open a real PR — nothing merges without a human clicking Approve
+    // here. This panel is purely a viewer + approve/reject control; the
+    // actual diff review happens on GitHub via the PR link, not in-app.
+    var AIDA_JOB_STATUS_COLOR={
+      queued:'#8A8886', running:'#33539E', awaiting_approval:'#B7791F',
+      approved:'#27AE60', rejected:'#C0392B', completed:'#27AE60', failed:'#C0392B',
+    };
+    var AIDA_JOB_STATUS_LABEL={
+      queued:'Queued', running:'Running', awaiting_approval:'Awaiting approval',
+      approved:'Approved', rejected:'Rejected', completed:'Completed', failed:'Failed',
+    };
+    var AIDA_CI_COLOR={success:'#27AE60',failure:'#C0392B',pending:'#B7791F',unknown:'#8A8886'};
+    var AIDA_CI_LABEL={success:'Passing',failure:'Failing',pending:'Pending',unknown:'Unknown'};
+
+    function openAidaJobsPanel(originEl){
+      openFloatingModal(aidaJobsModal,originEl);
+      aidaJobDetailId=null; aidaJobDetail=null; aidaJobDetailError=null;
+      loadAidaJobsList();
+    }
+    async function loadAidaJobsList(){
+      aidaJobsLoading=true; aidaJobsError=null;
+      renderAidaJobsPanel();
+      try{
+        // No kind filter — this list covers every job kind AIDA can run
+        // (dev_repo_fix, create_module, ...), newest first, same endpoint.
+        var r=await authFetch('/api/masteradmin/aida/jobs');
+        if(!r.ok) throw new Error('Could not load jobs');
+        var data=await r.json();
+        aidaJobsList=Array.isArray(data.jobs)?data.jobs:[];
+      }catch(e){
+        aidaJobsError=e.message||'Could not load jobs';
+        aidaJobsList=[];
+      }
+      aidaJobsLoading=false;
+      renderAidaJobsPanel();
+    }
+    async function openAidaJobDetail(id){
+      aidaJobDetailId=id;
+      aidaJobDetail=null; aidaJobDetailError=null; aidaJobDetailLoading=true;
+      renderAidaJobsPanel();
+      try{
+        var r=await authFetch('/api/masteradmin/aida/jobs/'+encodeURIComponent(id));
+        if(!r.ok) throw new Error('Could not load job');
+        aidaJobDetail=await r.json();
+      }catch(e){ aidaJobDetailError=e.message||'Could not load job'; }
+      aidaJobDetailLoading=false;
+      renderAidaJobsPanel();
+    }
+    function closeAidaJobDetail(){
+      aidaJobDetailId=null; aidaJobDetail=null; aidaJobDetailError=null;
+      renderAidaJobsPanel();
+    }
+    async function aidaJobAction(id,action){
+      if(aidaJobActionBusy) return;
+      aidaJobActionBusy=true;
+      renderAidaJobsPanel();
+      try{
+        var r=await authFetch('/api/masteradmin/aida/jobs/'+encodeURIComponent(id)+'/'+action,{method:'POST'});
+        var data=await r.json().catch(function(){ return {}; });
+        if(!r.ok) throw new Error(data.error||'Action failed');
+        if(aidaJobDetail&&aidaJobDetail.job) aidaJobDetail.job=data.job;
+        var idx=aidaJobsList.findIndex(function(j){ return j.id===id; });
+        if(idx>=0) aidaJobsList[idx]=Object.assign({},aidaJobsList[idx],data.job);
+        showAidaToast(action==='approve'?'Approved — merging now':'Rejected — PR closed');
+      }catch(e){ showAidaToast(e.message||'Something went wrong'); }
+      aidaJobActionBusy=false;
+      renderAidaJobsPanel();
+    }
+    function aidaJobBackLinkHtml(){
+      return '<div style="margin-bottom:10px"><span data-aida-job-back style="font-size:12px;font-weight:600;color:var(--label-blue);cursor:pointer">← All jobs</span></div>';
+    }
+    var AIDA_JOB_KIND_LABEL={dev_repo_fix:'Repo Fix', create_module:'Module Build'};
+    function aidaJobsListHtml(){
+      if(aidaJobsLoading) return '<div style="padding:20px 0;text-align:center;color:var(--text-dim);font-size:13px">Loading jobs…</div>';
+      if(aidaJobsError) return '<div style="padding:20px 0;text-align:center;color:#C0392B;font-size:13px">'+esc(aidaJobsError)+'</div>';
+      if(!aidaJobsList.length) return '<div style="padding:20px 0;text-align:center;color:var(--text-dim);font-size:13px">No AIDA jobs yet. AIDA runs a weekly self-fix check automatically, or you can ask it in chat to look into something specific.</div>';
+      return aidaJobsList.map(function(j){
+        var summary=(j.result&&j.result.agentSummary)?j.result.agentSummary:'';
+        var color=AIDA_JOB_STATUS_COLOR[j.status]||'#8A8886';
+        var label=AIDA_JOB_STATUS_LABEL[j.status]||j.status;
+        var kindLabel=AIDA_JOB_KIND_LABEL[j.kind]||j.kind||'';
+        return '<div data-aida-job-row data-job-id="'+esc(j.id)+'" style="padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'+
+            '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:'+color+'">'+esc(label)+'</span>'+
+            '<span style="font-size:11px;color:var(--text-dim)">'+esc(_aidaHubRelTime(j.createdAt))+'</span>'+
+          '</div>'+
+          (kindLabel?'<div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.3px;margin-top:3px">'+esc(kindLabel)+'</div>':'')+
+          (summary?'<div style="font-size:13px;color:var(--text);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(summary)+'</div>':'')+
+        '</div>';
+      }).join('');
+    }
+    function aidaJobDetailHtml(){
+      if(aidaJobDetailLoading) return aidaJobBackLinkHtml()+'<div style="padding:20px 0;text-align:center;color:var(--text-dim);font-size:13px">Loading…</div>';
+      if(aidaJobDetailError) return aidaJobBackLinkHtml()+'<div style="padding:20px 0;text-align:center;color:#C0392B;font-size:13px">'+esc(aidaJobDetailError)+'</div>';
+      if(!aidaJobDetail||!aidaJobDetail.job) return aidaJobBackLinkHtml();
+      var job=aidaJobDetail.job;
+      var events=Array.isArray(aidaJobDetail.events)?aidaJobDetail.events:[];
+      var ci=aidaJobDetail.ciStatus;
+      var result=job.result||{};
+      // A job can fail before ever producing a result (e.g. npm install
+      // failing in the sandbox) — there's no agentSummary to show in that
+      // case, but there IS a real job.errorMessage explaining what happened.
+      // Without this fallback a job like that shows a silent, useless "No
+      // summary yet." with no way to see what actually went wrong.
+      var summaryIsRawError=false;
+      var summary;
+      if(result.agentSummary){
+        summary=result.agentSummary;
+      } else if(job.status==='failed'&&job.errorMessage){
+        summary=job.errorMessage;
+        summaryIsRawError=true;
+      } else {
+        summary=result.changed===false?'AIDA looked into this and found nothing that needed fixing.':'No summary yet.';
+      }
+      var statusColor=AIDA_JOB_STATUS_COLOR[job.status]||'#8A8886';
+      var statusLabel=AIDA_JOB_STATUS_LABEL[job.status]||job.status;
+
+      var html=aidaJobBackLinkHtml();
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
+        '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:'+statusColor+'">'+esc(statusLabel)+'</span>'+
+        '<span style="font-size:11px;color:var(--text-dim)">'+esc(_aidaHubRelTime(job.createdAt))+'</span>'+
+      '</div>';
+      if(job.kind==='create_module'){
+        if(result.moduleName){ html+='<div style="font-size:12px;color:var(--text-dim);margin-bottom:4px">Module: '+esc(result.moduleName)+'</div>'; }
+        if(result.backendRepo||result.frontendRepo){
+          html+='<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">'+
+            (result.backendRepo?'Backend: '+esc(result.backendRepo):'')+
+            (result.backendRepo&&result.frontendRepo?' · ':'')+
+            (result.frontendRepo?'Frontend: '+esc(result.frontendRepo):'')+
+          '</div>';
+        }
+      } else if(job.payload&&job.payload.repo){
+        html+='<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">Repo: '+esc(job.payload.repo)+'</div>';
+      }
+      html+=summaryIsRawError
+        ? '<div style="font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#C0392B;background:#C0392B0d;border:1px solid #C0392B33;border-radius:8px;padding:10px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto;margin-bottom:12px">'+esc(summary)+'</div>'
+        : '<div style="font-size:13.5px;color:var(--text);line-height:1.5;margin-bottom:12px">'+esc(summary)+'</div>';
+      if(job.kind==='create_module'){
+        // Two repos, two PRs, two CI checks, plus a live preview — everything
+        // else about this job (status badge, summary, approve/reject,
+        // timeline) is identical to dev_repo_fix above/below.
+        if(result.backendPr){
+          html+='<div style="margin-bottom:6px"><a data-aida-job-external href="'+esc(result.backendPr.url)+'" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:var(--red)">Backend PR →</a></div>';
+        }
+        if(result.frontendPr){
+          html+='<div style="margin-bottom:6px"><a data-aida-job-external href="'+esc(result.frontendPr.url)+'" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:var(--red)">Frontend PR →</a></div>';
+        }
+        if(ci){
+          if(ci.backend){
+            var bColor=AIDA_CI_COLOR[ci.backend.state]||'#8A8886';
+            var bLabel=AIDA_CI_LABEL[ci.backend.state]||ci.backend.state;
+            html+='<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;background:'+bColor+'22;color:'+bColor+';font-size:12px;font-weight:700;margin:0 8px 8px 0">Backend CI: '+esc(bLabel)+(ci.backend.description?' — '+esc(ci.backend.description):'')+'</div>';
+          }
+          if(ci.frontend){
+            var fColor=AIDA_CI_COLOR[ci.frontend.state]||'#8A8886';
+            var fLabel=AIDA_CI_LABEL[ci.frontend.state]||ci.frontend.state;
+            html+='<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;background:'+fColor+'22;color:'+fColor+';font-size:12px;font-weight:700;margin:0 8px 8px 0">Frontend CI: '+esc(fLabel)+(ci.frontend.description?' — '+esc(ci.frontend.description):'')+'</div>';
+          }
+        }
+        if(result.previewUrls&&result.previewUrls.frontendUrl){
+          if(result.previewUrls.frontendReady===false){
+            html+='<div style="margin:8px 0 4px;font-size:12px;color:var(--text-dim)">Live preview still starting up — try again in a moment.</div>';
+          }
+          html+='<div style="margin:4px 0 12px"><a data-aida-job-external href="'+esc(result.previewUrls.frontendUrl)+'" target="_blank" rel="noopener" class="primary-btn-sm" style="display:inline-block;text-decoration:none">Open Live Preview →</a></div>';
+        }
+      } else {
+        if(result.prUrl){
+          html+='<div style="margin-bottom:10px"><a data-aida-job-external href="'+esc(result.prUrl)+'" target="_blank" rel="noopener" style="font-size:13px;font-weight:600;color:var(--red)">View pull request →</a></div>';
+        }
+        if(ci){
+          var ciColor=AIDA_CI_COLOR[ci.state]||'#8A8886';
+          var ciLabel=AIDA_CI_LABEL[ci.state]||ci.state;
+          html+='<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;background:'+ciColor+'22;color:'+ciColor+';font-size:12px;font-weight:700;margin-bottom:12px">CI: '+esc(ciLabel)+(ci.description?' — '+esc(ci.description):'')+'</div>';
+        }
+      }
+      if(job.status==='awaiting_approval'){
+        html+='<div style="display:flex;gap:10px;margin-top:14px">'+
+          '<button class="logout-cancel-btn" data-aida-job-action="reject" data-job-id="'+esc(job.id)+'" '+(aidaJobActionBusy?'disabled':'')+'>Reject</button>'+
+          '<button class="primary-btn-sm" data-aida-job-action="approve" data-job-id="'+esc(job.id)+'" '+(aidaJobActionBusy?'disabled':'')+'>Approve &amp; Merge</button>'+
+        '</div>';
+      }
+      if(events.length){
+        html+='<div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;margin-top:16px;margin-bottom:6px">Timeline</div>'+
+          '<div style="font-size:12px;color:var(--text-dim)">'+events.map(function(e){
+            return '<div style="padding:3px 0">'+esc(e.event||'')+(e.createdAt?' · '+esc(_aidaHubRelTime(e.createdAt)):'')+'</div>';
+          }).join('')+'</div>';
+      }
+      return html;
+    }
+    function renderAidaJobsPanel(){
+      if(!aidaJobsBody) return;
+      aidaJobsBody.innerHTML=aidaJobDetailId?aidaJobDetailHtml():aidaJobsListHtml();
+    }
+    // One delegated listener instead of inline onclick — everything rendered
+    // above stays reachable from this IIFE's closure (openAidaJobDetail,
+    // aidaJobAction, etc. aren't on window), matching how menuItems/
+    // msgSendBtn are wired elsewhere in this file.
+    aidaJobsBody.addEventListener('click',function(e){
+      var back=e.target.closest('[data-aida-job-back]');
+      if(back){ closeAidaJobDetail(); return; }
+      var actionBtn=e.target.closest('[data-aida-job-action]');
+      if(actionBtn){ aidaJobAction(actionBtn.getAttribute('data-job-id'),actionBtn.getAttribute('data-aida-job-action')); return; }
+      if(e.target.closest('[data-aida-job-external]')) return; // real link — let it navigate
+      var row=e.target.closest('[data-aida-job-row]');
+      if(row){ openAidaJobDetail(row.getAttribute('data-job-id')); return; }
+    });
+    // Live updates — optional per the spec (polling GET /jobs also works),
+    // but avoids needing to poll while the panel happens to be open.
+    window._aidaHubOnJobEvent=function(payload){
+      if(!aidaJobsModal||!aidaJobsModal.classList.contains('open')) return;
+      var id=(payload&&(payload.jobId||(payload.job&&payload.job.id)||payload.id))||null;
+      if(aidaJobDetailId&&id&&aidaJobDetailId===id) openAidaJobDetail(id);
+      else if(!aidaJobDetailId) loadAidaJobsList();
+    };
+
     menuItems.forEach(function(el){
       function handleActivate(){
         var action=el.getAttribute('data-action');
@@ -2253,6 +2488,7 @@ function renderLogo(container) {
         if(action==='profile'){ renderAidaProfile(); openFloatingModal(profileModal,el); }
         else if(action==='help'){ openFloatingModal(helpModal,el); }
         else if(action==='messages'){ renderAidaMsgRows(); openMessageModal(); }
+        else if(action==='aidaJob'){ openAidaJobsPanel(el); }
         else if(action==='logout'){ performLogout(); }
       }
       el.addEventListener('click',handleActivate);
@@ -2340,6 +2576,7 @@ function renderLogo(container) {
       closeFloatingModal(profileModal);
       closeFloatingModal(helpModal);
       closeFloatingModal(logoutModal);
+      closeFloatingModal(aidaJobsModal);
       if(isListening){ stopListening(); }
     };
     window._aidaHubOnLogout=function(){
@@ -2456,7 +2693,22 @@ function ensureAidaOverlay(){
             <div class="help-icon">🎙</div>
             <div><div class="help-title">Talking to AIDA</div><div class="help-desc">Tap the center icon to connect, hold Space to talk, release to hear the reply.</div></div>
           </div>
+          <div class="help-row">
+            <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6 3 12l5 6M16 6l5 6-5 6"/></svg></div>
+            <div><div class="help-title">AIDA Job</div><div class="help-desc">Review and approve real code fixes AIDA has proposed for this repo.</div></div>
+          </div>
         </div>
+      </div>
+
+      <div class="floating-modal" id="aidaJobsModal" role="dialog" aria-modal="true" aria-label="AIDA Job">
+        <div class="fm-header">
+          <div class="fm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6 3 12l5 6M16 6l5 6-5 6"/></svg></div>
+          <span class="fm-title">AIDA Job</span>
+          <button class="fm-close" id="aidaJobsModalClose" aria-label="Close AIDA Job">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="fm-body" id="aidaJobsBody"></div>
       </div>
 
       <div class="toast" id="logoutToast">
@@ -2510,6 +2762,10 @@ function ensureAidaOverlay(){
           <div class="menu-item" data-pos="bl" data-side="left" role="menuitem" tabindex="-1" data-action="logout">
             <div class="menu-pill"><span class="menu-label">Logout</span></div>
             <div class="menu-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5H5v14h4"/><path d="M13 12h8m0 0-3-3m3 3-3 3"/></svg></div>
+          </div>
+          <div class="menu-item" data-pos="b" role="menuitem" tabindex="-1" data-action="aidaJob">
+            <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 6 3 12l5 6M16 6l5 6-5 6"/></svg></div>
+            <div class="menu-pill"><span class="menu-label">AIDA Job</span></div>
           </div>
         </div>
 
@@ -2652,6 +2908,10 @@ function connectAidaSocket(){
   aidaSocket.on('disconnect',(reason)=>console.warn('[AIDA voice] socket disconnected:',reason));
   aidaSocket.on('aida:voice-chunk',handleAidaVoiceChunk);
   aidaSocket.on('aida:voice-error',handleAidaVoiceError);
+  // Live updates for the AIDA Job panel (Phase 1 self-fix approval flow) —
+  // the panel itself lives inside the _aidaHubInit IIFE, so this just relays
+  // through the same window._aidaHub* hook pattern used for onClose/onLogout.
+  aidaSocket.on('aida:job',function(payload){ if(window._aidaHubOnJobEvent) window._aidaHubOnJobEvent(payload); });
 }
 
 // If a turnId comes back but not one single chunk shows up within a
