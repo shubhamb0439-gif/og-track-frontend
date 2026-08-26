@@ -2445,8 +2445,13 @@ body { transition: background .3s ease, color .3s ease; }
         }
       }
     }
-    // 2. Strip opaque background so canvas becomes a transparent overlay
-    if(ls) ls.style.background='transparent';
+    // 2. Strip opaque background so canvas becomes a transparent overlay.
+    // Also disable pointer-events immediately — without this, #loading-screen
+    // stays fully interactive (capturing clicks) for the whole ~2s dissolve
+    // below even though it's visually transparent, silently swallowing any
+    // click on real content underneath (e.g. the DOB-nag modal, or anything
+    // else) until the canvas finishes fading and display:none finally lands.
+    if(ls){ ls.style.background='transparent'; ls.style.pointerEvents='none'; }
     // 3. Fade brand logo/text out quickly
     const brand=document.getElementById('ls-brand');
     const msg=document.getElementById('loading-msg');
@@ -2533,6 +2538,7 @@ body { transition: background .3s ease, color .3s ease; }
         <optgroup label="Standard Roles"><option value="developer">Developer</option><option value="tester">Tester</option><option value="manager">Manager</option><option value="intern">Intern</option><option value="accountant">Accountant</option><option value="senior_accountant">Senior Accountant</option><option value="accounts_manager">Accounts Manager</option><option value="hr">HR</option></optgroup>
         <optgroup label="Custom Roles" id="r-role-custom-group"></optgroup>
       </select></div>
+      <div class="field"><label>Date of Birth <span style="font-weight:400;color:var(--g3)">(optional)</span></label><input type="date" id="r-dob"></div>
       <button class="auth-btn" onclick="doRegister()">Request Access</button>
       <div class="pending-msg" id="pending-msg">✅ Registration submitted! Pending Super Admin approval.</div>
     </div>
@@ -2658,6 +2664,21 @@ body { transition: background .3s ease, color .3s ease; }
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('new-bug-modal');this.closest('.modal').querySelector('h2').textContent='Raise New Bug';this.nextElementSibling.textContent='Raise Bug';this.nextElementSibling.onclick=saveBug;">Cancel</button>
       <button class="btn btn-primary" onclick="saveBug()">Raise Bug</button>
+    </div>
+  </div>
+</div>
+
+<!-- Birthday nag: shown once (until saved/skipped) if the logged-in user has no date_of_birth on file -->
+<div class="modal-overlay" id="dob-nag-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h2>🎂 Add your birthday</h2><button class="modal-close" onclick="dismissDobNag()">×</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--g3);margin:0 0 14px">We don't have your date of birth on file — add it so the team can celebrate with you.</p>
+      <div class="form-row full"><div class="form-group"><label>Date of Birth</label><input type="date" id="dob-nag-input"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="dismissDobNag()">Skip</button>
+      <button class="btn btn-primary" id="dob-nag-save-btn" onclick="saveDobFromNag()">Save</button>
     </div>
   </div>
 </div>
@@ -3587,10 +3608,14 @@ async function doRegister(){
   const email=document.getElementById('r-email').value.trim();
   const password=document.getElementById('r-pass').value;
   const role=document.getElementById('r-role').value;
+  const dob=document.getElementById('r-dob').value;
   if(!name||!email||!password) return showAuthError('All fields are required.');
   if(password.length<6) return showAuthError('Password must be at least 6 characters.');
   try{
     const _regPayload={name,email,password,role};
+    // Optional at registration time — people can fill it in later via the
+    // one-time "add your birthday" prompt shown after login.
+    if(dob) _regPayload.dateOfBirth=dob;
     const r=await fetch('/api/users/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_regPayload)});
     const data=await r.json();
     if(!r.ok) return showAuthError(data.error||'Registration failed.');
@@ -3853,6 +3878,13 @@ async function launchApp(){
     showProjectPicker();
   }
   loadConversations();
+  // Fun, low-key surface of date_of_birth/joining_date — never gates
+  // anything, so it's fire-and-forget rather than awaited. Master admin has
+  // no tenant employee row to check here (this is company-scoped).
+  if(currentUser.role!=='masteradmin'){
+    checkTodayCelebrations();
+    maybeShowDobNag();
+  }
   // The launcher button belongs on every logged-in screen, regardless of how
   // the user got here — create it unconditionally, the same way the QR fab
   // below is.
@@ -4145,6 +4177,64 @@ function showToast(msg,type='success'){
   const t=document.createElement('div');t.className=`toast ${type}`;
   t.innerHTML=(type==='success'?'✓':'🔔')+' '+msg;
   document.getElementById('toasts').appendChild(t);setTimeout(()=>t.remove(),4000);
+}
+
+// ── Birthday / work-anniversary celebrations ────────────────────────────────
+// Purely a fun surface of date_of_birth/joining_date already on file —
+// never gates anything. Fires at most once per user per day (tracked in
+// localStorage, keyed by today's date + the user's id, so navigating around
+// the app the same day doesn't re-show it).
+async function checkTodayCelebrations(){
+  try{
+    const today=new Date().toISOString().slice(0,10);
+    const key='og_celebrations_shown_'+today+'_'+(currentUser&&currentUser.id);
+    if(localStorage.getItem(key)) return;
+    const list=await fetch('/api/users/today-celebrations').then(r=>r.ok?r.json():[]);
+    if(Array.isArray(list)&&list.length){
+      list.forEach(item=>{
+        const name=item.name||'A teammate';
+        const msg=item.type==='anniversary'
+          ? `🎊 Today marks ${name}'s ${item.yearsCount||''}-year work anniversary!`
+          : `🎉 Today is ${name}'s birthday! Wish them well.`;
+        showToast(msg,'success');
+      });
+    }
+    localStorage.setItem(key,'1');
+  }catch(e){ /* best-effort — never blocks anything */ }
+}
+
+// One-time (per user, until they either save or skip) prompt to add a
+// missing date of birth — never blocks using the app.
+let _dobNagShown=false;
+function maybeShowDobNag(){
+  if(_dobNagShown||!currentUser||currentUser.date_of_birth) return;
+  if(localStorage.getItem('og_dob_nag_dismissed_'+currentUser.id)) return;
+  _dobNagShown=true;
+  const modal=document.getElementById('dob-nag-modal');
+  if(modal) modal.classList.add('open');
+}
+function dismissDobNag(){
+  if(currentUser) localStorage.setItem('og_dob_nag_dismissed_'+currentUser.id,'1');
+  closeModal('dob-nag-modal');
+}
+async function saveDobFromNag(){
+  const val=document.getElementById('dob-nag-input').value;
+  if(!val) return showToast('Pick a date first','error');
+  const btn=document.getElementById('dob-nag-save-btn');
+  if(btn){btn.disabled=true;btn.textContent='Saving...';}
+  try{
+    const r=await fetch('/api/users/me/dob',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({dateOfBirth:val})});
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Could not save your birthday.');
+    currentUser.date_of_birth=val;
+    localStorage.setItem('bt_user',JSON.stringify(currentUser));
+    showToast('Birthday saved 🎂','success');
+    closeModal('dob-nag-modal');
+  }catch(err){
+    showToast(err.message||'Could not save your birthday.','error');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Save';}
+  }
 }
 function requestNotifPermission(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
 function fireOsNotif(title,body){
