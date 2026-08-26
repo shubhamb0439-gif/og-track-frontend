@@ -1541,6 +1541,33 @@ tr:hover .badge { transform: scale(1.08); }
     transition:opacity .25s;
   }
 
+/* Phone-only hold-to-talk button — Space isn't reachable on a touch device
+   the way it is on desktop, so this is the mobile equivalent of holding
+   Space: same startListening()/stopListening() calls, just a dedicated
+   touch target instead of a keyboard gesture. Hidden by default; only
+   shown under the phone breakpoint. */
+#aida-overlay .mobile-mic-btn{
+    display:none;
+    width:56px; height:56px;
+    border-radius:50%;
+    border:none;
+    background:var(--red); color:#fff;
+    align-items:center; justify-content:center;
+    box-shadow:0 4px 14px rgba(183,37,45,.35);
+    cursor:pointer;
+    -webkit-user-select:none; user-select:none;
+    touch-action:none;
+    margin-top:clamp(8px, 2vh, 16px);
+  }
+#aida-overlay .mobile-mic-btn svg{ width:26px; height:26px; }
+#aida-overlay .mobile-mic-btn.is-listening{
+    background:var(--charcoal);
+    animation:aidaHubBreathePulse 1.3s ease-in-out infinite;
+  }
+@media(max-width:768px){
+  #aida-overlay .mobile-mic-btn{ display:flex; }
+}
+
 #aida-overlay .menu-item {
     position:absolute;
     top:50%;
@@ -13224,7 +13251,7 @@ function renderLogo(container) {
   var pressTimer=null;
   var HOLD_MS=500;
 
-  var logoBtn, orbitWrap, backdrop, hintText, iconHit, connPill, connText,
+  var logoBtn, orbitWrap, backdrop, hintText, iconHit, connPill, connText, mobileMicBtn,
       modalBackdrop, msgModal, msgModalClose, msgInput, msgSendBtn, profileModal, profileModalClose,
       helpModal, helpModalClose, logoutToast, drNameBtn, logoutModal,
       logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems;
@@ -13236,6 +13263,7 @@ function renderLogo(container) {
     renderLogo(document.getElementById('logoContainer'));
 
     logoBtn=document.getElementById('logoBtn');
+    mobileMicBtn=document.getElementById('mobileMicBtn');
     orbitWrap=document.getElementById('orbitWrap');
     backdrop=document.getElementById('backdrop');
     hintText=document.getElementById('hintText');
@@ -13404,6 +13432,7 @@ function renderLogo(container) {
       stopSpeaking();
       isListening=true;
       logoBtn.classList.add('is-listening');
+      mobileMicBtn.classList.add('is-listening');
       recordedChunks=[];
       // Fresh per-turn — decides later whether the server's own filler chunk
       // still needs to play, or whether a local one already covered it.
@@ -13426,6 +13455,7 @@ function renderLogo(container) {
       _aidaPlayLocalFiller();
       isListening=false;
       logoBtn.classList.remove('is-listening');
+      mobileMicBtn.classList.remove('is-listening');
       startSpeaking();
       if(mediaRecorder&&mediaRecorder.state!=='inactive'){
         var mimeType=mediaRecorder.mimeType||'audio/webm';
@@ -13464,6 +13494,16 @@ function renderLogo(container) {
       e.stopPropagation();
       if(connectionState==='disconnected') startConnecting();
     });
+
+    // Phone-only hold-to-talk button — same startListening()/stopListening()
+    // calls the Space-bar handlers below use, just triggered by touch/pointer
+    // hold instead of a held key. No separate connect handling here: same as
+    // Space, this only does anything once startListening()'s own
+    // connectionState==='connected' guard is satisfied.
+    mobileMicBtn.addEventListener('pointerdown',function(e){ e.preventDefault(); startListening(); });
+    mobileMicBtn.addEventListener('pointerup',function(){ stopListening(); });
+    mobileMicBtn.addEventListener('pointerleave',function(){ stopListening(); });
+    mobileMicBtn.addEventListener('pointercancel',function(){ stopListening(); });
 
     function onSpaceDown(e){
       if(!aidaOverlayOpen) return; // AIDA isn't open — never steal Space from the rest of the app
@@ -13875,6 +13915,10 @@ function ensureAidaOverlay(){
           <span class="conn-dot"></span>
           <span id="connText">Tap to connect</span>
         </div>
+
+        <button class="mobile-mic-btn" id="mobileMicBtn" aria-label="Hold to talk to AIDA">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>
+        </button>
 
         <div class="hint" id="hintText">Hold the icon for menu</div>
         <div class="hint" id="voiceHintText">Press space to talk to Aida</div>
