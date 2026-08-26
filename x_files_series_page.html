@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The X-Files — Series Guide | The Truth Is In Here</title>
+<meta name="description" content="A complete fan guide to The X-Files: main characters, plot &amp; mythology, full timeline of TV seasons and films, and the 2016-2018 revival.">
+<style>
+  :root{
+    --bg:#07090a;
+    --panel:#0d1310;
+    --panel2:#111a15;
+    --green:#39ff6a;
+    --green-dim:#1f7a3a;
+    --red:#c81d25;
+    --red-glow:#ff3b3b;
+    --grey:#9fb0a4;
+    --text:#dbe7de;
+    --border:#1e2b22;
+    --font-mono:'Courier New', Consolas, monospace;
+    --font-body:'Segoe UI', Tahoma, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    line-height:1.65;
+    overflow-x:hidden;
+  }
+
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      transparent 2px,
+      transparent 4px
+    );
+    pointer-events:none;
+    z-index:1000;
+  }
+  body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    background:radial-gradient(circle at 50% 0%, rgba(57,255,106,0.06), transparent 55%),
+               radial-gradient(circle at 90% 90%, rgba(200,29,37,0.08), transparent 45%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  a{color:var(--green);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  header.topnav{
+    position:sticky;
+    top:0;
+    z-index:100;
+    background:rgba(7,9,10,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 26px;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .brand{
+    font-family:var(--font-mono);
+    font-weight:700;
+    font-size:20px;
+    letter-spacing:2px;
+    color:var(--text);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .brand .x{
+    color:var(--red);
+    text-shadow:0 0 10px rgba(200,29,37,0.8);
+  }
+  nav.links{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    font-size:13px;
+    font-family:var(--font-mono);
+    text-transform:uppercase;
+    letter-spacing:1px;
+  }
+  nav.links a{color:var(--grey);}
+  nav.links a:hover{color:var(--green);text-decoration:none;text-shadow:0 0 8px rgba(57,255,106,0.7);}
+
+  .hero{
+    position:relative;
+    z-index:1;
+    text-align:center;
+    padding:90px 20px 70px;
+    overflow:hidden;
+  }
+  .hero .ufo{
+    position:absolute;
+    font-size:46px;
+    opacity:0.5;
+    animation:drift 9s ease-in-out infinite;
+    filter:drop-shadow(0 0 12px rgba(57,255,106,0.6));
+  }
+  .hero .ufo.u1{top:14%;left:8%;animation-delay:0s;}
+  .hero .ufo.u2{top:60%;left:85%;animation-delay:2s;font-size:30px;}
+  .hero .ufo.u3{top:10%;left:80%;animation-delay:4s;font-size:26px;}
+  @keyframes drift{
+    0%,100%{transform:translateY(0) translateX(0);}
+    50%{transform:translateY(-18px) translateX(10px);}
+  }
+  .hero .eyebrow{
+    font-family:var(--font-mono);
+    letter-spacing:4px;
+    text-transform:uppercase;
+    color:var(--red-glow);
+    font-size:13px;
+    margin-bottom:18px;
+    text-shadow:0 0 10px rgba(255,59,59,0.6);
+  }
+  .hero h1{
+    font-family:var(--font-mono);
+    font-size:56px;
+    letter-spacing:3px;
+    color:#fff;
+    margin-bottom:10px;
+    text-shadow:0 0 22px rgba(57,255,106,0.35);
+  }
+  .hero h1 .x{color:var(--red);}
+  .hero p.tagline{
+    font-size:17px;
+    color:var(--grey);
+    max-width:600px;
+    margin:0 auto 30px;
+  }
+  .badge-row{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  .badge{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    border:1px solid var(--green-dim);
+    color:var(--green);
+    padding:7px 14px;
+    border-radius:999px;
+    background:rgba(57,255,106,0.05);
+  }
+
+  main{
+    position:relative;
+    z-index:1;
+    max-width:980px;
+    margin:0 auto;
+    padding:10px 22px 80px;
+  }
+  section{
+    margin-top:64px;
+  }
+  section h2{
+    font-family:var(--font-mono);
+    font-size:26px;
+    letter-spacing:1px;
+    color:#fff;
+    border-left:4px solid var(--red);
+    padding-left:14px;
+    margin-bottom:20px;
+  }
+  section h2 span{color:var(--green);}
+  section > p{
+    color:var(--text);
+    margin-bottom:16px;
+    font-size:15.5px;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:22px 24px;
+  }
+
+  .char-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:18px;
+    margin-top:10px;
+  }
+  .char-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:20px;
+    transition:transform .2s ease, border-color .2s ease;
+  }
+  .char-card:hover{
+    transform:translateY(-4px);
+    border-color:var(--green-dim);
+  }
+  .char-card .name{
+    font-family:var(--font-mono);
+    font-size:16px;
+    color:var(--green);
+    margin-bottom:4px;
+  }
+  .char-card .role{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    color:var(--grey);
+    margin-bottom:10px;
+  }
+  .char-card p{
+    font-size:14px;
+    color:var(--text);
+  }
+
+  .timeline{
+    position:relative;
+    margin-top:20px;
+    padding-left:26px;
+    border-left:2px solid var(--green-dim);
+  }
+  .tl-item{
+    position:relative;
+    margin-bottom:26px;
+    padding-left:20px;
+  }
+  .tl-item::before{
+    content:"";
+    position:absolute;
+    left:-33px;
+    top:4px;
+    width:12px;
+    height:12px;
+    border-radius:50%;
+    background:var(--green);
+    box-shadow:0 0 8px rgba(57,255,106,0.8);
+  }
+  .tl-item .yr{
+    font-family:var(--font-mono);
+    color:var(--red-glow);
+    font-size:13px;
+    letter-spacing:1px;
+    margin-bottom:4px;
+  }
+  .tl-item .ttl{
+    font-size:16px;
+    font-weight:700;
+    color:#fff;
+    margin-bottom:4px;
+  }
+  .tl-item p{
+    font-size:14px;
+    color:var(--grey);
+  }
+
+  .reboot-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:18px;
+  }
+  .reboot-card{
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:20px;
+  }
+  .reboot-card h3{
+    font-family:var(--font-mono);
+    font-size:15px;
+    color:var(--green);
+    margin-bottom:8px;
+  }
+  .reboot-card p{
+    font-size:14px;
+    color:var(--text);
+  }
+
+  .quote{
+    font-family:var(--font-mono);
+    font-style:italic;
+    color:var(--grey);
+    border-left:3px solid var(--red);
+    padding:14px 18px;
+    margin:26px 0;
+    background:rgba(200,29,37,0.05);
+  }
+
+  footer{
+    position:relative;
+    z-index:1;
+    text-align:center;
+    padding:36px 20px 50px;
+    font-size:12.5px;
+    color:var(--grey);
+    border-top:1px solid var(--border);
+  }
+  footer .disclaimer{
+    max-width:600px;
+    margin:8px auto 0;
+    color:#6f8074;
+  }
+
+  .top-link{
+    display:inline-block;
+    margin-top:14px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--green);
+  }
+
+  @media (max-width:600px){
+    .hero h1{font-size:38px;}
+    nav.links{justify-content:center;width:100%;}
+    header.topnav{justify-content:center;}
+  }
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="brand"><span class="x">X</span>-FILES // SERIES GUIDE</div>
+  <nav class="links">
+    <a href="#intro">Intro</a>
+    <a href="#characters">Characters</a>
+    <a href="#plot">Plot</a>
+    <a href="#timeline">Timeline</a>
+    <a href="#reboots">Reboots</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <span class="ufo u1">🛸</span>
+  <span class="ufo u2">🛸</span>
+  <span class="ufo u3">👽</span>
+  <div class="eyebrow">FBI Case Files &middot; Classified</div>
+  <h1>THE <span class="x">X</span>-FILES</h1>
+  <p class="tagline">The Truth Is Out There. An unofficial fan guide to the landmark sci-fi/horror series — its characters, mythology, complete broadcast timeline, and the reboots that followed.</p>
+  <div class="badge-row">
+    <span class="badge">1993 – Present</span>
+    <span class="badge">11 Seasons</span>
+    <span class="badge">2 Feature Films</span>
+    <span class="badge">Created by Chris Carter</span>
+  </div>
+</div>
+
+<main>
+
+  <section id="intro">
+    <h2>Series <span>Introduction</span></h2>
+    <div class="panel">
+      <p><strong>The X-Files</strong> is an American science fiction horror drama created by Chris Carter that premiered on Fox on September 10, 1993. The series follows FBI Special Agents assigned to the "X-Files" — a designation given to bureau cases involving unexplained, paranormal, or otherwise unclassifiable phenomena, from alien abductions and cryptid encounters to government conspiracies.</p>
+      <p>Blending "monster-of-the-week" standalone episodes with an ongoing serialized <em>mythology arc</em> about a covert government conspiracy tied to extraterrestrial colonization, the show became a cultural phenomenon of the 1990s, popularizing the tagline <strong>"The Truth Is Out There"</strong> and influencing a generation of genre television.</p>
+      <p>The series ran for nine original seasons (1993–2002), was revived for two additional seasons (2016 and 2018), and spawned two theatrical feature films, a short-lived spin-off, and an extended multimedia legacy in comics and games.</p>
+    </div>
+  </section>
+
+  <section id="characters">
+    <h2>Main <span>Characters</span></h2>
+    <div class="char-grid">
+      <div class="char-card">
+        <div class="name">Fox Mulder</div>
+        <div class="role">FBI Special Agent &middot; The Believer</div>
+        <p>Played by David Duchovny. A brilliant profiler obsessed with proving the existence of extraterrestrial life, driven by the unsolved abduction of his younger sister, Samantha. Known for his unwavering conviction that "the truth is out there."</p>
+      </div>
+      <div class="char-card">
+        <div class="name">Dana Scully</div>
+        <div class="role">FBI Special Agent &middot; The Skeptic</div>
+        <p>Played by Gillian Anderson. A medical doctor and scientist assigned to debunk Mulder's work, who instead becomes his most trusted partner. Her rational, evidence-based skepticism balances Mulder's intuition throughout the series.</p>
+      </div>
+      <div class="char-card">
+        <div class="name">Walter Skinner</div>
+        <div class="role">Assistant Director, FBI</div>
+        <p>Played by Mitch Pileggi. Mulder and Scully's direct supervisor, often caught between bureau politics and quietly protecting the agents' investigations.</p>
+      </div>
+      <div class="char-card">
+        <div class="name">The Cigarette-Smoking Man</div>
+        <div class="role">Shadow Conspirator</div>
+        <p>Played by William B. Davis. A shadowy, chain-smoking government operative and the series' recurring antagonist, tied to nearly every major conspiracy in the mythology arc.</p>
+      </div>
+      <div class="char-card">
+        <div class="name">John Doggett</div>
+        <div class="role">FBI Special Agent (Seasons 8–9)</div>
+        <p>Played by Robert Patrick. A no-nonsense former New York City police officer who takes over the X-Files after Mulder's abduction, initially doubtful of the paranormal.</p>
+      </div>
+      <div class="char-card">
+        <div class="name">Monica Reyes</div>
+        <div class="role">FBI Special Agent (Seasons 8–9)</div>
+        <p>Played by Annabeth Gish. An agent with a background in occult crime and a more spiritually open perspective, partnered with Doggett in the show's later seasons.</p>
+      </div>
+      <div class="char-card">
+        <div class="name">The Lone Gunmen</div>
+        <div class="role">Conspiracy Theorist Allies</div>
+        <p>Melvin Frohike, Richard Langly, and John Fitzgerald Byers — a trio of tech-savvy, fringe-publication conspiracy theorists who frequently assist Mulder and Scully.</p>
+      </div>
+      <div class="char-card">
+        <div class="name">Samantha Mulder</div>
+        <div class="role">Mulder's Missing Sister</div>
+        <p>Abducted in 1973 when Mulder was twelve years old, her disappearance is the emotional core driving Mulder's lifelong pursuit of the truth.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="plot">
+    <h2>Plot &amp; <span>Mythology</span></h2>
+    <div class="panel">
+      <p>The X-Files operates on two parallel storytelling tracks:</p>
+      <p><strong>Monster-of-the-Week episodes</strong> — self-contained investigations into cryptids, mutants, ghosts, and unexplained phenomena, often blending horror, dark comedy, and folklore.</p>
+      <p><strong>The Mythology Arc</strong> — a serialized conspiracy narrative involving a secretive cabal called the Syndicate, colluding with extraterrestrial forces on a plan for alien colonization of Earth, using a genetic hybrid substance known as the "Black Oil." The arc explores government cover-ups, human experimentation, alien-human hybrids, and a looming "date of colonization," while Mulder and Scully's search for the truth repeatedly puts them at odds with powerful forces inside their own government.</p>
+      <div class="quote">"I want to believe." — Fox Mulder</div>
+      <p>Over the course of the series, the central mystery of Samantha Mulder's abduction, the shifting loyalties of shadow-government figures, and Scully's own abduction and mysterious pregnancy deepen the mythology into one of television's most ambitious ongoing conspiracy narratives.</p>
+    </div>
+  </section>
+
+  <section id="timeline">
+    <h2>Timeline of <span>Shows &amp; Films</span></h2>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="yr">1993 – 1998 &middot; SEASONS 1-5</div>
+        <div class="ttl">The X-Files (Original Series Begins)</div>
+        <p>Premieres on Fox; introduces Mulder, Scully, and the core mythology. Becomes a breakout critical and ratings hit through its first five seasons.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">1996 – 1999</div>
+        <div class="ttl">Millennium (Related Series by Chris Carter)</div>
+        <p>A darker companion series from the same creator, following ex-FBI profiler Frank Black. A one-hour crossover episode ties it directly into X-Files lore.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">1998</div>
+        <div class="ttl">The X-Files: Fight the Future (Feature Film)</div>
+        <p>Released between Seasons 5 and 6, this theatrical film expands the mythology arc and bridges directly into the ongoing series' story.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">1998 – 2002 &middot; SEASONS 6-9</div>
+        <div class="ttl">The X-Files (Later Seasons)</div>
+        <p>The show relocates production to Los Angeles; introduces Agents Doggett and Reyes in Seasons 8–9 following David Duchovny's reduced role and eventual departure.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">2001</div>
+        <div class="ttl">The Lone Gunmen (Spin-off Series)</div>
+        <p>A single-season spin-off centered on the fan-favorite conspiracy-theorist trio, set before their X-Files appearances.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">2002</div>
+        <div class="ttl">Series Finale: "The Truth"</div>
+        <p>The original nine-season run concludes with Mulder standing trial and the mythology's central conspiracy laid bare — while key questions remain deliberately unresolved.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">2008</div>
+        <div class="ttl">The X-Files: I Want to Believe (Feature Film)</div>
+        <p>A standalone film released six years after the finale, focusing on a personal case for Mulder and Scully rather than the alien mythology.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">2016 &middot; SEASON 10</div>
+        <div class="ttl">The X-Files (Revival, 6 Episodes)</div>
+        <p>A six-episode miniseries revival reuniting Duchovny and Anderson, reigniting the mythology arc for a new streaming-era audience.</p>
+      </div>
+      <div class="tl-item">
+        <div class="yr">2018 &middot; SEASON 11</div>
+        <div class="ttl">The X-Files (Revival, 10 Episodes)</div>
+        <p>A second revival season further develops the mythology and Mulder and Scully's son, William, closing out the most recent chapter of the saga.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="reboots">
+    <h2>Reboots &amp; <span>Related Releases</span></h2>
+    <div class="reboot-grid">
+      <div class="reboot-card">
+        <h3>2016–2018 Revival (Seasons 10 &amp; 11)</h3>
+        <p>Fox's official revival brought back the original creator and stars, effectively rebooting the mythology for modern audiences across two shortened seasons.</p>
+      </div>
+      <div class="reboot-card">
+        <h3>IDW Comic Continuations</h3>
+        <p>IDW Publishing has released multiple ongoing comic series continuing the X-Files story between and beyond the televised seasons, including "Season 10" and "Season 11" comic lines.</p>
+      </div>
+      <div class="reboot-card">
+        <h3>Video Games</h3>
+        <p>Tie-in titles include "The X-Files Game" (1998) and later mobile/interactive entries, letting players investigate cases alongside the show's agents.</p>
+      </div>
+      <div class="reboot-card">
+        <h3>Future Reboot in Development</h3>
+        <p>A new television take on the franchise has been publicly discussed, with creator Chris Carter and producer Ryan Coogler both linked to development, signaling the mythology's next generation is still to come.</p>
+      </div>
+    </div>
+  </section>
+
+  <a class="top-link" href="#intro">&uarr; Back to Top</a>
+
+</main>
+
+<footer>
+  <div>Fan-made informational guide. Not an official Fox / 20th Television publication.</div>
+  <div class="disclaimer">All character names, images, and trademarks referenced belong to their respective copyright holders. This page is provided for informational and entertainment purposes only.</div>
+</footer>
+
+</body>
+</html>
