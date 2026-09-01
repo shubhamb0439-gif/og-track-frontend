@@ -25,6 +25,14 @@
 (function () {
   // Where the backend lives.
   //   - Local dev: defaults to localhost:3000 automatically.
+  //   - Azure Static Web Apps PR preview: these get a hostname distinct from
+  //     the production one (<swa-name>.azurestaticapps.net) — anything else
+  //     ending in .azurestaticapps.net is a per-PR preview environment.
+  //     Route those at the backend's preview deployment slot instead of
+  //     production, so a preview of a frontend+backend change together
+  //     actually exercises the backend change too. A frontend-only preview
+  //     (no matching backend change) still works fine against the preview
+  //     slot, since it's the same app as production.
   //   - Production: UPDATE the placeholder below to your deployed Azure App
   //     Service URL. It must be explicit — frontend (Static Web App) and
   //     backend (App Service) live on different domains, so this can't
@@ -32,7 +40,9 @@
   window.OGTRACK_API_BASE =
     (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
       ? 'http://localhost:3000'
-      : (window.OGTRACK_API_BASE || 'https://og-track-backend-c9ergsc8fchygmez.centralindia-01.azurewebsites.net');
+      : (location.hostname.endsWith('.azurestaticapps.net') && location.hostname !== 'polite-ground-0d0cadb00.azurestaticapps.net')
+        ? 'https://og-track-backend-preview-guanf2ggc8ctgmbe.centralindia-01.azurewebsites.net'
+        : (window.OGTRACK_API_BASE || 'https://og-track-backend-c9ergsc8fchygmez.centralindia-01.azurewebsites.net');
 
   // ── Tenant slug detection ────────────────────────────────────────────────
   // URL pattern is  /<slug>  (e.g. /ogtrack, /cajo). Bare root (no slug at

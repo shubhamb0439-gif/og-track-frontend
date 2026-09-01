@@ -1225,9 +1225,18 @@
 
 <script>
 // ── Config ─────────────────────────────────────────────────────────────────
+// Azure Static Web Apps PR preview: these get a hostname distinct from the
+// production one (<swa-name>.azurestaticapps.net) — anything else ending in
+// .azurestaticapps.net is a per-PR preview environment. Route those at the
+// backend's preview deployment slot instead of production, so a preview of
+// a frontend+backend change together actually exercises the backend change
+// too. A frontend-only preview still works fine against the preview slot,
+// since it's the same app as production.
 const API = (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
   ? 'http://localhost:3000'
-  : 'https://og-track-backend-c9ergsc8fchygmez.centralindia-01.azurewebsites.net';
+  : (location.hostname.endsWith('.azurestaticapps.net') && location.hostname !== 'polite-ground-0d0cadb00.azurestaticapps.net')
+    ? 'https://og-track-backend-preview-guanf2ggc8ctgmbe.centralindia-01.azurewebsites.net'
+    : 'https://og-track-backend-c9ergsc8fchygmez.centralindia-01.azurewebsites.net';
 
 const ALL_MODULES = [
   { key:'dashboard',    label:'Dashboard' },
