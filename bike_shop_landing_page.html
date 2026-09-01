@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spoke &amp; Summit Bike Shop</title>
+<style>
+  :root{
+    --dark:#14201b;
+    --dark2:#1c2b23;
+    --green:#2f6f4e;
+    --green-light:#4ea171;
+    --orange:#e8622c;
+    --orange-light:#ff8a50;
+    --cream:#f7f3ea;
+    --gray:#7d8c85;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:var(--font);
+    background:var(--cream);
+    color:var(--dark);
+    line-height:1.5;
+  }
+  a{color:inherit;text-decoration:none;}
+  img,svg{display:block;}
+  .container{
+    max-width:1140px;
+    margin:0 auto;
+    padding:0 24px;
+  }
+
+  /* ---------- Header / Nav ---------- */
+  header{
+    position:sticky;
+    top:0;
+    z-index:50;
+    background:var(--dark);
+    color:var(--cream);
+    box-shadow:0 2px 12px rgba(0,0,0,0.15);
+  }
+  .navbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 24px;
+    max-width:1140px;
+    margin:0 auto;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:800;
+    font-size:20px;
+    letter-spacing:0.3px;
+  }
+  .brand .wheel{
+    width:30px;height:30px;border-radius:50%;
+    border:4px solid var(--orange);
+    position:relative;
+    flex-shrink:0;
+  }
+  .brand .wheel::after{
+    content:"";
+    position:absolute;
+    inset:6px;
+    border-radius:50%;
+    border:2px dashed var(--orange-light);
+  }
+  nav ul{
+    display:flex;
+    gap:26px;
+    list-style:none;
+  }
+  nav a{
+    font-size:14.5px;
+    font-weight:600;
+    color:var(--cream);
+    opacity:0.85;
+    transition:opacity .15s ease, color .15s ease;
+    padding:6px 2px;
+  }
+  nav a:hover{
+    opacity:1;
+    color:var(--orange-light);
+  }
+  .nav-toggle{display:none;}
+
+  /* ---------- Hero ---------- */
+  .hero{
+    background:
+      radial-gradient(circle at 80% 20%, rgba(232,98,44,0.25), transparent 45%),
+      radial-gradient(circle at 10% 80%, rgba(78,161,113,0.25), transparent 45%),
+      linear-gradient(160deg, var(--dark) 0%, var(--dark2) 100%);
+    color:var(--cream);
+    padding:90px 24px 100px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero .eyebrow{
+    display:inline-block;
+    font-size:12.5px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--orange-light);
+    font-weight:700;
+    margin-bottom:16px;
+  }
+  .hero h1{
+    font-size:52px;
+    font-weight:800;
+    max-width:720px;
+    margin:0 auto 18px;
+    line-height:1.12;
+  }
+  .hero h1 span{color:var(--green-light);}
+  .hero p.lead{
+    max-width:560px;
+    margin:0 auto 34px;
+    color:#d7ddd8;
+    font-size:17px;
+  }
+  .hero .cta-row{
+    display:flex;
+    gap:16px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+  .btn{
+    display:inline-block;
+    padding:14px 30px;
+    border-radius:999px;
+    font-weight:700;
+    font-size:14.5px;
+    cursor:pointer;
+    border:none;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn-primary{
+    background:linear-gradient(120deg,var(--orange),var(--orange-light));
+    color:#fff;
+    box-shadow:0 14px 26px -10px rgba(232,98,44,0.55);
+  }
+  .btn-primary:hover{transform:translateY(-2px);}
+  .btn-outline{
+    background:transparent;
+    border:1.5px solid rgba(247,243,234,0.4);
+    color:var(--cream);
+  }
+  .btn-outline:hover{
+    border-color:var(--green-light);
+    color:var(--green-light);
+    transform:translateY(-2px);
+  }
+
+  /* ---------- Sections generic ---------- */
+  section{padding:80px 24px;}
+  .section-head{
+    text-align:center;
+    max-width:600px;
+    margin:0 auto 50px;
+  }
+  .section-head .tag{
+    font-size:12px;
+    letter-spacing:2.5px;
+    text-transform:uppercase;
+    color:var(--orange);
+    font-weight:700;
+    margin-bottom:10px;
+    display:block;
+  }
+  .section-head h2{
+    font-size:32px;
+    font-weight:800;
+    color:var(--dark);
+    margin-bottom:12px;
+  }
+  .section-head p{color:var(--gray);font-size:15.5px;}
+
+  /* ---------- Products ---------- */
+  .products{background:#fff;}
+  .product-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:28px;
+  }
+  .product-card{
+    background:var(--cream);
+    border-radius:18px;
+    padding:26px;
+    text-align:center;
+    border:1px solid #eae3d4;
+    transition:transform .2s ease, box-shadow .2s ease;
+  }
+  .product-card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 20px 34px -18px rgba(20,32,27,0.25);
+  }
+  .product-img{
+    width:100%;
+    height:150px;
+    border-radius:14px;
+    margin-bottom:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:64px;
+    background:linear-gradient(150deg,var(--green),var(--green-light));
+  }
+  .product-card:nth-child(2) .product-img{background:linear-gradient(150deg,var(--orange),var(--orange-light));}
+  .product-card:nth-child(3) .product-img{background:linear-gradient(150deg,#3a5a8f,#5d84c4);}
+  .product-card:nth-child(4) .product-img{background:linear-gradient(150deg,#8f3a6f,#c45db1);}
+  .product-card:nth-child(5) .product-img{background:linear-gradient(150deg,#a68a2f,#d4b95d);}
+  .product-card:nth-child(6) .product-img{background:linear-gradient(150deg,#2f8f8a,#5dc4bd);}
+  .product-card h3{font-size:18px;margin-bottom:6px;}
+  .product-card .price{
+    color:var(--orange);
+    font-weight:800;
+    font-size:17px;
+    margin:10px 0 14px;
+  }
+  .product-card p.desc{color:var(--gray);font-size:13.5px;margin-bottom:16px;min-height:40px;}
+  .tag-pill{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    color:var(--green);
+    background:rgba(78,161,113,0.12);
+    padding:4px 10px;
+    border-radius:999px;
+    margin-bottom:10px;
+  }
+
+  /* ---------- About strip ---------- */
+  .about-strip{
+    background:var(--green);
+    color:#fff;
+    padding:46px 24px;
+  }
+  .about-strip .container{
+    display:flex;
+    justify-content:space-around;
+    text-align:center;
+    flex-wrap:wrap;
+    gap:24px;
+  }
+  .about-strip .stat h3{font-size:30px;font-weight:800;}
+  .about-strip .stat span{font-size:13px;opacity:0.85;letter-spacing:0.5px;}
+
+  /* ---------- Contact + Map ---------- */
+  .contact-wrap{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:48px;
+    align-items:flex-start;
+  }
+  .contact-form{
+    background:#fff;
+    border-radius:18px;
+    padding:32px;
+    border:1px solid #eae3d4;
+    box-shadow:0 20px 40px -28px rgba(20,32,27,0.25);
+  }
+  .form-row{margin-bottom:16px;}
+  .form-row label{
+    display:block;
+    font-size:13px;
+    font-weight:700;
+    margin-bottom:6px;
+    color:var(--dark2);
+  }
+  .form-row input, .form-row textarea{
+    width:100%;
+    padding:12px 14px;
+    border-radius:10px;
+    border:1.5px solid #e1dccd;
+    font-family:inherit;
+    font-size:14px;
+    background:var(--cream);
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .form-row input:focus, .form-row textarea:focus{
+    border-color:var(--green-light);
+    box-shadow:0 0 0 3px rgba(78,161,113,0.18);
+  }
+  .form-row textarea{resize:vertical;min-height:110px;}
+  .contact-form .btn{width:100%;text-align:center;}
+  .form-success{
+    display:none;
+    margin-top:14px;
+    background:rgba(78,161,113,0.12);
+    color:var(--green);
+    font-weight:700;
+    font-size:13.5px;
+    padding:12px 14px;
+    border-radius:10px;
+  }
+  .form-success.show{display:block;}
+
+  .map-panel{
+    background:var(--dark);
+    border-radius:18px;
+    overflow:hidden;
+    color:var(--cream);
+    height:100%;
+    display:flex;
+    flex-direction:column;
+  }
+  .map-visual{
+    height:280px;
+    position:relative;
+    background:
+      linear-gradient(0deg, rgba(20,32,27,0.35), rgba(20,32,27,0.05)),
+      repeating-linear-gradient(0deg, #d9d2bd 0 2px, transparent 2px 40px),
+      repeating-linear-gradient(90deg, #d9d2bd 0 2px, transparent 2px 40px),
+      #ece6d5;
+  }
+  .map-visual .road{
+    position:absolute;
+    top:0;bottom:0;left:46%;
+    width:26px;
+    background:#c8c0a4;
+  }
+  .map-visual .road::after{
+    content:"";
+    position:absolute;
+    top:0;bottom:0;left:50%;
+    width:3px;
+    background:repeating-linear-gradient(0deg,#fff 0 14px,transparent 14px 26px);
+    transform:translateX(-50%);
+  }
+  .map-visual .pin{
+    position:absolute;
+    top:44%;left:60%;
+    width:34px;height:34px;
+    border-radius:50% 50% 50% 0;
+    background:var(--orange);
+    transform:rotate(-45deg) translate(-50%,-50%);
+    box-shadow:0 8px 18px -6px rgba(0,0,0,0.4);
+  }
+  .map-visual .pin::after{
+    content:"";
+    position:absolute;
+    top:7px;left:7px;
+    width:12px;height:12px;
+    border-radius:50%;
+    background:#fff;
+  }
+  .map-info{
+    padding:24px;
+  }
+  .map-info h3{font-size:18px;margin-bottom:10px;}
+  .map-info p{font-size:14px;color:#c8d3cd;margin-bottom:6px;}
+  .map-info a.directions{
+    display:inline-block;
+    margin-top:12px;
+    font-size:13.5px;
+    font-weight:700;
+    color:var(--orange-light);
+  }
+
+  /* ---------- Social / Footer ---------- */
+  .social-section{
+    background:#fff;
+    text-align:center;
+    padding-top:0;
+  }
+  .social-links{
+    display:flex;
+    justify-content:center;
+    gap:18px;
+    margin-top:10px;
+  }
+  .social-links a{
+    width:50px;height:50px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--cream);
+    border:1.5px solid #eae3d4;
+    font-size:20px;
+    transition:background .2s ease, transform .2s ease, border-color .2s ease;
+  }
+  .social-links a:hover{
+    background:var(--orange);
+    border-color:var(--orange);
+    transform:translateY(-4px);
+    filter:brightness(1.05);
+  }
+
+  footer{
+    background:var(--dark);
+    color:#a9b6ae;
+    text-align:center;
+    padding:34px 24px;
+    font-size:13px;
+  }
+  footer strong{color:var(--cream);}
+
+  @media (max-width:860px){
+    nav ul{display:none;}
+    .hero h1{font-size:38px;}
+    .product-grid{grid-template-columns:repeat(2,1fr);}
+    .contact-wrap{grid-template-columns:1fr;}
+  }
+  @media (max-width:540px){
+    .product-grid{grid-template-columns:1fr;}
+    .about-strip .container{gap:18px;}
+  }
+</style>
+</head>
+<body>
+
+  <header>
+    <div class="navbar">
+      <div class="brand"><span class="wheel"></span> Spoke &amp; Summit</div>
+      <nav>
+        <ul>
+          <li><a href="#products">Bikes</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#contact">Contact</a></li>
+          <li><a href="#location">Visit Us</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">Local &amp; Independent Since 2011</span>
+    <h1>Gear up for your next <span>adventure</span> on two wheels.</h1>
+    <p class="lead">
+      Spoke &amp; Summit is your neighborhood bike shop — hand-picked road, mountain,
+      and electric bikes, expert tune-ups, and a crew that genuinely loves getting you rolling.
+    </p>
+    <div class="cta-row">
+      <a href="#products" class="btn btn-primary">Shop Bikes</a>
+      <a href="#contact" class="btn btn-outline">Book a Tune-Up</a>
+    </div>
+  </section>
+
+  <section class="products" id="products">
+    <div class="container">
+      <div class="section-head">
+        <span class="tag">Product Showcase</span>
+        <h2>Bikes &amp; Gear We Love</h2>
+        <p>A few favorites from our showroom floor — every bike is tuned and ready to ride before it leaves the shop.</p>
+      </div>
+      <div class="product-grid">
+        <div class="product-card">
+          <div class="product-img">🚵</div>
+          <span class="tag-pill">Mountain</span>
+          <h3>Trailblazer X3</h3>
+          <div class="price">$1,299</div>
+          <p class="desc">Full-suspension trail bike built for rocky climbs and fast descents.</p>
+        </div>
+        <div class="product-card">
+          <div class="product-img">🚴</div>
+          <span class="tag-pill">Road</span>
+          <h3>Velocity Pro Carbon</h3>
+          <div class="price">$2,150</div>
+          <p class="desc">Lightweight carbon frame designed for speed on long rides.</p>
+        </div>
+        <div class="product-card">
+          <div class="product-img">🔋</div>
+          <span class="tag-pill">Electric</span>
+          <h3>Volt Cruiser E-Bike</h3>
+          <div class="price">$2,799</div>
+          <p class="desc">Pedal-assist commuter e-bike with 60-mile range battery.</p>
+        </div>
+        <div class="product-card">
+          <div class="product-img">🚲</div>
+          <span class="tag-pill">City</span>
+          <h3>Metro Commuter 7</h3>
+          <div class="price">$649</div>
+          <p class="desc">Comfortable, low-maintenance ride for daily city commuting.</p>
+        </div>
+        <div class="product-card">
+          <div class="product-img">🧢</div>
+          <span class="tag-pill">Apparel</span>
+          <h3>Summit Rider Kit</h3>
+          <div class="price">$89</div>
+          <p class="desc">Breathable jersey &amp; padded shorts set for long-haul comfort.</p>
+        </div>
+        <div class="product-card">
+          <div class="product-img">🛠️</div>
+          <span class="tag-pill">Service</span>
+          <h3>Full Tune-Up Package</h3>
+          <div class="price">$59</div>
+          <p class="desc">Brakes, gears, chain &amp; tires — inspected and dialed in.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="about-strip" id="about">
+    <div class="container">
+      <div class="stat"><h3>13+</h3><span>Years in Business</span></div>
+      <div class="stat"><h3>4,500+</h3><span>Bikes Tuned</span></div>
+      <div class="stat"><h3>98%</h3><span>Happy Riders</span></div>
+      <div class="stat"><h3>7</h3><span>Days a Week</span></div>
+    </div>
+  </div>
+
+  <section id="contact">
+    <div class="container">
+      <div class="section-head">
+        <span class="tag">Get In Touch</span>
+        <h2>Questions? Send Us a Message</h2>
+        <p>Whether it's picking the right bike or booking a repair, we usually reply the same day.</p>
+      </div>
+      <div class="contact-wrap">
+        <div class="contact-form">
+          <form id="contact-form" onsubmit="return handleContactSubmit(event)">
+            <div class="form-row">
+              <label for="cf-name">Full Name</label>
+              <input type="text" id="cf-name" placeholder="Jamie Rivera" required>
+            </div>
+            <div class="form-row">
+              <label for="cf-email">Email Address</label>
+              <input type="email" id="cf-email" placeholder="jamie@example.com" required>
+            </div>
+            <div class="form-row">
+              <label for="cf-phone">Phone (optional)</label>
+              <input type="tel" id="cf-phone" placeholder="(555) 123-4567">
+            </div>
+            <div class="form-row">
+              <label for="cf-message">Message</label>
+              <textarea id="cf-message" placeholder="Tell us what you're looking for..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Send Message</button>
+            <div class="form-success" id="contact-success">✅ Thanks! Your message has been queued — we'll get back to you soon.</div>
+          </form>
+        </div>
+
+        <div class="map-panel" id="location">
+          <div class="map-visual">
+            <div class="road"></div>
+            <div class="pin"></div>
+          </div>
+          <div class="map-info">
+            <h3>Find Us In-Store</h3>
+            <p>📍 482 Ridgeline Avenue, Hillcrest, CA 92104</p>
+            <p>🕑 Mon–Sat: 9am–7pm · Sun: 10am–4pm</p>
+            <p>📞 (555) 402-8891</p>
+            <a class="directions" href="https://www.google.com/maps/search/?api=1&query=482+Ridgeline+Avenue+Hillcrest+CA" target="_blank" rel="noopener">Get Directions →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="social-section">
+    <div class="container">
+      <div class="section-head" style="margin-bottom:20px;">
+        <span class="tag">Stay Connected</span>
+        <h2>Follow the Ride</h2>
+        <p>New arrivals, group rides, and shop deals — first on social.</p>
+      </div>
+      <div class="social-links">
+        <a href="#" title="Instagram" aria-label="Instagram">📷</a>
+        <a href="#" title="Facebook" aria-label="Facebook">📘</a>
+        <a href="#" title="Twitter / X" aria-label="Twitter">🐦</a>
+        <a href="#" title="YouTube" aria-label="YouTube">▶️</a>
+        <a href="#" title="Strava" aria-label="Strava">🚵</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>&copy; <span id="year"></span> <strong>Spoke &amp; Summit Bike Shop</strong> — All rights reserved.</div>
+  </footer>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  function handleContactSubmit(e){
+    e.preventDefault();
+    var success = document.getElementById('contact-success');
+    var form = document.getElementById('contact-form');
+    success.classList.add('show');
+    form.reset();
+    return false;
+  }
+</script>
+
+</body>
+</html>
