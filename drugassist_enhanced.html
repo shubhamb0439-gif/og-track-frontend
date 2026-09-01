@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrugAssist Enhanced - Patient Assistance and Copay Program Finder</title>
+<style>
+:root{--red:#C0392B;--red2:#E74C3C;--red-light:#fdecea;--dark:#1A1A1A;--g1:#2C2C2C;--g2:#4A4A4A;--g3:#7F7F7F;--g4:#D0D0D0;--g5:#F2F2F2;--white:#fff;--border:#D8D8D8;--radius:12px;--blue:#2E86AB;--blue-light:#eaf4fa;--green:#1E8F5F;--green-light:#e8f8f0;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0;font-family:var(--font);color:var(--dark);background:var(--g5);line-height:1.6;}
+a{color:inherit;text-decoration:none;}
+img{max-width:100%;}
+.container{max-width:1180px;margin:0 auto;padding:0 24px;}
+header.site-header{position:sticky;top:0;z-index:1000;background:var(--white);border-bottom:1px solid var(--border);}
+.navbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;max-width:1180px;margin:0 auto;position:relative;}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.3rem;color:var(--red);}
+.brand .pill{background:var(--red);color:#fff;border-radius:8px;padding:4px 8px;font-size:.85rem;}
+nav.nav-links{display:flex;gap:28px;align-items:center;}
+nav.nav-links a{font-weight:600;color:var(--g2);font-size:.95rem;padding:6px 2px;border-bottom:2px solid transparent;transition:.2s;}
+nav.nav-links a:hover{color:var(--red);border-color:var(--red);}
+.nav-cta{background:var(--red);color:#fff !important;padding:10px 18px;border-radius:8px;font-weight:700;}
+.nav-cta:hover{background:var(--red2);border-color:transparent !important;}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;background:none;border:none;}
+.hamburger span{width:26px;height:3px;background:var(--dark);border-radius:2px;}
+.hero{background:linear-gradient(135deg,var(--dark) 0%, var(--g1) 60%, var(--red) 140%);color:#fff;padding:70px 24px 90px;text-align:center;}
+.hero h1{font-size:2.6rem;margin:0 0 14px;font-weight:800;}
+.hero p.sub{font-size:1.15rem;color:#e5e5e5;max-width:680px;margin:0 auto 34px;}
+.search-box{max-width:680px;margin:0 auto;background:#fff;border-radius:14px;padding:8px;box-shadow:0 20px 40px rgba(0,0,0,.25);display:flex;gap:8px;flex-wrap:wrap;}
+.search-box input{flex:1;border:none;padding:14px 16px;font-size:1rem;border-radius:10px;min-width:180px;outline:none;color:var(--dark);}
+.search-box select{border:none;padding:14px 10px;font-size:.95rem;border-radius:10px;color:var(--g2);background:var(--g5);}
+.search-box button{background:var(--red);color:#fff;border:none;padding:14px 26px;border-radius:10px;font-weight:700;cursor:pointer;font-size:1rem;}
+.search-box button:hover{background:var(--red2);}
+.hero-stats{display:flex;justify-content:center;gap:40px;margin-top:36px;flex-wrap:wrap;}
+.hero-stats div{text-align:center;}
+.hero-stats strong{font-size:1.7rem;display:block;color:#fff;}
+.hero-stats span{font-size:.85rem;color:#cfcfcf;}
+.section{padding:64px 24px;}
+.section-head{text-align:center;max-width:700px;margin:0 auto 44px;}
+.section-head .eyebrow{display:inline-block;text-transform:uppercase;letter-spacing:1.5px;font-size:.75rem;font-weight:800;padding:6px 14px;border-radius:20px;margin-bottom:14px;}
+.section-head h2{font-size:2rem;margin:0 0 10px;font-weight:800;}
+.section-head p{color:var(--g3);font-size:1.02rem;}
+.section.pap{background:var(--red-light);}
+.section.pap .eyebrow{background:var(--red);color:#fff;}
+.section.pap .section-head h2{color:var(--red);}
+.section.copay{background:var(--blue-light);}
+.section.copay .eyebrow{background:var(--blue);color:#fff;}
+.section.copay .section-head h2{color:var(--blue);}
+.section.neutral{background:var(--white);}
+.section.neutral .eyebrow{background:var(--g2);color:#fff;}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1180px;margin:0 auto;}
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:.2s;box-shadow:0 2px 6px rgba(0,0,0,.03);}
+.card:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(0,0,0,.09);}
+.card .tag{display:inline-block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:4px 10px;border-radius:20px;margin-bottom:12px;}
+.section.pap .card .tag{background:var(--red-light);color:var(--red);}
+.section.copay .card .tag{background:var(--blue-light);color:var(--blue);}
+.card h3{margin:0 0 8px;font-size:1.15rem;}
+.card p{color:var(--g3);font-size:.92rem;margin:0 0 14px;}
+.card ul{padding-left:18px;margin:0 0 14px;color:var(--g2);font-size:.88rem;}
+.card .card-link{font-weight:700;font-size:.9rem;}
+.section.pap .card .card-link{color:var(--red);}
+.section.copay .card .card-link{color:var(--blue);}
+.card.hidden{display:none;}
+.no-results{text-align:center;color:var(--g3);padding:40px 0;display:none;font-size:1rem;grid-column:1/-1;}
+.faq-item{border-bottom:1px solid var(--border);padding:18px 0;max-width:800px;margin:0 auto;}
+.faq-q{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:700;font-size:1.02rem;}
+.faq-q .icon{font-size:1.4rem;color:var(--red);transition:.2s;}
+.faq-item.open .icon{transform:rotate(45deg);}
+.faq-a{max-height:0;overflow:hidden;transition:max-height .3s ease;color:var(--g2);font-size:.94rem;}
+.faq-item.open .faq-a{max-height:240px;padding-top:12px;}
+.contact-wrap{max-width:700px;margin:0 auto;background:#fff;border-radius:var(--radius);padding:40px;border:1px solid var(--border);box-shadow:0 8px 24px rgba(0,0,0,.05);}
+.form-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;}
+.form-row .field{flex:1;min-width:200px;display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:.85rem;font-weight:700;color:var(--g2);}
+.field input,.field select,.field textarea{padding:12px 14px;border:1px solid var(--border);border-radius:8px;font-size:.95rem;font-family:var(--font);}
+.btn-primary{background:var(--red);color:#fff;border:none;padding:14px 28px;border-radius:8px;font-weight:700;cursor:pointer;font-size:1rem;}
+.btn-primary:hover{background:var(--red2);}
+.form-note{font-size:.8rem;color:var(--g3);margin-top:10px;}
+footer{background:var(--dark);color:#cfcfcf;padding:50px 24px 24px;}
+.footer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:30px;max-width:1180px;margin:0 auto 30px;}
+.footer-grid h4{color:#fff;margin:0 0 14px;font-size:1rem;}
+.footer-grid a{display:block;color:#b5b5b5;font-size:.9rem;margin-bottom:8px;}
+.footer-grid a:hover{color:#fff;}
+.footer-bottom{text-align:center;border-top:1px solid #333;padding-top:20px;font-size:.82rem;color:#8a8a8a;max-width:1180px;margin:0 auto;}
+.disclaimer{background:#fff8e1;border:1px solid #f0d98c;color:#7a5c00;border-radius:10px;padding:18px 22px;max-width:900px;margin:0 auto 40px;font-size:.88rem;}
+.back-top{position:fixed;bottom:24px;right:24px;background:var(--red);color:#fff;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;box-shadow:0 8px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.25s;}
+.back-top.show{opacity:1;pointer-events:auto;}
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}.footer-grid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:680px){nav.nav-links{position:absolute;top:64px;left:0;right:0;background:#fff;flex-direction:column;padding:16px 24px;border-bottom:1px solid var(--border);display:none;gap:14px;}nav.nav-links.open{display:flex;}.hamburger{display:flex;}.grid{grid-template-columns:1fr;}.hero h1{font-size:1.9rem;}.search-box{flex-direction:column;}.footer-grid{grid-template-columns:1fr 1fr;}.contact-wrap{padding:24px;}}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="navbar">
+    <div class="brand"><span class="pill">Rx</span> DrugAssist <span style="color:var(--g3);font-weight:600;font-size:.95rem;">Enhanced</span></div>
+    <nav class="nav-links" id="navLinks">
+      <a href="#home">Home</a>
+      <a href="#patient-assistance">Patient Assistance</a>
+      <a href="#copay-programs">Copay Programs</a>
+      <a href="#faq">FAQ</a>
+      <a href="#contact">Contact</a>
+      <a href="#contact" class="nav-cta">Get Help</a>
+    </nav>
+    <button class="hamburger" id="hamburgerBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+</header>
+
+<section class="hero" id="home">
+  <div class="container">
+    <h1>Find Prescription Help You Can Afford</h1>
+    <p class="sub">DrugAssist Enhanced connects patients with manufacturer patient assistance programs, nonprofit copay foundations, and drug discount resources - all in one searchable place.</p>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search by drug, manufacturer, or condition (e.g. insulin, Pfizer, diabetes)">
+      <select id="searchFilter">
+        <option value="all">All Programs</option>
+        <option value="pap">Patient Assistance</option>
+        <option value="copay">Copay Assistance</option>
+      </select>
+      <button id="searchBtn" type="button">Search</button>
+    </div>
+    <div class="hero-stats">
+      <div><strong>150+</strong><span>Assistance Programs Indexed</span></div>
+      <div><strong>2,400+</strong><span>Medications Covered</span></div>
+      <div><strong>&#36;0</strong><span>Cost to Use DrugAssist</span></div>
+    </div>
+  </div>
+</section>
+<section class="section pap" id="patient-assistance">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Patient Assistance</span>
+      <h2>Patient Assistance Programs (PAPs)</h2>
+      <p>Manufacturer- and nonprofit-run programs that provide free or heavily discounted brand-name medications to patients who qualify based on income and insurance status.</p>
+    </div>
+    <div class="grid" id="papGrid">
+      <div class="card" data-name="pfizer rxpathways patient assistance diabetes cardiovascular">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Pfizer RxPathways</h3>
+        <p>Free Pfizer medicines for eligible uninsured and underinsured patients, plus co-pay savings cards for insured patients.</p>
+        <ul><li>Income up to 400% of Federal Poverty Level</li><li>Covers 40+ Pfizer brand medications</li><li>Renewable annually</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="lilly cares diabetes insulin oncology">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Lilly Cares Foundation</h3>
+        <p>Provides Eli Lilly insulin and other medicines at no cost to qualifying patients without prescription drug coverage.</p>
+        <ul><li>No insurance or Medicare Part D required</li><li>Insulin, oncology &amp; mental health drugs</li><li>Simple one-page application</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="merck helps patient assistance program diabetes hepatitis">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Merck Helps</h3>
+        <p>Helps eligible patients get Merck medicines and adult vaccines at no cost through mail order.</p>
+        <ul><li>For uninsured &amp; underinsured patients</li><li>Household income up to 400% FPL</li><li>90-day supply shipped free</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="novartis patient assistance foundation oncology respiratory">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Novartis Patient Assistance Foundation</h3>
+        <p>Free Novartis medications for qualifying patients, including oncology and respiratory treatments.</p>
+        <ul><li>US residency required</li><li>Covers Entresto, Cosentyx &amp; more</li><li>Reapply every 12 months</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="myabbvie assist immunology hepatitis">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>myAbbVie Assist</h3>
+        <p>Free AbbVie medicines, including Humira and Skyrizi, for people who meet income and insurance criteria.</p>
+        <ul><li>Covers immunology &amp; virology drugs</li><li>Fast online application</li><li>Dedicated case manager support</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="johnson johnson patient assistance foundation">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Johnson &amp; Johnson Patient Assistance Foundation</h3>
+        <p>Free J&amp;J medicines shipped directly to a patient's doctor for qualifying uninsured patients.</p>
+        <ul><li>Nonprofit, independent of J&amp;J sales</li><li>Covers Janssen products</li><li>Annual re-certification</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="genentech access solutions oncology">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Genentech Access Solutions</h3>
+        <p>Assistance navigating insurance coverage and free-drug programs for Genentech oncology &amp; specialty medicines.</p>
+        <ul><li>Benefits investigation included</li><li>Bridge supply while awaiting approval</li><li>Live phone support</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="bristol myers squibb patient assistance foundation oncology">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Bristol Myers Squibb Patient Assistance Foundation</h3>
+        <p>Free BMS medicines for eligible patients who lack adequate prescription coverage.</p>
+        <ul><li>Oncology &amp; cardiovascular medicines</li><li>Household income up to 500% FPL</li><li>Mailed directly to your home</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+      <div class="card" data-name="sanofi patient connection diabetes vaccines">
+        <span class="tag">Manufacturer PAP</span>
+        <h3>Sanofi Patient Connection</h3>
+        <p>Free Sanofi medications, including insulins, for qualifying patients facing financial hardship.</p>
+        <ul><li>Covers Lantus, Toujeo &amp; Admelog</li><li>US resident, no drug coverage required</li><li>Renew every 12 months</li></ul>
+        <span class="card-link">View eligibility &#8594;</span>
+      </div>
+    </div>
+    <div class="no-results" id="papNoResults">No patient assistance programs match your search. Try a different drug, manufacturer, or condition.</div>
+  </div>
+</section>
+<section class="section copay" id="copay-programs">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Copay Assistance</span>
+      <h2>Copay Assistance Programs</h2>
+      <p>Copay cards and nonprofit foundation grants that lower out-of-pocket costs for insured patients - ideal if you have coverage but still face high copays or deductibles.</p>
+    </div>
+    <div class="grid" id="copayGrid">
+      <div class="card" data-name="patient access network foundation copay grants chronic disease">
+        <span class="tag">Nonprofit Foundation</span>
+        <h3>Patient Access Network (PAN) Foundation</h3>
+        <p>Grants to help insured patients afford copays, coinsurance &amp; deductibles for over 70 disease funds.</p>
+        <ul><li>Open/closed disease fund status changes often</li><li>Grants renewable while fund is open</li><li>Apply online in minutes</li></ul>
+        <span class="card-link">Check fund status &#8594;</span>
+      </div>
+      <div class="card" data-name="healthwell foundation copay assistance chronic disease">
+        <span class="tag">Nonprofit Foundation</span>
+        <h3>HealthWell Foundation</h3>
+        <p>Provides copay, premium, and travel cost assistance for underinsured patients with chronic and life-altering conditions.</p>
+        <ul><li>Covers medical &amp; pharmacy copays</li><li>Premium assistance funds available</li><li>Simple income-based eligibility</li></ul>
+        <span class="card-link">Check fund status &#8594;</span>
+      </div>
+      <div class="card" data-name="patient advocate foundation copay relief chronic disease">
+        <span class="tag">Nonprofit Foundation</span>
+        <h3>Patient Advocate Foundation Co-Pay Relief</h3>
+        <p>Direct copay assistance and case management for patients with chronic, life-threatening diagnoses.</p>
+        <ul><li>Free case management included</li><li>Assistance for medical &amp; pharmacy costs</li><li>US insured patients only</li></ul>
+        <span class="card-link">Check fund status &#8594;</span>
+      </div>
+      <div class="card" data-name="good days copay assistance chronic disease travel">
+        <span class="tag">Nonprofit Foundation</span>
+        <h3>Good Days</h3>
+        <p>Copay assistance, diagnostic testing grants, and travel assistance for patients with chronic and rare diseases.</p>
+        <ul><li>Diagnostic testing fund available</li><li>Travel grants for treatment access</li><li>Fast grant turnaround</li></ul>
+        <span class="card-link">Check fund status &#8594;</span>
+      </div>
+      <div class="card" data-name="cancercare copayment assistance foundation oncology">
+        <span class="tag">Nonprofit Foundation</span>
+        <h3>CancerCare Co-Payment Assistance Foundation</h3>
+        <p>Helps insured cancer patients pay for chemotherapy and targeted therapy copays.</p>
+        <ul><li>Covers oral &amp; IV cancer treatments</li><li>Grants paid directly to pharmacy</li><li>Reapply as funds allow</li></ul>
+        <span class="card-link">Check fund status &#8594;</span>
+      </div>
+      <div class="card" data-name="manufacturer copay card savings card commercial insurance">
+        <span class="tag">Manufacturer Copay Card</span>
+        <h3>Manufacturer Savings / Copay Cards</h3>
+        <p>Instant-use cards from drug manufacturers that reduce out-of-pocket cost at the pharmacy counter for commercially insured patients.</p>
+        <ul><li>Not valid with Medicare, Medicaid or other government insurance</li><li>Often reduces copay to &#36;0-&#36;25/month</li><li>Available for most brand-name drugs</li></ul>
+        <span class="card-link">Find your drug's card &#8594;</span>
+      </div>
+    </div>
+    <div class="no-results" id="copayNoResults">No copay assistance programs match your search. Try a different drug, manufacturer, or condition.</div>
+  </div>
+</section>
+<section class="section neutral" id="faq">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Help Center</span>
+      <h2>Frequently Asked Questions</h2>
+      <p>Answers to the most common questions about patient assistance and copay programs.</p>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Who is eligible for a patient assistance program? <span class="icon">+</span></div>
+      <div class="faq-a">Eligibility varies by program, but most require US residency, no or limited prescription drug coverage, and a household income at or below 300-500% of the Federal Poverty Level. Each program listed above has its own specific criteria.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">What is the difference between a PAP and a copay program? <span class="icon">+</span></div>
+      <div class="faq-a">Patient Assistance Programs (PAPs) typically provide medication completely free to uninsured or underinsured patients. Copay assistance programs instead reduce the out-of-pocket cost for patients who already have insurance but face high copays or deductibles.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Can I use a copay card with Medicare or Medicaid? <span class="icon">+</span></div>
+      <div class="faq-a">Generally, no. Manufacturer copay cards are restricted to patients with commercial/private insurance due to federal anti-kickback rules. Medicare and Medicaid patients should instead look at nonprofit foundation copay grants, which are allowed.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">How long does it take to get approved? <span class="icon">+</span></div>
+      <div class="faq-a">Most manufacturer PAPs take 2-4 weeks to process a completed application. Nonprofit copay foundations often approve grants within a few business days, though funds can close quickly once they run out for the year.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Is there a cost to use DrugAssist Enhanced? <span class="icon">+</span></div>
+      <div class="faq-a">No. DrugAssist Enhanced is a free directory to help you find and compare assistance programs. We never charge patients for search access, and we don't submit applications on your behalf.</div>
+    </div>
+  </div>
+</section>
+<section class="section neutral" id="contact">
+  <div class="container">
+    <div class="disclaimer">
+      <strong>Please note:</strong> DrugAssist Enhanced is an informational directory only. We are not affiliated with any pharmaceutical manufacturer or foundation, do not process applications, and this form does not submit anywhere - it is a demo for illustration purposes only. Always verify eligibility and apply directly through the official program website.
+    </div>
+    <div class="section-head">
+      <span class="eyebrow">Contact Us</span>
+      <h2>Need Help Finding a Program?</h2>
+      <p>Send us a message and a patient advocate volunteer will point you toward programs that may fit your situation.</p>
+    </div>
+    <div class="contact-wrap">
+      <form onsubmit="return false;">
+        <div class="form-row">
+          <div class="field"><label for="cf-name">Full Name</label><input id="cf-name" type="text" placeholder="Jane Doe"></div>
+          <div class="field"><label for="cf-email">Email Address</label><input id="cf-email" type="email" placeholder="jane@example.com"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label for="cf-drug">Medication or Condition</label><input id="cf-drug" type="text" placeholder="e.g. Humira, Type 2 Diabetes"></div>
+          <div class="field"><label for="cf-insurance">Insurance Status</label>
+            <select id="cf-insurance">
+              <option>Uninsured</option>
+              <option>Underinsured</option>
+              <option>Commercial Insurance</option>
+              <option>Medicare</option>
+              <option>Medicaid</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label for="cf-msg">Message</label><textarea id="cf-msg" rows="4" placeholder="Tell us a bit about what help you're looking for..."></textarea></div>
+        </div>
+        <button class="btn-primary" type="submit">Submit Request</button>
+        <p class="form-note">This is a demo form only; no data is sent or stored.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <h4>DrugAssist Enhanced</h4>
+      <a href="#home">Home</a>
+      <a href="#patient-assistance">Patient Assistance</a>
+      <a href="#copay-programs">Copay Programs</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div>
+      <h4>Resources</h4>
+      <a href="#" onclick="return false;">Eligibility Guide</a>
+      <a href="#" onclick="return false;">Application Checklist</a>
+      <a href="#" onclick="return false;">State Rx Assistance</a>
+      <a href="#" onclick="return false;">Glossary of Terms</a>
+    </div>
+    <div>
+      <h4>Company</h4>
+      <a href="#" onclick="return false;">About Us</a>
+      <a href="#" onclick="return false;">Privacy Policy</a>
+      <a href="#" onclick="return false;">Terms of Use</a>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <a href="#contact">Contact Form</a>
+      <a href="mailto:help@drugassist.example">help@drugassist.example</a>
+      <a href="tel:8005551234">1 (800) 555-1234</a>
+    </div>
+  </div>
+  <div class="footer-bottom">&copy; 2024 DrugAssist Enhanced. For informational purposes only - not medical or legal advice.</div>
+</footer>
+
+<div class="back-top" id="backTop">&#8593;</div>
+<script>
+(function(){
+  var hamburgerBtn = document.getElementById('hamburgerBtn');
+  var navLinks = document.getElementById('navLinks');
+  hamburgerBtn.addEventListener('click', function(){
+    navLinks.classList.toggle('open');
+  });
+  navLinks.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click', function(){ navLinks.classList.remove('open'); });
+  });
+
+  document.querySelectorAll('.faq-q').forEach(function(q){
+    q.addEventListener('click', function(){
+      q.parentElement.classList.toggle('open');
+    });
+  });
+
+  var backTop = document.getElementById('backTop');
+  window.addEventListener('scroll', function(){
+    if (window.scrollY > 400) { backTop.classList.add('show'); } else { backTop.classList.remove('show'); }
+  });
+  backTop.addEventListener('click', function(){ window.scrollTo({top:0, behavior:'smooth'}); });
+
+  var searchInput = document.getElementById('searchInput');
+  var searchFilter = document.getElementById('searchFilter');
+  var searchBtn = document.getElementById('searchBtn');
+  var papCards = Array.prototype.slice.call(document.querySelectorAll('#papGrid .card'));
+  var copayCards = Array.prototype.slice.call(document.querySelectorAll('#copayGrid .card'));
+  var papNoResults = document.getElementById('papNoResults');
+  var copayNoResults = document.getElementById('copayNoResults');
+  var papSection = document.getElementById('patient-assistance');
+  var copaySection = document.getElementById('copay-programs');
+
+  function runSearch(){
+    var term = searchInput.value.trim().toLowerCase();
+    var filter = searchFilter.value;
+    var papVisible = 0, copayVisible = 0;
+
+    papCards.forEach(function(card){
+      var match = !term || (card.getAttribute('data-name') || '').indexOf(term) !== -1 || card.textContent.toLowerCase().indexOf(term) !== -1;
+      var show = match && (filter === 'all' || filter === 'pap');
+      card.classList.toggle('hidden', !show);
+      if (show) papVisible++;
+    });
+    copayCards.forEach(function(card){
+      var match = !term || (card.getAttribute('data-name') || '').indexOf(term) !== -1 || card.textContent.toLowerCase().indexOf(term) !== -1;
+      var show = match && (filter === 'all' || filter === 'copay');
+      card.classList.toggle('hidden', !show);
+      if (show) copayVisible++;
+    });
+
+    papNoResults.style.display = papVisible === 0 ? 'block' : 'none';
+    copayNoResults.style.display = copayVisible === 0 ? 'block' : 'none';
+
+    papSection.style.display = (filter === 'copay') ? 'none' : 'block';
+    copaySection.style.display = (filter === 'pap') ? 'none' : 'block';
+
+    if (term) {
+      if (papVisible > 0 && copayVisible === 0 && filter === 'all') {
+        document.getElementById('patient-assistance').scrollIntoView({behavior:'smooth'});
+      } else if (copayVisible > 0 && papVisible === 0 && filter === 'all') {
+        document.getElementById('copay-programs').scrollIntoView({behavior:'smooth'});
+      }
+    }
+  }
+
+  searchBtn.addEventListener('click', runSearch);
+  searchInput.addEventListener('keyup', function(e){ runSearch(); if (e.key === 'Enter') { document.getElementById('patient-assistance').scrollIntoView({behavior:'smooth'}); } });
+  searchFilter.addEventListener('change', runSearch);
+})();
+</script>
+</body>
+</html>
