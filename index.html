@@ -12492,18 +12492,26 @@ async function onMfgAssemblyBomOrQtyChange(){
   resultEl.innerHTML='<div style="font-size:12px;color:var(--g3)">Checking component stock…</div>';
   try{
     const data = await fetch(`/api/manufacturing/boms/${bomId}/vendor-check?quantity=${qty}`).then(r=>r.json());
+    // Availability is the pooled total across every vendor/lot for this
+    // component — no single vendor needs to cover the requirement alone.
+    // Prefer the server's own line.sufficient, but fall back to computing it
+    // from totalAvailable/required directly if that field is ever missing or
+    // not a real boolean — those two numbers are unambiguous and always
+    // present, so this can never falsely flag a line insufficient just
+    // because a field came back undefined.
+    const _mfgLineInsufficient=line=>{
+      const sufficient = typeof line.sufficient==='boolean' ? line.sufficient : (Number(line.totalAvailable)>=Number(line.required));
+      return !sufficient;
+    };
+    // Insufficient components first — the ones that actually block the build
+    // shouldn't require scrolling past everything else to find. Array.sort
+    // is stable, so within each group (insufficient / sufficient) the
+    // original BOM order is preserved.
+    const sortedLines=(data.lines||[]).slice().sort((a,b)=>_mfgLineInsufficient(b)-_mfgLineInsufficient(a));
     resultEl.innerHTML=`
       <div style="font-weight:600;margin:10px 0 6px">Required Components & Stock Sources</div>
-      ${data.lines.map(line=>{
-        // Availability is the pooled total across every vendor/lot for this
-        // component — no single vendor needs to cover the requirement alone.
-        // Prefer the server's own line.sufficient, but fall back to
-        // computing it from totalAvailable/required directly if that field
-        // is ever missing or not a real boolean — those two numbers are
-        // unambiguous and always present, so this can never falsely flag a
-        // line insufficient just because a field came back undefined.
-        const sufficient = typeof line.sufficient==='boolean' ? line.sufficient : (Number(line.totalAvailable)>=Number(line.required));
-        const insufficient = !sufficient;
+      ${sortedLines.map(line=>{
+        const insufficient = _mfgLineInsufficient(line);
         const sortedVendors = (line.vendors||[]).slice().sort((a,b)=>b.available-a.available);
         return `<div style="padding:10px;border:1px solid ${insufficient?'#C0392B':'var(--border)'};background:${insufficient?'#C0392B15':'transparent'};border-radius:8px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between">
