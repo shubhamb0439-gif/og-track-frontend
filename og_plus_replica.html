@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OG Plus Replica</title>
+<style>
+  :root{
+    --dark:#1A1A1A; --g1:#2C2C2C; --g2:#4A4A4A; --g3:#7F7F7F; --g4:#D0D0D0; --g5:#F2F2F2;
+    --white:#fff; --border:#D8D8D8; --radius:10px;
+    --red:#C0392B; --red2:#E74C3C; --red-light:#fdecea;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font);background:var(--g5);color:var(--dark);line-height:1.6;}
+  a{color:inherit;text-decoration:none;}
+  .container{max-width:1100px;margin:0 auto;padding:0 24px;}
+  header{position:sticky;top:0;z-index:50;background:var(--dark);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+  .nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;max-width:1100px;margin:0 auto;}
+  .brand{font-size:22px;font-weight:800;color:#fff;}
+  .brand span{color:var(--red2);}
+  .nav-links{display:flex;gap:24px;list-style:none;margin:0;padding:0;}
+  .nav-links a{font-size:14px;font-weight:500;color:#ddd;transition:color .2s;}
+  .nav-links a:hover{color:var(--red2);}
+  .nav-cta{background:var(--red2);color:#fff;padding:9px 18px;border-radius:8px;font-weight:600;font-size:14px;}
+  .nav-cta:hover{background:var(--red);}
+  .hero{background:linear-gradient(135deg,var(--dark) 0%,#2b0f0d 60%,var(--red) 140%);color:#fff;text-align:center;padding:90px 20px 100px;}
+  .hero h1{font-size:38px;font-weight:800;max-width:800px;margin:0 auto 18px;}
+  .hero p{font-size:18px;color:#eee;max-width:680px;margin:0 auto 30px;}
+  .hero .btn{display:inline-block;background:var(--red2);padding:13px 28px;border-radius:8px;font-weight:700;font-size:15px;}
+  .hero .btn:hover{background:var(--red);}
+  section{padding:70px 0;}
+  .section-title{text-align:center;margin-bottom:44px;}
+  .section-title h2{font-size:30px;font-weight:800;margin-bottom:10px;}
+  .section-title p{color:var(--g3);font-size:16px;max-width:600px;margin:0 auto;}
+  .alt{background:var(--white);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;}
+  .card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:28px 22px;transition:transform .2s,box-shadow .2s;}
+  .card:hover{transform:translateY(-4px);box-shadow:0 10px 28px rgba(0,0,0,.08);border-color:var(--red2);}
+  .card .icon{width:50px;height:50px;border-radius:12px;background:var(--red-light);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;}
+  .card h3{font-size:18px;font-weight:700;margin:0 0 8px;}
+  .card p{color:var(--g2);font-size:14px;margin:0;}
+  .alt .card{background:var(--g5);}
+  .about-wrap{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;}
+  .about-stats{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px;}
+  .stat{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:center;}
+  .stat .num{font-size:26px;font-weight:800;color:var(--red);}
+  .stat .lbl{font-size:13px;color:var(--g3);}
+  .about-list{list-style:none;margin:0;padding:0;}
+  .about-list li{padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;font-size:15px;}
+  .about-list li:last-child{border-bottom:none;}
+  .about-list .chk{color:var(--red2);font-weight:800;}
+  .workspace-wrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;}
+  .ws-card{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);background:var(--white);}
+  .ws-img{height:160px;background:linear-gradient(135deg,var(--red) 0%,var(--dark) 100%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px;}
+  .ws-body{padding:20px;}
+  .ws-body h3{margin:0 0 8px;font-size:17px;}
+  .ws-body p{margin:0;color:var(--g2);font-size:14px;}
+  .contact-wrap{display:grid;grid-template-columns:1fr 1fr;gap:40px;}
+  .contact-info .item{display:flex;gap:14px;margin-bottom:22px;align-items:flex-start;}
+  .contact-info .icon{width:42px;height:42px;flex-shrink:0;border-radius:10px;background:var(--red-light);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:18px;}
+  .contact-info h4{margin:0 0 4px;font-size:15px;font-weight:700;}
+  .contact-info p{margin:0;color:var(--g2);font-size:14px;}
+  form{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:28px;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .form-group{margin-bottom:16px;}
+  form label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--g1);}
+  form input,form textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;}
+  form input:focus,form textarea:focus{border-color:var(--red2);}
+  form button{width:100%;padding:12px;background:var(--red2);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;}
+  form button:hover{background:var(--red);}
+  .form-success{display:none;background:var(--red-light);color:var(--red);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;}
+  footer{background:var(--dark);color:#ccc;text-align:center;padding:28px 20px;font-size:13px;}
+  footer .brand{margin-bottom:8px;}
+  @media (max-width:800px){
+    .nav-links{display:none;}
+    .about-wrap,.contact-wrap,.form-row{grid-template-columns:1fr;}
+    .hero h1{font-size:28px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <nav class="nav">
+    <div class="brand">OG <span>Plus</span></div>
+    <ul class="nav-links">
+      <li><a href="#services">Services</a></li>
+      <li><a href="#gateway">Cross Border Gateway</a></li>
+      <li><a href="#workspaces">Work Spaces</a></li>
+      <li><a href="#about">About</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+    <a href="#contact" class="nav-cta">Get Started</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <h1>Discover the Power of a Great Partner</h1>
+  <p>Focus on your core business while we do what we do best - account, automate and support your growth!</p>
+  <a href="#contact" class="btn">Talk to Us</a>
+</div>
+
+<section id="services">
+  <div class="container">
+    <div class="section-title">
+      <h2>Our Services</h2>
+      <p>A full suite of services designed to power your business, from the books to the bots.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="icon">📊</div>
+        <h3>Accounting &amp; Bookkeeping</h3>
+        <p>Accurate, timely bookkeeping, reconciliations, financial statements and compliance support so you always know where your business stands.</p>
+      </div>
+      <div class="card">
+        <div class="icon">💻</div>
+        <h3>Rapid Software Development</h3>
+        <p>Custom web and mobile applications built fast, using modern frameworks and agile delivery to get your product to market quickly.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤖</div>
+        <h3>AI Driven Solutions</h3>
+        <p>Intelligent automation, chatbots, predictive analytics and machine-learning powered tools that streamline operations and cut costs.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🎨</div>
+        <h3>Graphic Design</h3>
+        <p>Brand identity, marketing collateral and digital design crafted to make your business stand out and connect with your audience.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🎬</div>
+        <h3>Animation &amp; Video Editing</h3>
+        <p>Engaging motion graphics, explainer videos and polished video editing that bring your story and products to life.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gateway" class="alt">
+  <div class="container">
+    <div class="section-title">
+      <h2>Cross Border Gateway</h2>
+      <p>Everything you need to set up and run a business across borders, handled by one trusted partner.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="icon">🏢</div>
+        <h3>Company Formation</h3>
+        <p>End-to-end incorporation and licensing support to get your entity registered and compliant, wherever you want to grow.</p>
+      </div>
+      <div class="card">
+        <div class="icon">💼</div>
+        <h3>CFO Services</h3>
+        <p>Fractional CFO expertise covering financial strategy, forecasting, fundraising support and board-ready reporting.</p>
+      </div>
+      <div class="card">
+        <div class="icon">💰</div>
+        <h3>Finance</h3>
+        <p>Treasury, payroll, tax and financial controls managed with local expertise and global standards.</p>
+      </div>
+      <div class="card">
+        <div class="icon">👥</div>
+        <h3>HR Services</h3>
+        <p>Recruitment, onboarding, benefits administration and HR compliance so you can build your team with confidence.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🖥️</div>
+        <h3>IT Services</h3>
+        <p>Infrastructure, security and helpdesk support that keeps your cross-border operations running smoothly.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="workspaces">
+  <div class="container">
+    <div class="section-title">
+      <h2>Work Spaces</h2>
+      <p>Flexible spaces to match how your team works best.</p>
+    </div>
+    <div class="workspace-wrap">
+      <div class="ws-card">
+        <div class="ws-img">🪑</div>
+        <div class="ws-body">
+          <h3>Co-working Spaces</h3>
+          <p>Bright, collaborative shared workspaces with high-speed internet, meeting rooms and a community of like-minded professionals.</p>
+        </div>
+      </div>
+      <div class="ws-card">
+        <div class="ws-img">🏙️</div>
+        <div class="ws-body">
+          <h3>Dedicated Spaces</h3>
+          <p>Private offices and dedicated desks for teams that need a consistent, secure home base with all the amenities of a full office.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about" class="alt">
+  <div class="container">
+    <div class="about-wrap">
+      <div>
+        <div class="section-title" style="text-align:left;margin-bottom:20px;">
+          <h2>About OG Plus</h2>
+          <p style="margin:0;">Your growth partner for over two decades.</p>
+        </div>
+        <ul class="about-list">
+          <li><span class="chk">✓</span> Over 20 years of industry experience serving businesses of every size.</li>
+          <li><span class="chk">✓</span> Deep expertise in accounting automation that eliminates manual busywork.</li>
+          <li><span class="chk">✓</span> Proven business process automation that streamlines operations end-to-end.</li>
+          <li><span class="chk">✓</span> AI-driven services that keep our clients ahead of the curve.</li>
+        </ul>
+      </div>
+      <div class="about-stats">
+        <div class="stat"><div class="num">20+</div><div class="lbl">Years of Experience</div></div>
+        <div class="stat"><div class="num">500+</div><div class="lbl">Clients Served</div></div>
+        <div class="stat"><div class="num">24/7</div><div class="lbl">Support Availability</div></div>
+        <div class="stat"><div class="num">100%</div><div class="lbl">Automation Focused</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="container">
+    <div class="section-title">
+      <h2>Get in Touch</h2>
+      <p>Have a question or ready to get started? Reach out and our team will respond shortly.</p>
+    </div>
+    <div class="contact-wrap">
+      <div class="contact-info">
+        <div class="item">
+          <div class="icon">📍</div>
+          <div><h4>Address</h4><p>OG Plus HQ, 4th Floor, Business Bay Tower, Dubai, United Arab Emirates</p></div>
+        </div>
+        <div class="item">
+          <div class="icon">✉️</div>
+          <div><h4>Email</h4><p>hello@ogplus.com</p></div>
+        </div>
+        <div class="item">
+          <div class="icon">📞</div>
+          <div><h4>Phone</h4><p>+971 4 123 4567</p></div>
+        </div>
+      </div>
+      <form id="og-contact-form" onsubmit="return handleOgPlusSubmit(event)">
+        <div class="form-success" id="og-form-success">Thanks! Your message has been noted. This form is a UI demo and is not connected to a backend.</div>
+        <div class="form-row">
+          <div class="form-group"><label>Name</label><input type="text" placeholder="Your full name" required></div>
+          <div class="form-group"><label>Email</label><input type="email" placeholder="you@example.com" required></div>
+        </div>
+        <div class="form-group"><label>Subject</label><input type="text" placeholder="How can we help?"></div>
+        <div class="form-group"><label>Message</label><textarea rows="4" placeholder="Tell us about your business..." required></textarea></div>
+        <button type="submit">Send Message</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="brand">OG <span style="color:var(--red2)">Plus</span></div>
+  <div>&copy; 2024 OG Plus. All rights reserved. This is a standalone demo replica page.</div>
+</footer>
+
+<script>
+  function handleOgPlusSubmit(e){
+    e.preventDefault();
+    document.getElementById('og-form-success').style.display='block';
+    e.target.reset();
+    return false;
+  }
+</script>
+
+</body>
+</html>
