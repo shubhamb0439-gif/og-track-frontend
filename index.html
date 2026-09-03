@@ -13234,7 +13234,13 @@ async function handleDeliveredCheckbox(deliveryId,checked){
     const r=await fetch(`/api/sales/deliveries/${deliveryId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({delivered:checked})});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     showToast(checked?'Marked as delivered ✓':'Marked as not delivered','success');
-    await Promise.all([loadDeliveriesData(),loadSalesData()]);
+    // A completed delivery can flip its customer PO's status server-side —
+    // without also reloading crmPOs, the Orders page keeps showing whatever
+    // status it last fetched (e.g. at login), so a PO that's actually been
+    // fully delivered still displays "Open" until something else happens to
+    // trigger a fresh CRM fetch. loadCrmData() always re-fetches (no
+    // already-loaded guard), so this is safe to call every time.
+    await Promise.all([loadDeliveriesData(),loadSalesData(),loadCrmData()]);
     renderView();
   }catch(e){ showToast(e.message,'error'); renderDeliveries(); }
 }
@@ -13249,7 +13255,9 @@ async function deleteDelivery(id){
     // without touching the sale/stock records.
     await fetch(`/api/sales/deliveries/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({deliveryAddress:null,deliveryLocation:null,scheduledDate:null,notes:null})});
     showToast('Delivery cleared','success');
-    await Promise.all([loadDeliveriesData(),loadSalesData()]);
+    // Same reload gap as the delivery-completion paths above, in reverse —
+    // reverting a delivery can flip its PO's status back too.
+    await Promise.all([loadDeliveriesData(),loadSalesData(),loadCrmData()]);
     renderView();
   }catch(e){ showToast(e.message,'error'); }
 }
@@ -13360,7 +13368,11 @@ async function saveDelivery(){
     if(!markR.ok){ const d=await markR.json(); throw new Error('Delivery was created but could not be marked delivered: '+d.error); }
     closeModal('delivery-modal');
     showToast('Delivered — stock updated ✓','success');
-    await Promise.all([loadDeliveriesData(),loadSalesData()]);
+    // Same reload gap as handleDeliveredCheckbox() above — without
+    // loadCrmData() here too, the Orders page's PO list keeps showing
+    // whatever status it last fetched, not whatever this delivery just
+    // changed server-side.
+    await Promise.all([loadDeliveriesData(),loadSalesData(),loadCrmData()]);
     // Once delivered, the record's home is the Deliveries page — jump there
     // instead of staying on Sales, so the person sees it land where it
     // actually belongs rather than just a checked box with no other change.
