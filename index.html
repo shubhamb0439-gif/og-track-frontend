@@ -3996,7 +3996,14 @@ function buildSidebar(){
     // after Messages/Attendance/History no matter what, which is the
     // "tabs are off" misordering being reported.
     navItems=[];
-    if(perms.includes('dashboard')) navItems.push(['dashboard','Dashboard','var(--red2)']);
+    // renderDashboard() already redirects a 'projects'-less role straight to
+    // renderOpsDashboard() (see its own comment there) — so for a role that
+    // has ops_dashboard but not projects, the generic "Dashboard" nav item
+    // would just be a second entry pointing at the exact same page as "Ops
+    // Dashboard". Drop the redundant one; a role that also has 'projects'
+    // still gets a real, distinct Dashboard.
+    const _dashboardIsRedundant = perms.includes('ops_dashboard') && !perms.includes('projects');
+    if(perms.includes('dashboard') && !_dashboardIsRedundant) navItems.push(['dashboard','Dashboard','var(--red2)']);
     if(perms.includes('ops_dashboard')) navItems.push(['ops_dashboard','Ops Dashboard','#16A085']);
     if(perms.includes('projects')) navItems.push(['projects','Projects','#7F7F7F']);
     if(perms.includes('bugs')) navItems.push(['bugs','All Bugs','#7F7F7F']);
