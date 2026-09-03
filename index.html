@@ -53,6 +53,17 @@
   function detectSlug() {
     const parts = location.pathname.split('/').filter(Boolean);
     const seg = parts[0];
+    // /reset-password is a bare top-level page (not slug-prefixed — the
+    // emailed link carries the tenant as a ?company= query param instead,
+    // since the user isn't logged into any one tenant yet). Must be
+    // detected before the generic slug branch below, which would otherwise
+    // treat "reset-password" itself as a tenant slug and try to bootstrap
+    // company branding for a company that doesn't exist.
+    if (seg && seg.toLowerCase() === 'reset-password') {
+      window.OGTRACK_IS_RESET_PASSWORD_PAGE = true;
+      window.OGTRACK_HAS_SLUG = false;
+      return window.OGTRACK_DEFAULT_SLUG || 'ogtrack';
+    }
     if (seg && !seg.includes('.')) {
       window.OGTRACK_HAS_SLUG = true;
       if (parts[1] === 'careers') {
@@ -160,7 +171,7 @@
 // has to finish before the parser reaches them. It's a small, same-origin,
 // one-time JSON fetch, so the blocking cost is negligible.
 (function () {
-  if (!window.OGTRACK_HAS_SLUG) return; // bare root — company picker handles this case instead
+  if (!window.OGTRACK_HAS_SLUG || window.OGTRACK_IS_RESET_PASSWORD_PAGE) return; // bare root, or the standalone reset-password page — neither has a real tenant to bootstrap
   try {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', window.OGTRACK_API_BASE + '/api/companies/by-slug/' + encodeURIComponent(window.OGTRACK_SLUG), false);
@@ -2540,6 +2551,7 @@ body { transition: background .3s ease, color .3s ease; }
     <div id="login-form">
       <div class="field"><label>Email</label><input type="email" id="l-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
       <div class="field"><label>Password</label><input type="password" id="l-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div style="text-align:right;margin:-6px 0 12px"><a href="javascript:void(0)" onclick="openForgotPasswordModal()" style="font-size:12.5px;color:var(--g3);text-decoration:none">Forgot password?</a></div>
       <button class="auth-btn" onclick="doLogin()">Sign In</button>
     </div>
     <div id="register-form" style="display:none">
@@ -2691,6 +2703,24 @@ body { transition: background .3s ease, color .3s ease; }
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="dismissDobNag()">Skip</button>
       <button class="btn btn-primary" id="dob-nag-save-btn" onclick="saveDobFromNag()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot password (login screen entry point) -->
+<div class="modal-overlay" id="forgot-password-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><h2>Reset your password</h2><button class="modal-close" onclick="closeModal('forgot-password-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="forgot-password-form">
+        <p style="font-size:13px;color:var(--g3);margin:0 0 14px">Enter your email and we'll send you a link to reset your password.</p>
+        <div class="field"><label>Email</label><input type="email" id="fp-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')submitForgotPassword()"></div>
+      </div>
+      <div id="forgot-password-confirmation" style="display:none;font-size:13.5px;color:var(--dark);line-height:1.5"></div>
+    </div>
+    <div class="modal-footer" id="forgot-password-footer">
+      <button class="btn btn-ghost" onclick="closeModal('forgot-password-modal')">Cancel</button>
+      <button class="btn btn-primary" id="forgot-password-submit-btn" onclick="submitForgotPassword()">Send Reset Link</button>
     </div>
   </div>
 </div>
@@ -3634,6 +3664,40 @@ async function doRegister(){
     document.getElementById('auth-error').style.display='none';
     document.getElementById('pending-msg').style.display='block';
   }catch(e){showAuthError('Could not reach server.');}
+}
+
+function openForgotPasswordModal(){
+  document.getElementById('fp-email').value=document.getElementById('l-email').value||'';
+  document.getElementById('forgot-password-form').style.display='block';
+  document.getElementById('forgot-password-confirmation').style.display='none';
+  document.getElementById('forgot-password-footer').style.display='flex';
+  document.getElementById('forgot-password-modal').classList.add('open');
+}
+async function submitForgotPassword(){
+  const email=document.getElementById('fp-email').value.trim();
+  if(!email){ showToast('Enter your email first','error'); return; }
+  const btn=document.getElementById('forgot-password-submit-btn');
+  if(btn){btn.disabled=true;btn.textContent='Sending...';}
+  // The backend always returns { success:true, message } regardless of
+  // whether the email exists/is approved/the send itself failed — by
+  // design, to prevent account enumeration. Show exactly what it returns;
+  // never infer or add our own wording about whether the email was found.
+  const fallbackMsg='If an account exists for that email, a reset link has been sent.';
+  try{
+    const r=await fetch('/api/users/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const data=await r.json().catch(()=>({}));
+    document.getElementById('forgot-password-form').style.display='none';
+    document.getElementById('forgot-password-footer').style.display='none';
+    const conf=document.getElementById('forgot-password-confirmation');
+    conf.textContent=data.message||fallbackMsg;
+    conf.style.display='block';
+  }catch(e){
+    // A real network failure — still shouldn't reveal anything about the
+    // email itself, just report we couldn't reach the server this time.
+    showToast('Could not reach server. Please try again.','error');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Send Reset Link';}
+  }
 }
 
 function doLogout(){
@@ -6597,6 +6661,8 @@ function toggleTheme() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 if(window.OGTRACK_FORBIDDEN){
   showForbiddenPage();
+} else if(window.OGTRACK_IS_RESET_PASSWORD_PAGE){
+  showResetPasswordPage();
 } else if(window.OGTRACK_IS_QR_DISPLAY_PAGE){
   showQrDisplayPage();
 } else if(window.OGTRACK_IS_CAREERS_PAGE){
@@ -6981,6 +7047,97 @@ function showForbiddenPage(){
     <a href="/" style="margin-top:10px;font-size:13px;color:var(--red2);text-decoration:none">← Back to company directory</a>
   `;
   document.body.appendChild(screen);
+}
+
+// ── Reset Password Page (standalone — /reset-password?token=...&company=<slug>,
+// reached from the emailed link, not tied to any one tenant's normal URL) ──
+async function showResetPasswordPage(){
+  ['splash-screen','onboarding-screen','loading-screen','auth-screen','directory-screen','careers-screen'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display='none';
+  });
+  const params=new URLSearchParams(location.search);
+  const token=params.get('token');
+  const company=params.get('company');
+  const screen=document.createElement('div');
+  screen.id='reset-password-screen';
+  screen.style.cssText='position:fixed;inset:0;background:#1A1A1A;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:inherit;padding:20px';
+
+  if(!token||!company){
+    // Someone navigated here directly, or the link was mangled/truncated —
+    // never call the endpoint with missing values, just show the dead-end.
+    screen.innerHTML=`
+      <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px">
+        <div style="font-size:64px;line-height:1">🔗</div>
+        <div style="font-size:22px;font-weight:700;color:#fff">Invalid reset link</div>
+        <div style="font-size:14px;color:#aaa;max-width:360px">This password reset link is missing required information. Please request a new one from your company's login page.</div>
+      </div>`;
+    document.body.appendChild(screen);
+    return;
+  }
+
+  window._resetPasswordToken=token;
+  window._resetPasswordCompany=company;
+
+  screen.innerHTML=`
+    <div style="background:#fff;border-radius:16px;padding:32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+      <div id="reset-password-form">
+        <h2 style="margin:0 0 6px;font-size:19px;color:var(--dark)">Set a new password</h2>
+        <p style="font-size:13px;color:var(--g3);margin:0 0 18px">Choose a new password for your account.</p>
+        <div class="field"><label>New Password</label><input type="password" id="rp-password" placeholder="Min 8 characters"></div>
+        <div class="field"><label>Confirm Password</label><input type="password" id="rp-confirm" placeholder="Re-enter password" onkeydown="if(event.key==='Enter')submitResetPassword()"></div>
+        <div id="reset-password-error" style="color:var(--red);font-size:12.5px;margin:4px 0 10px;display:none"></div>
+        <button class="auth-btn" id="reset-password-submit-btn" onclick="submitResetPassword()" style="width:100%">Reset Password</button>
+      </div>
+      <div id="reset-password-result" style="display:none;text-align:center"></div>
+    </div>`;
+  document.body.appendChild(screen);
+}
+async function submitResetPassword(){
+  const pw=document.getElementById('rp-password').value;
+  const confirmPw=document.getElementById('rp-confirm').value;
+  const errEl=document.getElementById('reset-password-error');
+  errEl.style.display='none';
+  if(pw.length<8){ errEl.textContent='Password must be at least 8 characters.'; errEl.style.display='block'; return; }
+  if(pw!==confirmPw){ errEl.textContent='Passwords do not match.'; errEl.style.display='block'; return; }
+
+  const btn=document.getElementById('reset-password-submit-btn');
+  if(btn){btn.disabled=true;btn.textContent='Resetting...';}
+  try{
+    // Bypasses the generic /api/... slug-rewriting adapter on purpose — this
+    // page never had a real tenant slug in its URL (OGTRACK_SLUG isn't the
+    // company this link belongs to), the company comes from ?company=
+    // instead, so the request is built directly against the API base.
+    const base=window.OGTRACK_API_BASE||'';
+    const r=await fetch(`${base}/api/${encodeURIComponent(window._resetPasswordCompany)}/users/reset-password`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:window._resetPasswordToken,newPassword:pw}),
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok){
+      // Single-use, already-expired-in-an-hour token — don't leave the form
+      // up for them to retry the same dead token, send them back to request
+      // a fresh one instead.
+      document.getElementById('reset-password-form').innerHTML=`
+        <h2 style="margin:0 0 6px;font-size:19px;color:var(--dark)">Reset link expired</h2>
+        <p style="font-size:13.5px;color:var(--g3);margin:0 0 16px">${esc(data.error||'This reset link is invalid or has expired.')}</p>
+        <a href="/${encodeURIComponent(window._resetPasswordCompany)}" style="display:inline-block;font-size:13px;color:var(--red);text-decoration:none;font-weight:600">← Back to login to request a new link</a>`;
+      return;
+    }
+    document.getElementById('reset-password-form').style.display='none';
+    const result=document.getElementById('reset-password-result');
+    result.innerHTML=`
+      <div style="font-size:48px;line-height:1;margin-bottom:10px">✅</div>
+      <h2 style="margin:0 0 6px;font-size:19px;color:var(--dark)">Password reset</h2>
+      <p style="font-size:13.5px;color:var(--g3);margin:0 0 18px">Your password has been changed. You can now sign in with your new password.</p>
+      <a href="/${encodeURIComponent(window._resetPasswordCompany)}" style="display:inline-block;font-size:13px;color:var(--red);text-decoration:none;font-weight:600">← Back to login</a>`;
+    result.style.display='block';
+  }catch(e){
+    errEl.textContent='Could not reach server. Please try again.';
+    errEl.style.display='block';
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Reset Password';}
+  }
 }
 
 // ── QR Display Page (standalone — /slug/attendance/qr, for an office screen/tablet) ──
