@@ -1266,6 +1266,11 @@ const ALL_MODULES = [
   { key:'roles',        label:'Roles' },
 ];
 
+// Sitara Bespoke is offered as ONE checkbox in the company modal (see
+// buildModuleCheckboxes()/saveCompany() below) that expands to these 4 real
+// module keys at save time — not 4 separate checkboxes.
+const SITARA_MODULE_KEYS = ['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders'];
+
 let token = localStorage.getItem('ma_token') || null;
 let adminInfo = null;
 let companies = [];
@@ -1646,7 +1651,11 @@ function buildModuleCheckboxes(selected) {
       <input type="checkbox" value="${m.key}" id="mod-check-${m.key}" ${selected.includes(m.key)?'checked':''} onchange="handleModuleDependency('${m.key}',this.checked)"/>
       ${m.label}
     </label>`
-  ).join('');
+  ).join('') + `
+    <label class="module-check" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">
+      <input type="checkbox" value="sitara_bundle" id="mod-check-sitara_bundle" ${SITARA_MODULE_KEYS.some(k=>selected.includes(k))?'checked':''}/>
+      Sitara Bespoke <span style="font-weight:400;color:var(--g3)">(Dashboard, People, Stocks, Orders)</span>
+    </label>`;
   // If manufacturing starts out checked, inventory must be locked on immediately.
   if (selected.includes('manufacturing')) handleModuleDependency('manufacturing', true);
   if (selected.includes('sales')) handleModuleDependency('sales', true);
@@ -1766,7 +1775,11 @@ async function saveCompany() {
   const status = document.getElementById('cm-status').value;
   const primary_color = document.getElementById('cm-color').value;
   const logo_url = document.getElementById('cm-logo').value.trim();
-  const enabled_modules = [...document.querySelectorAll('#module-checkboxes input:checked')].map(i=>i.value);
+  // "sitara_bundle" is a UI-only marker checkbox (see buildModuleCheckboxes())
+  // that expands to the 4 real Sitara Bespoke module keys here — it's never
+  // itself a real module key sent to the backend.
+  const enabled_modules = [...document.querySelectorAll('#module-checkboxes input:checked')].map(i=>i.value)
+    .flatMap(v => v==='sitara_bundle' ? SITARA_MODULE_KEYS : [v]);
 
   if (!name) { showToast('Company name is required','error'); return; }
 
