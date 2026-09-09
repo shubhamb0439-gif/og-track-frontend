@@ -4275,7 +4275,7 @@ function buildSidebar(){
     sitara_orders:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="1.5" y="5" width="15" height="8" rx="1.5"/><line x1="6" y1="5" x2="6" y2="13"/><line x1="12" y1="5" x2="12" y2="13"/></svg>`,
     sitara_razorpay:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M6 2h7l-4 6h4l-8 8 2-7H5l1-7z"/></svg>`,
   };
-  document.getElementById('sidebar-nav').innerHTML=navItems.map(item=>renderNavNode(item,_si,0)).join('');
+  document.getElementById('sidebar-nav').innerHTML=navItems.map(item=>renderNavNode(item,_si,_navIcons,0)).join('');
 }
 // A nav child can be a leaf ([view,label]) or, since People/Stocks became
 // sub-groups of Sitara Bespoke, itself a group with its own children — so
@@ -4285,11 +4285,11 @@ function navNodeContainsView(item,view){
   if(!(item&&item.group)) return item[0]===view;
   return item.children.some(c=>navNodeContainsView(c,view));
 }
-function renderNavNode(item,_si,depth){
+function renderNavNode(item,_si,_navIcons,depth){
   const subClass = depth<=0?'':depth===1?'nav-btn-sub':'nav-btn-sub2';
   if(item&&item.group){
     const isOpenGroup = item.children.some(c=>navNodeContainsView(c,currentView));
-    const childrenHtml = item.children.map(c=>renderNavNode(c,_si,depth+1)).join('');
+    const childrenHtml = item.children.map(c=>renderNavNode(c,_si,_navIcons,depth+1)).join('');
     return `<div class="nav-group ${isOpenGroup?'open':''}" id="nav-group-${item.group}">
       <button class="nav-btn nav-group-toggle ${subClass}" onclick="toggleNavGroup('${item.group}')">
         <span class="nav-icon">${_navIcons[item.group]||_navIcons.crm}</span>
