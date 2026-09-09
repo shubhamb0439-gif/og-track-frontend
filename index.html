@@ -13570,6 +13570,7 @@ async function renderSitaraDashboard(){
   }
   const d=sitaraDashboardData||{};
   const recent=(d.recentSales||[]).slice(0,10);
+  const topProducts=(d.topProducts||[]).slice(0,10);
   ca.innerHTML=`
     <h1 style="font-size:22px;font-weight:700;margin-bottom:16px">Sitara Drapes Dashboard</h1>
     <div class="stats-grid">
@@ -13591,6 +13592,17 @@ async function renderSitaraDashboard(){
           <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
           <td>${o.createdAt?new Date(o.createdAt).toLocaleDateString('en-GB'):'—'}</td>
         </tr>`).join(''):'<tr><td colspan="5" class="empty-state">No recent orders.</td></tr>'}
+      </tbody>
+    </table></div>
+    <h2 style="font-size:16px;font-weight:700;margin:20px 0 10px">Top Products</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Product</th><th>Quantity Sold</th><th>Revenue</th></tr></thead>
+      <tbody>
+        ${topProducts.length?topProducts.map(tp=>`<tr>
+          <td><strong>${esc(tp.productName||'—')}</strong></td>
+          <td>${tp.totalQuantity??0}</td>
+          <td>${sitaraInr(tp.totalRevenue)}</td>
+        </tr>`).join(''):'<tr><td colspan="3" class="empty-state">No product sales yet.</td></tr>'}
       </tbody>
     </table></div>`;
 }
@@ -13618,20 +13630,20 @@ function renderSitaraPeople(){
       <button class="btn btn-primary" onclick="openSitaraPersonModal('${sitaraPeopleTab}')">+ Add ${SITARA_PERSON_SINGULAR[sitaraPeopleTab]}</button>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Name</th><th>Contact Name</th><th>Phone</th><th>Email</th>${showSource?'<th>Source</th>':''}<th>Notes</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Name</th><th>Contact Name</th><th>Phone</th><th>Email</th>${showSource?'<th>City</th><th>Source</th>':''}<th>Notes</th><th>Actions</th></tr></thead>
       <tbody>
         ${list.length?list.map(p=>`<tr>
           <td><strong>${esc(p.name)}</strong></td>
           <td>${esc(p.contactName||'—')}</td>
           <td>${esc(p.phone||'—')}</td>
           <td>${esc(p.email||'—')}</td>
-          ${showSource?`<td>${esc(SITARA_SOURCE_LABELS[p.source]||p.source||'Manual')}</td>`:''}
+          ${showSource?`<td>${esc(p.city||'—')}</td><td>${esc(SITARA_SOURCE_LABELS[p.source]||p.source||'Manual')}</td>`:''}
           <td>${esc(p.notes||'—')}</td>
           <td>
             <button class="btn-sm btn-ghost" onclick="openSitaraPersonModal('${sitaraPeopleTab}','${p.id}')">Edit</button>
             <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraPerson('${sitaraPeopleTab}','${p.id}')">Delete</button>
           </td>
-        </tr>`).join(''):`<tr><td colspan="${showSource?7:6}" class="empty-state">No ${sitaraPeopleTab} yet.</td></tr>`}
+        </tr>`).join(''):`<tr><td colspan="${showSource?8:6}" class="empty-state">No ${sitaraPeopleTab} yet.</td></tr>`}
       </tbody>
     </table></div>`;
 }
