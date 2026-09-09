@@ -13975,12 +13975,21 @@ function renderSitaraOrders(){
         ${list.length?list.map(o=>{
           const isOpen=sitaraExpandedOrderId===o.id;
           const color=SITARA_ORDER_STATUS_COLOR[o.status]||'#7F7F7F';
+          // If the backend's real status value doesn't exactly match one of
+          // our known options, a plain <select> silently falls back to
+          // displaying its FIRST option as if it were selected — which
+          // looked like every order showing "awaiting fulfillment" even
+          // though that wasn't necessarily their real stored status at all.
+          // Inject the raw value as its own selected option instead, so an
+          // unrecognized status is shown honestly rather than masked.
+          const statusKnown=SITARA_ORDER_STATUSES.includes(o.status);
           const mainRow=`<tr>
             <td><button onclick="toggleSitaraOrderExpand('${o.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
             <td><strong>${esc(o.orderNumber||o.id)}</strong></td>
-            <td>${esc(o.customerName||(o.customer&&o.customer.name)||'—')}</td>
+            <td>${esc(o.customerName||(o.customer&&o.customer.name)||o.customer_name||o.billingName||'—')}</td>
             <td>
               <select onchange="updateSitaraOrderStatus('${o.id}',this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:${color}15;color:${color}">
+                ${!statusKnown&&o.status?`<option value="${esc(o.status)}" selected>${esc(o.status)} (unrecognized)</option>`:''}
                 ${SITARA_ORDER_STATUSES.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
               </select>
             </td>
