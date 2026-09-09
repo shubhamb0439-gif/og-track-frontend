@@ -13582,6 +13582,28 @@ function sitaraTopProductsChartHtml(topProducts){
     }).join('')}
   </div>`;
 }
+// Same ranked-bar treatment as Top Products — orders grouped by the
+// customer's city, ranked by revenue. Orders with no linked customer or no
+// city on file are excluded server-side rather than lumped into an
+// "unknown" bucket, so this list only ever shows real, known cities.
+function sitaraTopRegionsChartHtml(topRegions){
+  if(!topRegions.length) return '<div class="empty-state">No regional data yet.</div>';
+  const max=Math.max(...topRegions.map(r=>Number(r.revenue||0)),1);
+  return `<div style="display:flex;flex-direction:column;gap:10px">
+    ${topRegions.map(r=>{
+      const revenue=Number(r.revenue||0);
+      const pct=Math.max(4,Math.round(revenue/max*100));
+      return `<div style="display:flex;align-items:center;gap:12px">
+        <div style="width:170px;flex-shrink:0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.city||'')}">${esc(r.city||'—')}</div>
+        <div style="flex:1;background:var(--g5);border-radius:6px;height:24px;position:relative;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:var(--red);border-radius:6px"></div>
+        </div>
+        <div style="width:60px;flex-shrink:0;text-align:right;font-size:12px;color:var(--g3)">${r.orderCount??0} ord.</div>
+        <div style="width:110px;flex-shrink:0;text-align:right;font-size:13px;font-weight:700">${sitaraInr(r.revenue)}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 async function renderSitaraDashboard(){
   const ca=document.getElementById('content-area');
   if(!sitaraDashboardData){
@@ -13593,6 +13615,7 @@ async function renderSitaraDashboard(){
   const d=sitaraDashboardData||{};
   const recent=(d.recentSales||[]).slice(0,10);
   const topProducts=(d.topProducts||[]).slice(0,10);
+  const topRegions=(d.topRegions||[]).slice(0,10);
   ca.innerHTML=`
     <h1 style="font-size:22px;font-weight:700;margin-bottom:16px">Sitara Drapes Dashboard</h1>
     <div class="stats-grid">
@@ -13609,7 +13632,7 @@ async function renderSitaraDashboard(){
       <tbody>
         ${recent.length?recent.map(o=>`<tr>
           <td>${esc(o.orderNumber||o.id||'—')}</td>
-          <td>${esc(o.customerName||(o.customer&&o.customer.name)||'—')}</td>
+          <td>${esc(o.customerName||'—')}</td>
           <td><span style="text-transform:capitalize">${esc((o.status||'—').replace(/_/g,' '))}</span></td>
           <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
           <td>${o.createdAt?new Date(o.createdAt).toLocaleDateString('en-GB'):'—'}</td>
@@ -13617,7 +13640,9 @@ async function renderSitaraDashboard(){
       </tbody>
     </table></div>
     <h2 style="font-size:16px;font-weight:700;margin:20px 0 10px">Top Products</h2>
-    ${sitaraTopProductsChartHtml(topProducts)}`;
+    ${sitaraTopProductsChartHtml(topProducts)}
+    <h2 style="font-size:16px;font-weight:700;margin:20px 0 10px">Top Regions</h2>
+    ${sitaraTopRegionsChartHtml(topRegions)}`;
 }
 
 // ── 2. People (Weavers / Vendors / Customers) ───────────────────────────────
@@ -13943,14 +13968,22 @@ async function deleteSitaraPo(id){
 }
 
 // ── 4. Orders ────────────────────────────────────────────────────────────────
-// "incomplete" confirmed as a real BigCommerce order status (checkout
-// started but never finished) — was previously showing as "(unrecognized)"
-// since it wasn't in this list at all.
-const SITARA_ORDER_STATUSES=['incomplete','awaiting_fulfillment','awaiting_payment','partially_shipped','shipped','completed','cancelled','refunded'];
+// Full BigCommerce status vocabulary — the original 7-value list was
+// missing most of these, which is exactly why unrecognized real statuses
+// were silently falling back to displaying "awaiting fulfillment" (a
+// plain <select> shows its first option when nothing matches).
+const SITARA_ORDER_STATUSES=['incomplete','pending','awaiting_payment','awaiting_fulfillment','awaiting_shipment','awaiting_pickup','partially_shipped','shipped','completed','cancelled','declined','refunded','partially_refunded','disputed','manual_verification_required','verified'];
 const SITARA_ORDER_STATUS_COLOR={
-  incomplete:'#95A5A6', awaiting_fulfillment:'#F39C12', awaiting_payment:'#D35400', partially_shipped:'#2980B9',
-  shipped:'#8E44AD', completed:'#27AE60', cancelled:'#7F7F7F', refunded:'#C0392B',
+  incomplete:'#95A5A6', pending:'#F39C12', awaiting_payment:'#D35400', awaiting_fulfillment:'#F1C40F',
+  awaiting_shipment:'#3498DB', awaiting_pickup:'#16A085', partially_shipped:'#2980B9', shipped:'#8E44AD',
+  completed:'#27AE60', cancelled:'#7F7F7F', declined:'#C0392B', refunded:'#E74C3C',
+  partially_refunded:'#E67E22', disputed:'#922B21', manual_verification_required:'#B7950B', verified:'#1ABC9C',
 };
+// Dismissible warnings shown next to a row's status when a status change
+// succeeded locally but the push back to BigCommerce failed — keyed by
+// order id, kept independent of the order objects themselves so it
+// survives the loadSitaraData() refetch that follows every status change.
+let sitaraOrderSyncWarnings={};
 function sitaraTimeInStatus(iso){
   if(!iso) return '—';
   const days=Math.floor((Date.now()-new Date(iso).getTime())/86400000);
@@ -13993,21 +14026,24 @@ function renderSitaraOrders(){
           const color=SITARA_ORDER_STATUS_COLOR[o.status]||'#7F7F7F';
           // If the backend's real status value doesn't exactly match one of
           // our known options, a plain <select> silently falls back to
-          // displaying its FIRST option as if it were selected — which
-          // looked like every order showing "awaiting fulfillment" even
-          // though that wasn't necessarily their real stored status at all.
-          // Inject the raw value as its own selected option instead, so an
+          // displaying its FIRST option as if it were selected. Inject the
+          // raw value as its own selected option instead, so an
           // unrecognized status is shown honestly rather than masked.
           const statusKnown=SITARA_ORDER_STATUSES.includes(o.status);
+          const syncWarning=sitaraOrderSyncWarnings[o.id];
           const mainRow=`<tr>
             <td><button onclick="toggleSitaraOrderExpand('${o.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
             <td><strong>${esc(o.orderNumber||o.id)}</strong></td>
-            <td>${esc(o.customerName||(o.customer&&o.customer.name)||o.customer_name||o.billingName||'—')}</td>
+            <td>
+              <div>${esc(o.customerName||'—')}</div>
+              ${o.customerCity?`<div style="font-size:11px;color:var(--g3)">${esc(o.customerCity)}</div>`:''}
+            </td>
             <td>
               <select onchange="updateSitaraOrderStatus('${o.id}',this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:${color}15;color:${color}">
                 ${!statusKnown&&o.status?`<option value="${esc(o.status)}" selected>${esc(o.status)} (unrecognized)</option>`:''}
                 ${SITARA_ORDER_STATUSES.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
               </select>
+              ${syncWarning?`<div style="margin-top:4px;font-size:11px;color:#C0392B;display:flex;align-items:center;gap:6px">⚠ ${esc(syncWarning)} <button onclick="dismissSitaraSyncWarning('${o.id}')" style="background:none;border:none;cursor:pointer;color:#C0392B;font-size:11px;text-decoration:underline;padding:0">dismiss</button></div>`:''}
             </td>
             <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
             <td>${sitaraTimeInStatus(o.statusChangedAt||o.createdAt)}</td>
@@ -14031,11 +14067,22 @@ async function toggleSitaraOrderExpand(id){
 async function updateSitaraOrderStatus(id,status){
   try{
     const r=await fetch(`/api/sitara/orders/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
-    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error);
+    // The status change itself already succeeded even when this is set —
+    // it only means the push back to BigCommerce failed, so it's a
+    // dismissible warning next to the status, not an error for the whole
+    // action.
+    if(data.bigcommerceSyncError) sitaraOrderSyncWarnings[id]=data.bigcommerceSyncError;
+    else delete sitaraOrderSyncWarnings[id];
     showToast('Status updated ✓','success');
     await loadSitaraData();
     renderView();
   }catch(e){ showToast(e.message,'error'); renderView(); }
+}
+function dismissSitaraSyncWarning(id){
+  delete sitaraOrderSyncWarnings[id];
+  renderView();
 }
 function openSitaraOrderModal(){
   document.getElementById('so-customer').innerHTML='<option value="">— Walk-in / not on file —</option>'+sitaraCustomers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
