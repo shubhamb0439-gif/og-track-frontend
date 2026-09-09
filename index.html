@@ -4343,6 +4343,59 @@ function connectSocket(){
   socket.on('client:created',c=>{if(!accClients.find(x=>x.id===c.id))accClients.push(c);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
   socket.on('client:updated',c=>{accClients=accClients.map(x=>x.id===c.id?c:x);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
   socket.on('client:deleted',({id})=>{accClients=accClients.filter(x=>x.id!==id);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
+  // Sitara Bespoke socket listeners — same room as every other module above,
+  // no backend change needed, this is purely wiring the listeners. Weavers/
+  // Vendors also affect what Stocks shows (product rows join their names),
+  // so those two re-render sitara_stocks too, not just sitara_people.
+  socket.on('sitara:weaver_created',w=>{if(!sitaraWeavers.find(x=>x.id===w.id))sitaraWeavers.push(w);if(currentView==='sitara_people'||currentView==='sitara_stocks')renderView();});
+  socket.on('sitara:weaver_updated',w=>{sitaraWeavers=sitaraWeavers.map(x=>x.id===w.id?w:x);if(currentView==='sitara_people'||currentView==='sitara_stocks')renderView();});
+  socket.on('sitara:weaver_deleted',({id})=>{sitaraWeavers=sitaraWeavers.filter(x=>x.id!==id);if(currentView==='sitara_people'||currentView==='sitara_stocks')renderView();});
+  socket.on('sitara:vendor_created',v=>{if(!sitaraVendors.find(x=>x.id===v.id))sitaraVendors.push(v);if(currentView==='sitara_people'||currentView==='sitara_stocks')renderView();});
+  socket.on('sitara:vendor_updated',v=>{sitaraVendors=sitaraVendors.map(x=>x.id===v.id?v:x);if(currentView==='sitara_people'||currentView==='sitara_stocks')renderView();});
+  socket.on('sitara:vendor_deleted',({id})=>{sitaraVendors=sitaraVendors.filter(x=>x.id!==id);if(currentView==='sitara_people'||currentView==='sitara_stocks')renderView();});
+  socket.on('sitara:customer_created',c=>{if(!sitaraCustomers.find(x=>x.id===c.id))sitaraCustomers.push(c);if(currentView==='sitara_people')renderView();});
+  socket.on('sitara:customer_updated',c=>{sitaraCustomers=sitaraCustomers.map(x=>x.id===c.id?c:x);if(currentView==='sitara_people')renderView();});
+  socket.on('sitara:customer_deleted',({id})=>{sitaraCustomers=sitaraCustomers.filter(x=>x.id!==id);if(currentView==='sitara_people')renderView();});
+  socket.on('sitara:product_created',p=>{
+    if(!sitaraProducts.find(x=>x.id===p.id))sitaraProducts.push(p);
+    if(currentView==='sitara_stocks')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  socket.on('sitara:product_updated',p=>{
+    sitaraProducts=sitaraProducts.map(x=>x.id===p.id?p:x);
+    if(currentView==='sitara_stocks')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  socket.on('sitara:product_deleted',({id})=>{
+    sitaraProducts=sitaraProducts.filter(x=>x.id!==id);
+    if(currentView==='sitara_stocks')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  socket.on('sitara:po_created',po=>{if(!sitaraPOs.find(x=>x.id===po.id))sitaraPOs.unshift(po);if(currentView==='sitara_stocks')renderView();});
+  socket.on('sitara:po_updated',po=>{
+    sitaraPOs=sitaraPOs.map(x=>x.id===po.id?po:x);
+    // The list-shape payload has no items — if this exact PO is expanded,
+    // its cached detail is now stale and needs a fresh fetch.
+    if(sitaraExpandedPoId===po.id){ delete sitaraPoDetailCache[po.id]; sitaraRefreshExpandedPoDetail(po.id); }
+    if(currentView==='sitara_stocks')renderView();
+  });
+  socket.on('sitara:po_deleted',({id})=>{
+    sitaraPOs=sitaraPOs.filter(x=>x.id!==id);
+    delete sitaraPoDetailCache[id];
+    if(sitaraExpandedPoId===id) sitaraExpandedPoId=null;
+    if(currentView==='sitara_stocks')renderView();
+  });
+  socket.on('sitara:order_created',o=>{
+    if(!sitaraOrders.find(x=>x.id===o.id))sitaraOrders.unshift(o);
+    if(currentView==='sitara_orders')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  socket.on('sitara:order_updated',o=>{
+    sitaraOrders=sitaraOrders.map(x=>x.id===o.id?o:x);
+    if(sitaraExpandedOrderId===o.id){ delete sitaraOrderDetailCache[o.id]; sitaraRefreshExpandedOrderDetail(o.id); }
+    if(currentView==='sitara_orders')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
   // Messaging socket listeners
   socket.on(`message:new:${currentUser.id}`, ({convoId, message}) => {
     handleIncomingMessage(convoId, message);
@@ -13888,6 +13941,14 @@ async function toggleSitaraPoExpand(id){
   }
   renderSitaraStocksBody();
 }
+// Called when a currently-expanded PO changes via a socket event — the
+// list-shape po_updated payload doesn't include items, so the cached detail
+// is stale and needs a fresh fetch, same as opening it for the first time.
+async function sitaraRefreshExpandedPoDetail(id){
+  try{ sitaraPoDetailCache[id]=await fetch(`/api/sitara/purchase-orders/${id}`).then(r=>r.json()); }
+  catch(e){ sitaraPoDetailCache[id]={items:[]}; }
+  if(currentView==='sitara_stocks') renderSitaraStocksBody();
+}
 function sitaraProductOptions(){
   return sitaraProducts.length?sitaraProducts.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sku?' ('+esc(p.sku)+')':''}</option>`).join(''):'<option value="">— No products yet —</option>';
 }
@@ -14063,6 +14124,13 @@ async function toggleSitaraOrderExpand(id){
     catch(e){ sitaraOrderDetailCache[id]={items:[]}; }
   }
   renderSitaraOrders();
+}
+// Called when a currently-expanded order changes via a socket event — same
+// reasoning as sitaraRefreshExpandedPoDetail() above.
+async function sitaraRefreshExpandedOrderDetail(id){
+  try{ sitaraOrderDetailCache[id]=await fetch(`/api/sitara/orders/${id}`).then(r=>r.json()); }
+  catch(e){ sitaraOrderDetailCache[id]={items:[]}; }
+  if(currentView==='sitara_orders') renderSitaraOrders();
 }
 async function updateSitaraOrderStatus(id,status){
   try{
