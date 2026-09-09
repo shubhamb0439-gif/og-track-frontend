@@ -13560,6 +13560,28 @@ function sitaraProductName(id){ return (sitaraProducts.find(p=>p.id===id)||{}).n
 function sitaraInr(n){ return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2}); }
 
 // ── 1. Sitara Drapes Dashboard ───────────────────────────────────────────────
+// Ranked horizontal bar chart — one hue (brand red), bar length = revenue
+// share of the top product shown, with the exact quantity/revenue numbers
+// as direct labels (never color-alone, never a rainbow — this is a single
+// ranked metric, not distinct categories).
+function sitaraTopProductsChartHtml(topProducts){
+  if(!topProducts.length) return '<div class="empty-state">No product sales yet.</div>';
+  const max=Math.max(...topProducts.map(tp=>Number(tp.totalRevenue||0)),1);
+  return `<div style="display:flex;flex-direction:column;gap:10px">
+    ${topProducts.map(tp=>{
+      const revenue=Number(tp.totalRevenue||0);
+      const pct=Math.max(4,Math.round(revenue/max*100));
+      return `<div style="display:flex;align-items:center;gap:12px">
+        <div style="width:170px;flex-shrink:0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(tp.productName||'')}">${esc(tp.productName||'—')}</div>
+        <div style="flex:1;background:var(--g5);border-radius:6px;height:24px;position:relative;overflow:hidden">
+          <div style="width:${pct}%;height:100%;background:var(--red);border-radius:6px"></div>
+        </div>
+        <div style="width:60px;flex-shrink:0;text-align:right;font-size:12px;color:var(--g3)">×${tp.totalQuantity??0}</div>
+        <div style="width:110px;flex-shrink:0;text-align:right;font-size:13px;font-weight:700">${sitaraInr(tp.totalRevenue)}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 async function renderSitaraDashboard(){
   const ca=document.getElementById('content-area');
   if(!sitaraDashboardData){
@@ -13595,16 +13617,7 @@ async function renderSitaraDashboard(){
       </tbody>
     </table></div>
     <h2 style="font-size:16px;font-weight:700;margin:20px 0 10px">Top Products</h2>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Product</th><th>Quantity Sold</th><th>Revenue</th></tr></thead>
-      <tbody>
-        ${topProducts.length?topProducts.map(tp=>`<tr>
-          <td><strong>${esc(tp.productName||'—')}</strong></td>
-          <td>${tp.totalQuantity??0}</td>
-          <td>${sitaraInr(tp.totalRevenue)}</td>
-        </tr>`).join(''):'<tr><td colspan="3" class="empty-state">No product sales yet.</td></tr>'}
-      </tbody>
-    </table></div>`;
+    ${sitaraTopProductsChartHtml(topProducts)}`;
 }
 
 // ── 2. People (Weavers / Vendors / Customers) ───────────────────────────────
@@ -13930,9 +13943,12 @@ async function deleteSitaraPo(id){
 }
 
 // ── 4. Orders ────────────────────────────────────────────────────────────────
-const SITARA_ORDER_STATUSES=['awaiting_fulfillment','awaiting_payment','partially_shipped','shipped','completed','cancelled','refunded'];
+// "incomplete" confirmed as a real BigCommerce order status (checkout
+// started but never finished) — was previously showing as "(unrecognized)"
+// since it wasn't in this list at all.
+const SITARA_ORDER_STATUSES=['incomplete','awaiting_fulfillment','awaiting_payment','partially_shipped','shipped','completed','cancelled','refunded'];
 const SITARA_ORDER_STATUS_COLOR={
-  awaiting_fulfillment:'#F39C12', awaiting_payment:'#D35400', partially_shipped:'#2980B9',
+  incomplete:'#95A5A6', awaiting_fulfillment:'#F39C12', awaiting_payment:'#D35400', partially_shipped:'#2980B9',
   shipped:'#8E44AD', completed:'#27AE60', cancelled:'#7F7F7F', refunded:'#C0392B',
 };
 function sitaraTimeInStatus(iso){
