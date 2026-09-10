@@ -2785,7 +2785,7 @@ body { transition: background .3s ease, color .3s ease; }
   <div class="modal" style="max-width:560px">
     <div class="modal-header"><h2>Add Purchase</h2><button class="modal-close" onclick="closeModal('sitara-po-modal')">×</button></div>
     <div class="modal-body">
-      <div class="form-row full"><div class="form-group"><label>Vendor *</label><select id="spo-vendor"></select></div></div>
+      <div class="form-row full"><div class="form-group"><label>Weaver *</label><select id="spo-weaver"></select></div></div>
       <div class="form-row full"><div class="form-group"><label>Order Date</label><input type="date" id="spo-date"></div></div>
       <div id="sitara-po-lines"></div>
       <button type="button" class="btn-sm btn-ghost" onclick="addSitaraPoLine()">+ Add Line</button>
@@ -2811,6 +2811,30 @@ body { transition: background .3s ease, color .3s ease; }
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('sitara-order-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveSitaraOrder()">Create Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sitara Bespoke: Add/Edit Expense modal -->
+<div class="modal-overlay" id="sitara-expense-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2 id="sitara-expense-modal-title">Add Expense</h2><button class="modal-close" onclick="closeModal('sitara-expense-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row full"><div class="form-group"><label>Vendor *</label><select id="se-vendor"></select></div></div>
+      <div class="form-row">
+        <div class="form-group"><label>Category *</label><input type="text" id="se-category" list="se-category-suggestions" placeholder="e.g. Electricity, Rent, Repairs">
+          <datalist id="se-category-suggestions">
+            <option value="Electricity"><option value="Rent"><option value="Repairs"><option value="Salaries"><option value="Transport"><option value="Miscellaneous">
+          </datalist>
+        </div>
+        <div class="form-group"><label>Amount (₹) *</label><input type="number" id="se-amount" min="0" step="0.01" placeholder="0"></div>
+      </div>
+      <div class="form-row full"><div class="form-group"><label>Expense Date</label><input type="date" id="se-date"></div></div>
+      <div class="form-row full"><div class="form-group"><label>Description</label><textarea id="se-description" placeholder="Optional notes"></textarea></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('sitara-expense-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSitaraExpense()">Save Expense</button>
     </div>
   </div>
 </div>
@@ -4088,8 +4112,7 @@ function buildSidebar(){
     ['sitara_dashboard','Dashboard'],
     {group:'sitara_people_group',label:'People',children:[['sitara_people_weavers','Weavers'],['sitara_people_vendors','Vendors'],['sitara_people_customers','Customers']]},
     {group:'sitara_stocks_group',label:'Stocks',children:[['sitara_stocks_inventory','Inventory'],['sitara_stocks_purchases','Purchases']]},
-    ['sitara_orders','Orders'],
-    ['sitara_razorpay','Razorpay'],
+    {group:'sitara_business_group',label:'Business',children:[['sitara_business_orders','Orders'],['sitara_business_razorpay','Razorpay'],['sitara_business_expenses','Expenses']]},
   ]};
   if(BUILTIN_ROLES.includes(role)){
     const items={
@@ -4116,7 +4139,7 @@ function buildSidebar(){
       // always all-on or all-off together, but this checks "any" rather than
       // assuming that to stay correct if enabled_modules is ever edited by
       // some other means.
-      const SITARA_MODULE_KEYS=['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay'];
+      const SITARA_MODULE_KEYS=['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'];
       // Core pages that should always be available regardless of a
       // company's configured module list — these predate the module
       // system entirely. Ops Dashboard is NOT included here: it's a real,
@@ -4213,7 +4236,7 @@ function buildSidebar(){
     // In practice its 4 keys are always all-on or all-off together (see the
     // masteradmin company modal's single combined checkbox), so "any"
     // present is enough to show the whole group.
-    if((window.COMPANY_CONTEXT?.modules||[]).some(k=>['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay'].includes(k))){
+    if((window.COMPANY_CONTEXT?.modules||[]).some(k=>['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'].includes(k))){
       navItems.push(SITARA_GROUP_DEF);
     }
     if(perms.includes('attendance')) navItems.push(['attendance','Attendance','#27AE60']);
@@ -4272,8 +4295,10 @@ function buildSidebar(){
     sitara_stocks_group:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="2.5" y="4" width="13" height="11" rx="1"/><path d="M2.5 8h13M6 4V2.5h6V4"/></svg>`,
     sitara_stocks_inventory:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><rect x="2.5" y="4" width="13" height="11" rx="1"/><path d="M2.5 8h13M6 4V2.5h6V4"/></svg>`,
     sitara_stocks_purchases:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><path d="M2 3h2l2 9h8l2-6H5"/><circle cx="7" cy="15" r="1"/><circle cx="13" cy="15" r="1"/></svg>`,
-    sitara_orders:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="1.5" y="5" width="15" height="8" rx="1.5"/><line x1="6" y1="5" x2="6" y2="13"/><line x1="12" y1="5" x2="12" y2="13"/></svg>`,
-    sitara_razorpay:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><path d="M6 2h7l-4 6h4l-8 8 2-7H5l1-7z"/></svg>`,
+    sitara_business_group:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="2" y="6" width="14" height="10" rx="1"/><path d="M6 6V4a2 2 0 014 0v2"/></svg>`,
+    sitara_business_orders:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><rect x="1.5" y="5" width="15" height="8" rx="1.5"/><line x1="6" y1="5" x2="6" y2="13"/><line x1="12" y1="5" x2="12" y2="13"/></svg>`,
+    sitara_business_razorpay:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><path d="M6 2h7l-4 6h4l-8 8 2-7H5l1-7z"/></svg>`,
+    sitara_business_expenses:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><path d="M4 2h10v14l-2.5-1.5L9 16l-2.5-1.5L4 16V2z"/><line x1="6.5" y1="6" x2="11.5" y2="6"/><line x1="6.5" y1="9" x2="11.5" y2="9"/></svg>`,
   };
   document.getElementById('sidebar-nav').innerHTML=navItems.map(item=>renderNavNode(item,_si,_navIcons,0)).join('');
 }
@@ -4410,13 +4435,32 @@ function connectSocket(){
   });
   socket.on('sitara:order_created',o=>{
     if(!sitaraOrders.find(x=>x.id===o.id))sitaraOrders.unshift(o);
-    if(currentView==='sitara_orders')renderView();
+    if(currentView==='sitara_business_orders')renderView();
     if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
   });
   socket.on('sitara:order_updated',o=>{
     sitaraOrders=sitaraOrders.map(x=>x.id===o.id?o:x);
     if(sitaraExpandedOrderId===o.id){ delete sitaraOrderDetailCache[o.id]; sitaraRefreshExpandedOrderDetail(o.id); }
-    if(currentView==='sitara_orders')renderView();
+    if(currentView==='sitara_business_orders')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  // Expenses — new (Prompt 19). Same pattern as every other Sitara real-time
+  // event: created/updated update the array in place, deleted filters it out;
+  // re-render only if this exact tab is open, and invalidate the dashboard's
+  // cached totalExpenses if the user is looking at the dashboard.
+  socket.on('sitara:expense_created',e=>{
+    if(!sitaraExpenses.find(x=>x.id===e.id))sitaraExpenses.unshift(e);
+    if(currentView==='sitara_business_expenses')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  socket.on('sitara:expense_updated',e=>{
+    sitaraExpenses=sitaraExpenses.map(x=>x.id===e.id?e:x);
+    if(currentView==='sitara_business_expenses')renderView();
+    if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  socket.on('sitara:expense_deleted',({id})=>{
+    sitaraExpenses=sitaraExpenses.filter(x=>x.id!==id);
+    if(currentView==='sitara_business_expenses')renderView();
     if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
   });
   // Messaging socket listeners
@@ -4555,7 +4599,7 @@ function showView(v){
   document.querySelectorAll('.nav-group').forEach(g=>{
     if(g.querySelector('#nav-'+v)) g.classList.add('open');
   });
-  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',admin_bugs:'All Bugs',bugs:'All Bugs',mybugs:'My Bugs',test_cases:'Test Cases',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries',sitara_dashboard:'Sitara Drapes Dashboard',sitara_people_weavers:'Weavers',sitara_people_vendors:'Vendors',sitara_people_customers:'Customers',sitara_stocks_inventory:'Inventory',sitara_stocks_purchases:'Purchases',sitara_orders:'Orders',sitara_razorpay:'Razorpay'}[v]||v;
+  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',admin_bugs:'All Bugs',bugs:'All Bugs',mybugs:'My Bugs',test_cases:'Test Cases',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries',sitara_dashboard:'Sitara Drapes Dashboard',sitara_people_weavers:'Weavers',sitara_people_vendors:'Vendors',sitara_people_customers:'Customers',sitara_stocks_inventory:'Inventory',sitara_stocks_purchases:'Purchases',sitara_business_orders:'Orders',sitara_business_razorpay:'Razorpay',sitara_business_expenses:'Expenses'}[v]||v;
   document.getElementById('filter-bar').style.display=(v==='bugs'||v==='mybugs')?'flex':'none';
   // Animate content area on tab switch
   const ca = document.getElementById('content-area');
@@ -4615,8 +4659,9 @@ function renderView(){
   if(currentView==='sitara_dashboard') return renderSitaraDashboard();
   if(SITARA_PEOPLE_VIEWS.includes(currentView)) return renderSitaraPeople();
   if(SITARA_STOCKS_VIEWS.includes(currentView)) return renderSitaraStocks();
-  if(currentView==='sitara_orders')    return renderSitaraOrders();
-  if(currentView==='sitara_razorpay')  return renderSitaraRazorpay();
+  if(currentView==='sitara_business_orders')   return renderSitaraOrders();
+  if(currentView==='sitara_business_razorpay') return renderSitaraRazorpay();
+  if(currentView==='sitara_business_expenses') return renderSitaraExpenses();
   renderBugTable();
 }
 
@@ -13624,6 +13669,12 @@ let sitaraPoDetailCache={};
 let sitaraOrderDetailCache={};
 let sitaraPoLineIdx=0;
 let sitaraOrderLineIdx=0;
+// Business section (Orders / Razorpay / Expenses) — Orders and Razorpay are
+// unchanged screens just moved under one nested sidebar group; Expenses is
+// the new tab.
+let sitaraExpenses=[];
+let sitaraExpensesLoaded=false;
+let sitaraExpenseFilters={category:'',sortBy:'date'}; // sortBy: 'date' | 'category'
 
 async function loadSitaraData(){
   try{
@@ -13637,6 +13688,11 @@ async function loadSitaraData(){
     ]);
   }catch(e){ sitaraWeavers=[];sitaraVendors=[];sitaraCustomers=[];sitaraProducts=[];sitaraPOs=[];sitaraOrders=[]; }
   sitaraLoaded=true;
+}
+async function loadSitaraExpensesData(){
+  try{ sitaraExpenses=await fetch('/api/sitara/expenses').then(r=>r.json()); }
+  catch(e){ sitaraExpenses=[]; }
+  sitaraExpensesLoaded=true;
 }
 function sitaraVendorName(id){ return (sitaraVendors.find(v=>v.id===id)||{}).name||'—'; }
 function sitaraWeaverName(id){ return (sitaraWeavers.find(w=>w.id===id)||{}).name||'—'; }
@@ -13692,14 +13748,21 @@ async function renderSitaraDashboard(){
   const ca=document.getElementById('content-area');
   if(!sitaraDashboardData){
     ca.innerHTML='<div class="loading">Loading Sitara Drapes Dashboard...</div>';
-    try{ sitaraDashboardData=await fetch('/api/sitara/dashboard').then(r=>r.json()); }
-    catch(e){ sitaraDashboardData={}; }
+    const [dashboardData]=await Promise.all([
+      fetch('/api/sitara/dashboard').then(r=>r.json()).catch(()=>({})),
+      sitaraExpensesLoaded?Promise.resolve():loadSitaraExpensesData(),
+    ]);
+    sitaraDashboardData=dashboardData;
     if(currentView!=='sitara_dashboard') return; // navigated away while this was loading
   }
   const d=sitaraDashboardData||{};
   const recent=(d.recentSales||[]).slice(0,10);
   const topProducts=(d.topProducts||[]).slice(0,10);
   const topRegions=(d.topRegions||[]).slice(0,10);
+  // The dashboard endpoint's own totalExpenses may still be hardcoded to 0
+  // server-side — prefer a real client-side sum of GET /expenses once we
+  // have it, since that reflects the actual Expenses feature (Prompt 19).
+  const totalExpenses=sitaraExpensesLoaded?sitaraExpenses.reduce((s,e)=>s+Number(e.amount||0),0):(d.totalExpenses||0);
   ca.innerHTML=`
     <h1 style="font-size:22px;font-weight:700;margin-bottom:16px">Sitara Drapes Dashboard</h1>
     <div class="stats-grid">
@@ -13708,7 +13771,7 @@ async function renderSitaraDashboard(){
       <div class="stat-card"><div class="label">Orders</div><div class="value grey">${d.orderCount??0}</div></div>
       <div class="stat-card"><div class="label">Pending Orders</div><div class="value red">${d.pendingOrderCount??0}</div></div>
       <div class="stat-card"><div class="label">Stock on Hand</div><div class="value grey">${d.stockOnHand??0}</div></div>
-      <div class="stat-card"><div class="label">Total Expenses</div><div class="value grey">${sitaraInr(d.totalExpenses)}</div></div>
+      <div class="stat-card"><div class="label">Total Expenses</div><div class="value grey">${sitaraInr(totalExpenses)}</div></div>
     </div>
     <h2 style="font-size:16px;font-weight:700;margin:20px 0 10px">Recent Orders</h2>
     <div class="table-wrap"><table>
@@ -13917,14 +13980,14 @@ function sitaraPurchasesHtml(){
       <button class="btn btn-primary" onclick="openSitaraPoModal()">+ Add Purchase</button>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th></th><th>Vendor</th><th>Order Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
+      <thead><tr><th></th><th>Weaver</th><th>Order Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
       <tbody>
         ${sitaraPOs.length?sitaraPOs.map(po=>{
           const isOpen=sitaraExpandedPoId===po.id;
           const color=SITARA_PO_STATUS_COLOR[po.status]||'#7F7F7F';
           const mainRow=`<tr>
             <td><button onclick="toggleSitaraPoExpand('${po.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
-            <td><strong>${esc(sitaraVendorName(po.vendorId))}</strong></td>
+            <td><strong>${esc(sitaraWeaverName(po.weaverId))}</strong></td>
             <td>${po.orderDate?new Date(po.orderDate).toLocaleDateString('en-GB'):(po.createdAt?new Date(po.createdAt).toLocaleDateString('en-GB'):'—')}</td>
             <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color};text-transform:capitalize">${esc(po.status||'pending')}</span></td>
             <td>${esc(po.notes||'—')}</td>
@@ -13977,7 +14040,7 @@ function sitaraProductOptions(){
 function openSitaraPoModal(){
   document.getElementById('spo-date').value='';
   document.getElementById('spo-notes').value='';
-  document.getElementById('spo-vendor').innerHTML=sitaraVendors.length?sitaraVendors.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join(''):'<option value="">— No vendors yet. Add one in People. —</option>';
+  document.getElementById('spo-weaver').innerHTML=sitaraWeavers.length?sitaraWeavers.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join(''):'<option value="">— No weavers yet. Add one in People. —</option>';
   document.getElementById('sitara-po-lines').innerHTML='';
   sitaraPoLineIdx=0;
   addSitaraPoLine();
@@ -14003,8 +14066,8 @@ function addSitaraPoLine(){
   document.getElementById('sitara-po-lines').appendChild(row);
 }
 async function saveSitaraPo(){
-  const vendorId=document.getElementById('spo-vendor').value;
-  if(!vendorId){ showToast('Select a vendor','error'); return; }
+  const weaverId=document.getElementById('spo-weaver').value;
+  if(!weaverId){ showToast('Select a weaver','error'); return; }
   const items=[];
   document.querySelectorAll('#sitara-po-lines > div').forEach(row=>{
     const idx=row.id.split('-').pop();
@@ -14015,7 +14078,7 @@ async function saveSitaraPo(){
   });
   if(!items.length){ showToast('Add at least one line item','error'); return; }
   const payload={
-    vendorId,
+    weaverId,
     orderDate: document.getElementById('spo-date').value||undefined,
     notes: document.getElementById('spo-notes').value.trim()||undefined,
     items,
@@ -14078,7 +14141,7 @@ function renderSitaraOrders(){
   const ca=document.getElementById('content-area');
   if(!sitaraLoaded){
     ca.innerHTML='<div class="loading">Loading Orders...</div>';
-    loadSitaraData().then(()=>{ if(currentView==='sitara_orders') renderView(); });
+    loadSitaraData().then(()=>{ if(currentView==='sitara_business_orders') renderView(); });
     return;
   }
   const list=sitaraOrders.filter(o=>
@@ -14152,7 +14215,7 @@ async function toggleSitaraOrderExpand(id){
 async function sitaraRefreshExpandedOrderDetail(id){
   try{ sitaraOrderDetailCache[id]=await fetch(`/api/sitara/orders/${id}`).then(r=>r.json()); }
   catch(e){ sitaraOrderDetailCache[id]={items:[]}; }
-  if(currentView==='sitara_orders') renderSitaraOrders();
+  if(currentView==='sitara_business_orders') renderSitaraOrders();
 }
 async function updateSitaraOrderStatus(id,status){
   try{
@@ -14256,7 +14319,7 @@ function renderSitaraRazorpay(){
   const ca=document.getElementById('content-area');
   if(!sitaraRazorpayLoaded){
     ca.innerHTML='<div class="loading">Loading Razorpay payments...</div>';
-    loadSitaraRazorpayData().then(()=>{ if(currentView==='sitara_razorpay') renderView(); });
+    loadSitaraRazorpayData().then(()=>{ if(currentView==='sitara_business_razorpay') renderView(); });
     return;
   }
   const all=sitaraRazorpayPayments||[];
@@ -14288,6 +14351,98 @@ function renderSitaraRazorpay(){
     </table></div>`;
 }
 function toggleSitaraRazorpayUnmatchedOnly(){ sitaraRazorpayUnmatchedOnly=!sitaraRazorpayUnmatchedOnly; renderSitaraRazorpay(); }
+
+// ── Expenses (Business tab 3 of 3) ──────────────────────────────────────────
+// Vendors here are the ones from People (unrelated business costs — power,
+// rent, etc.) — not the weavers now used for stock Purchases.
+function renderSitaraExpenses(){
+  const ca=document.getElementById('content-area');
+  if(!sitaraExpensesLoaded){
+    ca.innerHTML='<div class="loading">Loading Expenses...</div>';
+    loadSitaraExpensesData().then(()=>{ if(currentView==='sitara_business_expenses') renderView(); });
+    return;
+  }
+  const catFilter=sitaraExpenseFilters.category.trim().toLowerCase();
+  let list=sitaraExpenses.filter(e=>!catFilter||(e.category||'').toLowerCase().includes(catFilter));
+  list=list.slice().sort((a,b)=>sitaraExpenseFilters.sortBy==='category'
+    ? (a.category||'').localeCompare(b.category||'')
+    : new Date(b.expenseDate||b.createdAt||0)-new Date(a.expenseDate||a.createdAt||0));
+  const total=list.reduce((s,e)=>s+Number(e.amount||0),0);
+  ca.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" placeholder="Filter by category…" value="${esc(sitaraExpenseFilters.category)}" oninput="setSitaraExpenseCategoryFilter(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:180px">
+        <button class="btn-sm ${sitaraExpenseFilters.sortBy==='date'?'btn-primary':'btn-ghost'}" onclick="setSitaraExpenseSort('date')">Sort by Date</button>
+        <button class="btn-sm ${sitaraExpenseFilters.sortBy==='category'?'btn-primary':'btn-ghost'}" onclick="setSitaraExpenseSort('category')">Sort by Category</button>
+      </div>
+      <button class="btn btn-primary" onclick="openSitaraExpenseModal()">+ Add Expense</button>
+    </div>
+    <div style="font-size:13px;color:var(--g3);margin-bottom:10px">${list.length} expense${list.length===1?'':'s'} · Total ${sitaraInr(total)}</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>
+      <tbody>
+        ${list.length?list.map(e=>`<tr>
+          <td>${e.expenseDate?new Date(e.expenseDate).toLocaleDateString('en-GB'):(e.createdAt?new Date(e.createdAt).toLocaleDateString('en-GB'):'—')}</td>
+          <td>${esc(sitaraVendorName(e.vendorId))}</td>
+          <td>${esc(e.category||'—')}</td>
+          <td>${esc(e.description||'—')}</td>
+          <td>${sitaraInr(e.amount)}</td>
+          <td>
+            <button class="btn-sm btn-ghost" onclick="openSitaraExpenseModal('${e.id}')">Edit</button>
+            <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraExpense('${e.id}')">Delete</button>
+          </td>
+        </tr>`).join(''):'<tr><td colspan="6" class="empty-state">No expenses yet.</td></tr>'}
+      </tbody>
+    </table></div>`;
+}
+function setSitaraExpenseCategoryFilter(v){ sitaraExpenseFilters.category=v; renderSitaraExpenses(); }
+function setSitaraExpenseSort(sortBy){ sitaraExpenseFilters.sortBy=sortBy; renderSitaraExpenses(); }
+function openSitaraExpenseModal(id){
+  const e=id?sitaraExpenses.find(x=>x.id===id):null;
+  document.getElementById('sitara-expense-modal').dataset.editId=id||'';
+  document.getElementById('sitara-expense-modal-title').textContent=e?'Edit Expense':'Add Expense';
+  document.getElementById('se-vendor').innerHTML=sitaraVendors.length?sitaraVendors.map(v=>`<option value="${v.id}" ${e?.vendorId===v.id?'selected':''}>${esc(v.name)}</option>`).join(''):'<option value="">— No vendors yet. Add one in People. —</option>';
+  document.getElementById('se-category').value=e?.category||'';
+  document.getElementById('se-amount').value=e?.amount??'';
+  document.getElementById('se-date').value=e?.expenseDate?String(e.expenseDate).slice(0,10):'';
+  document.getElementById('se-description').value=e?.description||'';
+  document.getElementById('sitara-expense-modal').classList.add('open');
+}
+async function saveSitaraExpense(){
+  const modal=document.getElementById('sitara-expense-modal');
+  const id=modal.dataset.editId;
+  const vendorId=document.getElementById('se-vendor').value;
+  if(!vendorId){ showToast('Select a vendor','error'); return; }
+  const category=document.getElementById('se-category').value.trim();
+  if(!category){ showToast('Category is required','error'); return; }
+  const amount=Number(document.getElementById('se-amount').value||0);
+  if(!amount||amount<=0){ showToast('Enter a valid amount','error'); return; }
+  const payload={
+    vendorId, category, amount,
+    description: document.getElementById('se-description').value.trim()||undefined,
+    expenseDate: document.getElementById('se-date').value||undefined,
+  };
+  try{
+    const r=id
+      ? await fetch(`/api/sitara/expenses/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      : await fetch('/api/sitara/expenses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    closeModal('sitara-expense-modal');
+    showToast('Saved ✓','success');
+    await loadSitaraExpensesData();
+    renderView();
+  }catch(e){ showToast(e.message,'error'); }
+}
+async function deleteSitaraExpense(id){
+  if(!confirm('Delete this expense?')) return;
+  try{
+    const r=await fetch(`/api/sitara/expenses/${id}`,{method:'DELETE'});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    showToast('Deleted','success');
+    await loadSitaraExpensesData();
+    renderView();
+  }catch(e){ showToast(e.message,'error'); }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // AIDA — AI conversational layer
