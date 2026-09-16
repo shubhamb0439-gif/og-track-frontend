@@ -3014,7 +3014,10 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group"><label>Vendor *</label><select id="inv-po-vendor"><option value="">Select Vendor</option></select></div>
         <div class="form-group"><label>PO Number</label><input type="text" id="inv-po-number" placeholder="Optional"></div>
       </div>
-      <div class="form-row"><div class="form-group"><label>Purchase Date *</label><input type="date" id="inv-po-orderdate"></div></div>
+      <div class="form-row">
+        <div class="form-group"><label>Purchase Date *</label><input type="date" id="inv-po-orderdate"></div>
+        <div class="form-group"><label>Invoice Number</label><input type="text" id="inv-po-invoice" placeholder="Optional"></div>
+      </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px">
         <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items</label>
@@ -3039,11 +3042,15 @@ body { transition: background .3s ease, color .3s ease; }
   <div class="modal" style="max-width:640px">
     <div class="modal-header"><h2>Edit Purchase</h2><button class="modal-close" onclick="closeModal('inv-purchase-edit-modal')">×</button></div>
     <div class="modal-body" style="max-height:75vh;overflow-y:auto">
-      <div class="form-row"><div class="form-group"><label>Purchase Date</label><input type="date" id="inv-ep-date"></div></div>
+      <div class="form-row">
+        <div class="form-group"><label>Purchase Date</label><input type="date" id="inv-ep-date"></div>
+        <div class="form-group"><label>Receive Date</label><input type="date" id="inv-ep-receiveddate"></div>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>PO Number</label><input type="text" id="inv-ep-po" placeholder="Optional"></div>
         <div class="form-group"><label>Vendor</label><select id="inv-ep-vendor"></select></div>
       </div>
+      <div class="form-row"><div class="form-group"><label>Invoice Number</label><input type="text" id="inv-ep-invoice" placeholder="Optional"></div></div>
       <div style="margin-top:10px">
         <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items (1)</label>
         <div id="inv-ep-items" style="margin-top:8px"></div>
@@ -4171,11 +4178,14 @@ function buildSidebar(){
     // Custom role — build nav from permissions
     const cr=allCustomRoles.find(r=>r.id===role||r.name===role);
     let perms=cr?.permissions||[];
-    // Core pages added before the module system existed — force these in
-    // unconditionally. Ops Dashboard is deliberately excluded: it's a real,
-    // grantable permission like crm/inventory/manufacturing, controlled by
-    // Role Manager per role and by masteradmin per company.
-    const alwaysOnPerms=['dashboard','attendance','history','messages'];
+    // Core pages force-included regardless of the role's own permission
+    // list. Dashboard used to be forced in here too, but that meant a role
+    // with no Dashboard permission still saw it — a real bug (a custom role
+    // scoped to just ["attendance","messages"] was still showing Dashboard
+    // *and* every company-enabled module). Dashboard is a real, grantable
+    // permission like crm/inventory/manufacturing/sitara now — same as Ops
+    // Dashboard already was.
+    const alwaysOnPerms=['attendance','history','messages'];
     perms=[...new Set([...perms,...alwaysOnPerms])];
     // Same rule as built-in roles: a permission only takes effect if the
     // company actually has that module enabled. Without this, disabling a
@@ -4184,7 +4194,11 @@ function buildSidebar(){
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules){
       const allowed=window.COMPANY_CONTEXT.modules;
       const moduleGate={mybugs:'bugs'}; // permission keys that map to a different module key
-      perms=perms.filter(p=>alwaysOnPerms.includes(p)||allowed.includes(moduleGate[p]||p));
+      const sitaraModuleKeys=['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'];
+      // 'sitara' has no single matching module key of its own — the company
+      // module list stores the 6 sitara_* keys, same mismatch handled for
+      // BUILTIN_ROLES above.
+      perms=perms.filter(p=>alwaysOnPerms.includes(p)||(p==='sitara'?sitaraModuleKeys.some(k=>allowed.includes(k)):allowed.includes(moduleGate[p]||p)));
     }
     // Built in a fixed, explicit order (rather than whatever order the
     // role's stored permissions happen to be in) so the sidebar always
@@ -4230,13 +4244,13 @@ function buildSidebar(){
         ['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability'],
       ]});
     }
-    // Sitara Bespoke — no dedicated permission checkbox for custom roles;
-    // gate purely on the company's enabled_modules (same pattern as the
-    // Ops Dashboard exemption above, just for a group instead of one item).
-    // In practice its 4 keys are always all-on or all-off together (see the
-    // masteradmin company modal's single combined checkbox), so "any"
-    // present is enough to show the whole group.
-    if((window.COMPANY_CONTEXT?.modules||[]).some(k=>['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'].includes(k))){
+    // Sitara Bespoke — gated on BOTH the role's own 'sitara' permission
+    // (see ALL_PERMISSIONS/visiblePermissions()) AND the company's
+    // enabled_modules, same two-part check as crm/inventory/manufacturing
+    // above. Previously this only checked enabled_modules, so any custom
+    // role saw Sitara Bespoke whenever the company had it enabled at all,
+    // regardless of that role's actual permissions — a real bug.
+    if(perms.includes('sitara') && (window.COMPANY_CONTEXT?.modules||[]).some(k=>['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'].includes(k))){
       navItems.push(SITARA_GROUP_DEF);
     }
     if(perms.includes('attendance')) navItems.push(['attendance','Attendance','#27AE60']);
@@ -4462,6 +4476,20 @@ function connectSocket(){
     sitaraExpenses=sitaraExpenses.filter(x=>x.id!==id);
     if(currentView==='sitara_business_expenses')renderView();
     if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  // Purchased serial-tracked units (Traceability page) — units are only ever
+  // auto-created at receiving time, never through this app, so the only
+  // real-time event is a serial number being assigned/changed.
+  socket.on('inv:serial_unit_updated',u=>{
+    const group=invSerialUnitGroups.find(g=>(g.units||[]).some(x=>x.id===u.id));
+    if(group){
+      group.units=group.units.map(x=>x.id===u.id?u:x);
+    }else{
+      // Belongs to an item group not yet loaded client-side (e.g. its very
+      // first serial-tracked unit) — force a fresh fetch next render.
+      invSerialUnitGroupsLoaded=false;
+    }
+    if(currentView==='mfg_traceability')renderView();
   });
   // Messaging socket listeners
   socket.on(`message:new:${currentUser.id}`, ({convoId, message}) => {
@@ -7501,6 +7529,7 @@ const ALL_PERMISSIONS=[
   {key:'crm',label:'Sales & CRM'},
   {key:'inventory',label:'Inventory'},
   {key:'manufacturing',label:'Manufacturing'},
+  {key:'sitara',label:'Sitara Bespoke'},
   {key:'sales',label:'Sales'},
   {key:'deliveries',label:'Deliveries'},
   {key:'hr_dashboard',label:'HR Dashboard'},
@@ -7523,7 +7552,8 @@ function visiblePermissions(){
   if(!allowed) return ALL_PERMISSIONS; // no white-label context (e.g. default OGTrack) — show everything
   const moduleGate={mybugs:'bugs'};
   const alwaysOn=['dashboard','history','messages'];
-  return ALL_PERMISSIONS.filter(p=>alwaysOn.includes(p.key)||allowed.includes(moduleGate[p.key]||p.key));
+  const sitaraModuleKeys=['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'];
+  return ALL_PERMISSIONS.filter(p=>alwaysOn.includes(p.key)||(p.key==='sitara'?sitaraModuleKeys.some(k=>allowed.includes(k)):allowed.includes(moduleGate[p.key]||p.key)));
 }
 
 async function renderRoles(){
@@ -12308,6 +12338,7 @@ function openInvPoModal(prefillItemId){
     invVendors.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
   document.getElementById('inv-po-number').value='';
   document.getElementById('inv-po-orderdate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('inv-po-invoice').value='';
   document.getElementById('inv-po-lines').innerHTML='';
   invPoLineIdx=0;
   addInvPoLine(prefillItemId);
@@ -12352,9 +12383,9 @@ function addInvPoLine(prefillItemId){
       oninput="invPoRenderItemOptions(${idx},this.value)" onfocus="invPoRenderItemOptions(${idx},this.value)"
       style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px">
     <div id="inv-po-line-item-options-${idx}" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;display:none"></div>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label>
+      <input type="text" id="inv-po-line-vcode-${idx}" placeholder="Optional" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <div style="flex:1 1 100px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label>
-        <input type="text" id="inv-po-line-vcode-${idx}" placeholder="Optional" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
       <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Quantity *</label>
         <input type="number" id="inv-po-line-qty-${idx}" value="1" min="1" oninput="updateInvPoTotal()" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
       <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Lead Time</label>
@@ -12407,7 +12438,8 @@ async function saveInvPurchase(){
     if(itemId&&qty>0) lines.push({itemId,vendorItemCode,quantityOrdered:qty,unitCost:cost,leadTimeDays,freightCost,importCharges});
   });
   if(!lines.length){ showToast('Add at least one item with a quantity','error'); return; }
-  const payload={ poNumber, vendorId, orderDate:document.getElementById('inv-po-orderdate').value||undefined, lines };
+  const invoiceNumber=document.getElementById('inv-po-invoice').value.trim()||undefined;
+  const payload={ poNumber, vendorId, orderDate:document.getElementById('inv-po-orderdate').value||undefined, invoiceNumber, lines };
   try{
     const r=await fetch('/api/inventory/purchases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
@@ -12427,7 +12459,9 @@ async function openInvPurchaseEditModal(id){
   const p=invPurchases.find(p=>p.id===id);
   if(!p) return;
   document.getElementById('inv-ep-date').value=p.orderDate?new Date(p.orderDate).toISOString().slice(0,10):'';
+  document.getElementById('inv-ep-receiveddate').value=p.receivedDate?new Date(p.receivedDate).toISOString().slice(0,10):'';
   document.getElementById('inv-ep-po').value=p.poNumber||'';
+  document.getElementById('inv-ep-invoice').value=p.invoiceNumber||'';
   document.getElementById('inv-ep-vendor').innerHTML='<option value="">Select Vendor (Optional)</option>'+
     invVendors.map(v=>`<option value="${v.id}" ${p.vendorId===v.id?'selected':''}>${esc(v.name)}</option>`).join('');
   const lines=invPurchaseLinesCache[id] || await loadInvPurchaseLines(id);
@@ -12436,11 +12470,9 @@ async function openInvPurchaseEditModal(id){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <strong>${esc(invItemName(l.itemId))} (${esc(invItemRecord(l.itemId)?.itemCode||'')})</strong>
       </div>
+      <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label><input type="text" class="inv-ep-line-vcode" value="${esc(l.vendorItemCode||'')}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label><input type="text" class="inv-ep-line-vcode" value="${esc(l.vendorItemCode||'')}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
         <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Lead Time (days)</label><input type="number" class="inv-ep-line-leadtime" value="${l.leadTimeDays??0}" min="0" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
         <div style="flex:1 1 100px"><label style="font-size:11px;color:var(--g3)">Quantity Ordered</label><input type="number" class="inv-ep-line-qty" value="${l.quantityOrdered}" min="${l.quantityReceived}" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
         <div style="flex:1 1 100px"><label style="font-size:11px;color:var(--g3)">Quantity Received</label><input type="number" class="inv-ep-line-received" value="${l.quantityReceived}" min="0" max="${l.quantityOrdered}" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:2px solid #27AE60;border-radius:6px"></div>
       </div>
@@ -12485,8 +12517,10 @@ async function saveInvPurchaseEdit(){
   const poNumber=document.getElementById('inv-ep-po').value.trim()||null;
   const vendorId=document.getElementById('inv-ep-vendor').value||null;
   const orderDate=document.getElementById('inv-ep-date').value||undefined;
+  const invoiceNumber=document.getElementById('inv-ep-invoice').value.trim()||null;
+  const receivedDate=document.getElementById('inv-ep-receiveddate').value||null;
   try{
-    await fetch(`/api/inventory/purchases/${invEditPurchaseId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({poNumber,vendorId,orderDate})});
+    await fetch(`/api/inventory/purchases/${invEditPurchaseId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({poNumber,vendorId,orderDate,invoiceNumber,receivedDate})});
 
     const lineUpdates=[];
     const receiveUpdates=[];
@@ -12999,35 +13033,65 @@ async function deleteMfgAssembly(id){
 // ── Traceability page ─────────────────────────────────────────────────────────
 let mfgTraceSelectedAssemblyId=null;
 let mfgTraceUnits=[];
+// Purchased serial-tracked items (received via a plain PO, never
+// manufactured) — a separate data source shown alongside the assembly
+// groups above, same visual style, just no "BOM: X → X" subtitle since
+// nothing was built. GET /serial-units already embeds each group's units,
+// so unlike assemblies there's no separate detail fetch on expand.
+let invSerialUnitGroups=[];
+let invSerialUnitGroupsLoaded=false;
+let invTraceSelectedItemId=null;
+async function loadInvSerialUnitGroups(){
+  try{ invSerialUnitGroups=await fetch('/api/inventory/serial-units').then(r=>r.json()); }
+  catch(e){ invSerialUnitGroups=[]; }
+  invSerialUnitGroupsLoaded=true;
+}
 
 function renderMfgTraceability(){
   const ca=document.getElementById('content-area');
-  if(!mfgLoaded){
+  if(!mfgLoaded || !invSerialUnitGroupsLoaded){
     ca.innerHTML='<div class="loading">Loading Traceability...</div>';
-    loadMfgData().then(()=>{ if(currentView==='mfg_traceability') renderView(); });
+    Promise.all([
+      mfgLoaded?Promise.resolve():loadMfgData(),
+      invSerialUnitGroupsLoaded?Promise.resolve():loadInvSerialUnitGroups(),
+    ]).then(()=>{ if(currentView==='mfg_traceability') renderView(); });
     return;
   }
-  const rows = !mfgAssemblies.length
-    ? `<div class="empty-state">No assemblies yet.</div>`
-    : mfgAssemblies.map(a=>{
-        const isOpen=mfgTraceSelectedAssemblyId===a.id;
-        return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
-          <div onclick="mfgSelectAssemblyForTrace('${a.id}')" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="color:var(--g3)">${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}</span>
-              <div>
-                <div style="font-weight:600">${esc(a.name||a.assemblyNumber)}</div>
-                <div style="font-size:12px;color:var(--g3)">BOM: ${esc(mfgBomName(a.bomId))} → ${esc(invItemName(a.productItemId))}</div>
-              </div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-weight:600">${a.quantityBuilt} units</div>
-              <div style="font-size:12px;color:var(--g3)">${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'—'}</div>
-            </div>
+  const assemblyRows = mfgAssemblies.map(a=>{
+    const isOpen=mfgTraceSelectedAssemblyId===a.id;
+    return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+      <div onclick="mfgSelectAssemblyForTrace('${a.id}')" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:var(--g3)">${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}</span>
+          <div>
+            <div style="font-weight:600">${esc(a.name||a.assemblyNumber)}</div>
+            <div style="font-size:12px;color:var(--g3)">BOM: ${esc(mfgBomName(a.bomId))} → ${esc(invItemName(a.productItemId))}</div>
           </div>
-          ${isOpen?`<div id="mfg-trace-units-panel" style="padding:0 14px 14px;background:var(--g5)">${mfgTraceUnitsHtml()}</div>`:''}
-        </div>`;
-      }).join('');
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:600">${a.quantityBuilt} units</div>
+          <div style="font-size:12px;color:var(--g3)">${a.createdAt?new Date(a.createdAt).toLocaleDateString('en-GB'):'—'}</div>
+        </div>
+      </div>
+      ${isOpen?`<div id="mfg-trace-units-panel" style="padding:0 14px 14px;background:var(--g5)">${mfgTraceUnitsHtml()}</div>`:''}
+    </div>`;
+  }).join('');
+  const purchasedRows = invSerialUnitGroups.map(g=>{
+    const isOpen=invTraceSelectedItemId===g.itemId;
+    return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+      <div onclick="invSelectItemForTrace('${g.itemId}')" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:var(--g3)">${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}</span>
+          <div style="font-weight:600">${esc(g.itemName)}</div>
+        </div>
+        <div style="text-align:right"><div style="font-weight:600">${(g.units||[]).length} units</div></div>
+      </div>
+      ${isOpen?`<div id="inv-trace-units-panel" style="padding:0 14px 14px;background:var(--g5)">${invTraceUnitsHtml(g)}</div>`:''}
+    </div>`;
+  }).join('');
+  const rows = (mfgAssemblies.length+invSerialUnitGroups.length)===0
+    ? `<div class="empty-state">No assemblies or purchased serial-tracked items yet.</div>`
+    : assemblyRows+purchasedRows;
   ca.innerHTML=`
     <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Traceability</h1>
     <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Assign serial numbers and track assembly status</div>
@@ -13089,6 +13153,55 @@ async function saveMfgUnitSerial(unitId){
     const idx=mfgTraceUnits.findIndex(u=>u.id===unitId);
     if(idx>=0) mfgTraceUnits[idx].serialNumber=serialNumber;
     document.getElementById('mfg-trace-units-panel').innerHTML=mfgTraceUnitsHtml();
+  }catch(e){ showToast(e.message,'error'); }
+}
+function invSelectItemForTrace(itemId){
+  invTraceSelectedItemId = invTraceSelectedItemId===itemId ? null : itemId;
+  renderMfgTraceability();
+}
+// No "Delivered" tier here (unlike mfgUnitStatusBadge) — purchased units
+// have no sale/delivery concept, just serialized or not yet.
+function invUnitStatusBadge(unit){
+  const label=unit.serialNumber?'Serialized':'Pending Serial';
+  const color=unit.serialNumber?'#2980B9':'#F39C12';
+  return `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color}">${label}</span>`;
+}
+function invTraceUnitsHtml(group){
+  const units=group?.units||[];
+  if(!units.length) return '<div style="font-size:13px;color:var(--g3);padding:10px 0">No units for this item.</div>';
+  return `
+    <table style="width:100%;font-size:13px;margin-top:8px;table-layout:fixed">
+      <colgroup>
+        <col style="width:70px"><col style="width:220px"><col><col style="width:100px">
+      </colgroup>
+      <thead><tr>
+        <th style="text-align:left;padding:9px 12px">Unit #</th>
+        <th style="text-align:left;padding:9px 12px">Serial Number</th>
+        <th style="text-align:left;padding:9px 12px">Status</th>
+        <th style="padding:9px 12px"></th>
+      </tr></thead>
+      <tbody>${units.map(u=>`<tr>
+        <td style="padding:9px 12px">${u.unitNumber}</td>
+        <td style="padding:9px 12px">
+          <input type="text" id="inv-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…"
+            style="padding:6px;border:1px solid var(--border);border-radius:6px;width:100%;max-width:180px;box-sizing:border-box">
+        </td>
+        <td style="text-align:left;padding:9px 12px">${invUnitStatusBadge(u)}</td>
+        <td style="padding:9px 12px"><button class="btn-sm btn-primary" onclick="saveInvUnitSerial('${u.id}')">Save</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+async function saveInvUnitSerial(unitId){
+  const input=document.getElementById('inv-trace-serial-'+unitId);
+  const serialNumber=input.value.trim()||null;
+  try{
+    const r=await fetch(`/api/inventory/serial-units/${unitId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialNumber})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    showToast('Serial number saved ✓','success');
+    const group=invSerialUnitGroups.find(g=>(g.units||[]).some(u=>u.id===unitId));
+    if(group){ const u=group.units.find(x=>x.id===unitId); if(u) u.serialNumber=serialNumber; }
+    const panel=document.getElementById('inv-trace-units-panel');
+    if(panel) panel.innerHTML=invTraceUnitsHtml(group);
   }catch(e){ showToast(e.message,'error'); }
 }
 
