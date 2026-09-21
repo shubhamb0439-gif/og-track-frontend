@@ -2747,11 +2747,32 @@ body { transition: background .3s ease, color .3s ease; }
           </select>
         </div>
       </div>
+      <div id="sp-address-block" style="display:none">
+        <div class="form-row full"><div class="form-group"><label>Address Line 1</label><input type="text" id="sp-address1"></div></div>
+        <div class="form-row full"><div class="form-group"><label>Address Line 2</label><input type="text" id="sp-address2"></div></div>
+        <div class="form-row">
+          <div class="form-group"><label>State</label><input type="text" id="sp-state"></div>
+          <div class="form-group"><label>Postal Code</label><input type="text" id="sp-postalcode"></div>
+        </div>
+        <div class="form-row full"><div class="form-group"><label>Country</label><input type="text" id="sp-country"></div></div>
+      </div>
       <div class="form-row full"><div class="form-group"><label>Notes</label><textarea id="sp-notes"></textarea></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('sitara-person-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveSitaraPerson()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sitara Bespoke: Customer detail (read-only, fetched fresh from GET /customers/:id) -->
+<div class="modal-overlay" id="sitara-customer-detail-modal">
+  <div class="modal">
+    <div class="modal-header"><h2 id="sitara-customer-detail-title">Customer</h2><button class="modal-close" onclick="closeModal('sitara-customer-detail-modal')">×</button></div>
+    <div class="modal-body" id="sitara-customer-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('sitara-customer-detail-modal')">Close</button>
+      <button class="btn btn-primary" id="sitara-customer-detail-edit-btn">Edit</button>
     </div>
   </div>
 </div>
@@ -13775,7 +13796,16 @@ const SITARA_PEOPLE_VIEWS=['sitara_people_weavers','sitara_people_vendors','sita
 const SITARA_STOCKS_VIEWS=['sitara_stocks_inventory','sitara_stocks_purchases'];
 const SITARA_PEOPLE_VIEW_TAB={sitara_people_weavers:'weavers',sitara_people_vendors:'vendors',sitara_people_customers:'customers'};
 const SITARA_STOCKS_VIEW_TAB={sitara_stocks_inventory:'inventory',sitara_stocks_purchases:'purchases'};
-let sitaraOrderFilters={status:'',source:''};
+// Search/filter state — filtered client-side against the already-loaded
+// arrays, same as the pre-existing status/source/category filters below;
+// the backend also accepts these as ?search=/etc query params, but nothing
+// here re-fetches per keystroke, matching how every other Sitara filter
+// already works.
+let sitaraPeopleSearch={weavers:'',vendors:'',customers:''};
+let sitaraCustomerSourceFilter='';
+let sitaraProductSearch='';
+let sitaraPoFilters={search:'',status:'',weaverId:''};
+let sitaraOrderFilters={status:'',source:'',search:''};
 let sitaraExpandedPoId=null;
 let sitaraExpandedOrderId=null;
 let sitaraPoDetailCache={};
@@ -13787,7 +13817,7 @@ let sitaraOrderLineIdx=0;
 // the new tab.
 let sitaraExpenses=[];
 let sitaraExpensesLoaded=false;
-let sitaraExpenseFilters={category:'',sortBy:'date'}; // sortBy: 'date' | 'category'
+let sitaraExpenseFilters={search:'',vendorId:'',sortBy:'date'}; // sortBy: 'date' | 'category'
 
 async function loadSitaraData(){
   try{
@@ -13890,8 +13920,8 @@ async function renderSitaraDashboard(){
     <div class="table-wrap"><table>
       <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Total</th><th>Date</th></tr></thead>
       <tbody>
-        ${recent.length?recent.map(o=>`<tr>
-          <td>${esc(o.orderNumber||o.id||'—')}</td>
+        ${recent.length?recent.map(o=>`<tr${o.isStale?' style="background:#C0392B0d"':''}>
+          <td>${esc(o.orderNumber||o.id||'—')}${o.isStale?' <span title="Status hasn\'t changed in a while — needs attention" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#C0392B22;color:#C0392B;vertical-align:middle">⚠ STALE</span>':''}</td>
           <td>${esc(o.customerName||'—')}</td>
           <td><span style="text-transform:capitalize">${esc((o.status||'—').replace(/_/g,' '))}</span></td>
           <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
@@ -13910,6 +13940,36 @@ const SITARA_SOURCE_LABELS={bigcommerce:'BigCommerce',whatsapp:'WhatsApp',instag
 const SITARA_PERSON_ENDPOINT={weavers:'weavers',vendors:'vendors',customers:'customers'};
 const SITARA_PERSON_SINGULAR={weavers:'Weaver',vendors:'Vendor',customers:'Customer'};
 function sitaraPeopleListFor(tab){ return tab==='weavers'?sitaraWeavers:tab==='vendors'?sitaraVendors:sitaraCustomers; }
+// Split into a shell (search bar/headers, rebuilt on tab/filter-dropdown
+// change) and a tbody-only piece (rebuilt on every search keystroke) — a
+// full ca.innerHTML replace on each keystroke would recreate the <input>
+// itself and kick focus out of it. Same "rerender table only" pattern as
+// salesRerenderTableOnly()/mfgAssemblyRerenderTableOnly() elsewhere.
+function sitaraPeopleFilteredList(){
+  const showSource=sitaraPeopleTab==='customers';
+  const pq=(sitaraPeopleSearch[sitaraPeopleTab]||'').trim().toLowerCase();
+  return sitaraPeopleListFor(sitaraPeopleTab).filter(p=>{
+    if(pq && !((p.name||'').toLowerCase().includes(pq)||(p.email||'').toLowerCase().includes(pq)||(p.phone||'').toLowerCase().includes(pq))) return false;
+    if(showSource && sitaraCustomerSourceFilter && p.source!==sitaraCustomerSourceFilter) return false;
+    return true;
+  });
+}
+function sitaraPeopleTbodyHtml(){
+  const showSource=sitaraPeopleTab==='customers';
+  const list=sitaraPeopleFilteredList();
+  return list.length?list.map(p=>`<tr>
+    <td>${showSource?`<a href="javascript:void(0)" onclick="openSitaraCustomerDetail('${p.id}')" style="font-weight:600;color:var(--red);text-decoration:none">${esc(p.name)}</a>`:`<strong>${esc(p.name)}</strong>`}</td>
+    <td>${esc(p.contactName||'—')}</td>
+    <td>${esc(p.phone||'—')}</td>
+    <td>${esc(p.email||'—')}</td>
+    ${showSource?`<td>${esc(p.city||'—')}</td><td>${esc(SITARA_SOURCE_LABELS[p.source]||p.source||'Manual')}</td>`:''}
+    <td>${esc(p.notes||'—')}</td>
+    <td>
+      <button class="btn-sm btn-ghost" onclick="openSitaraPersonModal('${sitaraPeopleTab}','${p.id}')">Edit</button>
+      <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraPerson('${sitaraPeopleTab}','${p.id}')">Delete</button>
+    </td>
+  </tr>`).join(''):`<tr><td colspan="${showSource?8:6}" class="empty-state">${sitaraPeopleListFor(sitaraPeopleTab).length?`No ${sitaraPeopleTab} match your search.`:`No ${sitaraPeopleTab} yet.`}</td></tr>`;
+}
 function renderSitaraPeople(){
   const ca=document.getElementById('content-area');
   if(!sitaraLoaded){
@@ -13918,33 +13978,39 @@ function renderSitaraPeople(){
     return;
   }
   sitaraPeopleTab=SITARA_PEOPLE_VIEW_TAB[currentView]||'weavers';
-  const list=sitaraPeopleListFor(sitaraPeopleTab);
   const showSource=sitaraPeopleTab==='customers';
   ca.innerHTML=`
-    <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="text" placeholder="Search name, email, or phone…" value="${esc(sitaraPeopleSearch[sitaraPeopleTab]||'')}" oninput="setSitaraPeopleSearch(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:220px">
+        ${showSource?`<select onchange="setSitaraCustomerSourceFilter(this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">All Sources</option>
+          ${Object.entries(SITARA_SOURCE_LABELS).map(([k,label])=>`<option value="${k}" ${sitaraCustomerSourceFilter===k?'selected':''}>${esc(label)}</option>`).join('')}
+        </select>`:''}
+      </div>
       <button class="btn btn-primary" onclick="openSitaraPersonModal('${sitaraPeopleTab}')">+ Add ${SITARA_PERSON_SINGULAR[sitaraPeopleTab]}</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Name</th><th>Contact Name</th><th>Phone</th><th>Email</th>${showSource?'<th>City</th><th>Source</th>':''}<th>Notes</th><th>Actions</th></tr></thead>
-      <tbody>
-        ${list.length?list.map(p=>`<tr>
-          <td><strong>${esc(p.name)}</strong></td>
-          <td>${esc(p.contactName||'—')}</td>
-          <td>${esc(p.phone||'—')}</td>
-          <td>${esc(p.email||'—')}</td>
-          ${showSource?`<td>${esc(p.city||'—')}</td><td>${esc(SITARA_SOURCE_LABELS[p.source]||p.source||'Manual')}</td>`:''}
-          <td>${esc(p.notes||'—')}</td>
-          <td>
-            <button class="btn-sm btn-ghost" onclick="openSitaraPersonModal('${sitaraPeopleTab}','${p.id}')">Edit</button>
-            <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraPerson('${sitaraPeopleTab}','${p.id}')">Delete</button>
-          </td>
-        </tr>`).join(''):`<tr><td colspan="${showSource?8:6}" class="empty-state">No ${sitaraPeopleTab} yet.</td></tr>`}
-      </tbody>
+      <tbody id="sitara-people-tbody">${sitaraPeopleTbodyHtml()}</tbody>
     </table></div>`;
 }
-function openSitaraPersonModal(type,id){
+function setSitaraPeopleSearch(v){
+  sitaraPeopleSearch[sitaraPeopleTab]=v;
+  const tbody=document.getElementById('sitara-people-tbody');
+  if(tbody) tbody.innerHTML=sitaraPeopleTbodyHtml();
+}
+function setSitaraCustomerSourceFilter(v){ sitaraCustomerSourceFilter=v; renderSitaraPeople(); }
+async function openSitaraPersonModal(type,id){
   const list=sitaraPeopleListFor(type);
-  const p=id?list.find(x=>x.id===id):null;
+  let p=id?list.find(x=>x.id===id):null;
+  // The list-shaped customer object doesn't carry the full address fields
+  // (only GET /customers/:id does — see Prompt 20 #1) — fetch detail so
+  // editing an existing customer doesn't silently blank those out.
+  if(type==='customers' && id){
+    try{ p=await fetch(`/api/sitara/customers/${id}`).then(r=>r.json()); }
+    catch(e){ /* fall back to the list-shaped object already in p */ }
+  }
   document.getElementById('sitara-person-modal').dataset.type=type;
   document.getElementById('sitara-person-modal').dataset.editId=id||'';
   document.getElementById('sitara-person-modal-title').textContent=(p?'Edit ':'Add ')+SITARA_PERSON_SINGULAR[type];
@@ -13954,11 +14020,19 @@ function openSitaraPersonModal(type,id){
   document.getElementById('sp-email').value=p?.email||'';
   document.getElementById('sp-notes').value=p?.notes||'';
   const sourceRow=document.getElementById('sp-source-row');
+  const addressBlock=document.getElementById('sp-address-block');
   if(type==='customers'){
     sourceRow.style.display='block';
+    addressBlock.style.display='block';
     document.getElementById('sp-source').value=p?.source||'manual';
+    document.getElementById('sp-address1').value=p?.addressLine1||'';
+    document.getElementById('sp-address2').value=p?.addressLine2||'';
+    document.getElementById('sp-state').value=p?.state||'';
+    document.getElementById('sp-postalcode').value=p?.postalCode||'';
+    document.getElementById('sp-country').value=p?.country||'';
   }else{
     sourceRow.style.display='none';
+    addressBlock.style.display='none';
   }
   document.getElementById('sitara-person-modal').classList.add('open');
 }
@@ -13974,7 +14048,14 @@ async function saveSitaraPerson(){
     email: document.getElementById('sp-email').value.trim()||undefined,
     notes: document.getElementById('sp-notes').value.trim()||undefined,
   };
-  if(type==='customers') payload.source=document.getElementById('sp-source').value||'manual';
+  if(type==='customers'){
+    payload.source=document.getElementById('sp-source').value||'manual';
+    payload.addressLine1=document.getElementById('sp-address1').value.trim()||undefined;
+    payload.addressLine2=document.getElementById('sp-address2').value.trim()||undefined;
+    payload.state=document.getElementById('sp-state').value.trim()||undefined;
+    payload.postalCode=document.getElementById('sp-postalcode').value.trim()||undefined;
+    payload.country=document.getElementById('sp-country').value.trim()||undefined;
+  }
   const endpoint=SITARA_PERSON_ENDPOINT[type];
   try{
     const r=id
@@ -13997,6 +14078,27 @@ async function deleteSitaraPerson(type,id){
     renderView();
   }catch(e){ showToast(e.message,'error'); }
 }
+function sitaraDetailField(label,value){
+  return `<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">${label}</div><div style="font-size:14px">${value}</div></div>`;
+}
+async function openSitaraCustomerDetail(id){
+  document.getElementById('sitara-customer-detail-title').textContent='Customer';
+  document.getElementById('sitara-customer-detail-body').innerHTML='<div class="loading">Loading...</div>';
+  document.getElementById('sitara-customer-detail-edit-btn').onclick=()=>{ closeModal('sitara-customer-detail-modal'); openSitaraPersonModal('customers',id); };
+  document.getElementById('sitara-customer-detail-modal').classList.add('open');
+  let c;
+  try{ c=await fetch(`/api/sitara/customers/${id}`).then(r=>r.json()); }
+  catch(e){ document.getElementById('sitara-customer-detail-body').innerHTML='<div class="empty-state">Failed to load customer.</div>'; return; }
+  document.getElementById('sitara-customer-detail-title').textContent=c.name||'Customer';
+  const addressParts=[c.addressLine1,c.addressLine2,c.city,c.state,c.postalCode,c.country].filter(Boolean);
+  document.getElementById('sitara-customer-detail-body').innerHTML=
+    sitaraDetailField('Contact Name',esc(c.contactName||'—')) +
+    sitaraDetailField('Phone',esc(c.phone||'—')) +
+    sitaraDetailField('Email',esc(c.email||'—')) +
+    sitaraDetailField('Address',addressParts.length?esc(addressParts.join(', ')):'—') +
+    sitaraDetailField('Source',esc(SITARA_SOURCE_LABELS[c.source]||c.source||'Manual')) +
+    sitaraDetailField('Notes',esc(c.notes||'—'));
+}
 
 // ── 3. Stocks (Inventory / Purchases) ───────────────────────────────────────
 function renderSitaraStocks(){
@@ -14014,28 +14116,37 @@ function renderSitaraStocksBody(){
   const el=document.getElementById('sitara-stocks-body');
   if(el) el.innerHTML = sitaraStocksTab==='inventory' ? sitaraInventoryHtml() : sitaraPurchasesHtml();
 }
+function sitaraInventoryTbodyHtml(){
+  const pq=sitaraProductSearch.trim().toLowerCase();
+  const list=sitaraProducts.filter(p=>!pq||(p.name||'').toLowerCase().includes(pq)||(p.sku||'').toLowerCase().includes(pq));
+  return list.length?list.map(p=>`<tr>
+    <td><strong>${esc(p.name)}</strong></td>
+    <td>${esc(p.sku||'—')}</td>
+    <td>${esc(sitaraVendorName(p.vendorId))}</td>
+    <td>${esc(sitaraWeaverName(p.weaverId))}</td>
+    <td>${p.stock??0}</td>
+    <td>${esc(p.unit||'—')}</td>
+    <td>
+      <button class="btn-sm btn-ghost" onclick="openSitaraProductModal('${p.id}')">Edit</button>
+      <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraProduct('${p.id}')">Delete</button>
+    </td>
+  </tr>`).join(''):`<tr><td colspan="7" class="empty-state">${sitaraProducts.length?'No products match your search.':'No products yet.'}</td></tr>`;
+}
 function sitaraInventoryHtml(){
   return `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <input type="text" placeholder="Search name or SKU…" value="${esc(sitaraProductSearch)}" oninput="setSitaraProductSearch(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:200px">
       <button class="btn btn-primary" onclick="openSitaraProductModal()">+ Add Product</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>Name</th><th>SKU</th><th>Vendor</th><th>Weaver</th><th>Stock</th><th>Unit</th><th>Actions</th></tr></thead>
-      <tbody>
-        ${sitaraProducts.length?sitaraProducts.map(p=>`<tr>
-          <td><strong>${esc(p.name)}</strong></td>
-          <td>${esc(p.sku||'—')}</td>
-          <td>${esc(sitaraVendorName(p.vendorId))}</td>
-          <td>${esc(sitaraWeaverName(p.weaverId))}</td>
-          <td>${p.stock??0}</td>
-          <td>${esc(p.unit||'—')}</td>
-          <td>
-            <button class="btn-sm btn-ghost" onclick="openSitaraProductModal('${p.id}')">Edit</button>
-            <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraProduct('${p.id}')">Delete</button>
-          </td>
-        </tr>`).join(''):'<tr><td colspan="7" class="empty-state">No products yet.</td></tr>'}
-      </tbody>
+      <tbody id="sitara-inventory-tbody">${sitaraInventoryTbodyHtml()}</tbody>
     </table></div>`;
+}
+function setSitaraProductSearch(v){
+  sitaraProductSearch=v;
+  const tbody=document.getElementById('sitara-inventory-tbody');
+  if(tbody) tbody.innerHTML=sitaraInventoryTbodyHtml();
 }
 function openSitaraProductModal(id){
   const p=id?sitaraProducts.find(x=>x.id===id):null;
@@ -14087,35 +14198,66 @@ async function deleteSitaraProduct(id){
 
 const SITARA_PO_STATUSES=['pending','partial','received','cancelled'];
 const SITARA_PO_STATUS_COLOR={pending:'#F39C12',partial:'#2980B9',received:'#27AE60',cancelled:'#7F7F7F'};
+function sitaraPurchasesFilteredList(){
+  const q=sitaraPoFilters.search.trim().toLowerCase();
+  return sitaraPOs.filter(po=>{
+    if(q && !(po.poNumber||'').toLowerCase().includes(q)) return false;
+    if(sitaraPoFilters.status && po.status!==sitaraPoFilters.status) return false;
+    if(sitaraPoFilters.weaverId && po.weaverId!==sitaraPoFilters.weaverId) return false;
+    return true;
+  });
+}
+function sitaraPurchasesTbodyHtml(){
+  const list=sitaraPurchasesFilteredList();
+  return list.length?list.map(po=>{
+    const isOpen=sitaraExpandedPoId===po.id;
+    const color=SITARA_PO_STATUS_COLOR[po.status]||'#7F7F7F';
+    const mainRow=`<tr>
+      <td><button onclick="toggleSitaraPoExpand('${po.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
+      <td><strong>${esc(sitaraWeaverName(po.weaverId))}</strong></td>
+      <td>${po.orderDate?new Date(po.orderDate).toLocaleDateString('en-GB'):(po.createdAt?new Date(po.createdAt).toLocaleDateString('en-GB'):'—')}</td>
+      <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color};text-transform:capitalize">${esc(po.status||'pending')}</span></td>
+      <td>${esc(po.notes||'—')}</td>
+      <td>
+        <select onchange="updateSitaraPoStatus('${po.id}',this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px">
+          ${SITARA_PO_STATUSES.map(s=>`<option value="${s}" ${po.status===s?'selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}
+        </select>
+        <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraPo('${po.id}')">Delete</button>
+      </td>
+    </tr>`;
+    const detailRow=isOpen?`<tr><td colspan="6" style="background:var(--g5);padding:14px">${sitaraLineItemsHtml(sitaraPoDetailCache[po.id])}</td></tr>`:'';
+    return mainRow+detailRow;
+  }).join(''):`<tr><td colspan="6" class="empty-state">${sitaraPOs.length?'No purchase orders match your filters.':'No purchase orders yet.'}</td></tr>`;
+}
 function sitaraPurchasesHtml(){
   return `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="text" placeholder="Search PO number…" value="${esc(sitaraPoFilters.search)}" oninput="setSitaraPoFilter('search',this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:180px">
+        <select onchange="setSitaraPoFilter('status',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">All Statuses</option>
+          ${SITARA_PO_STATUSES.map(s=>`<option value="${s}" ${sitaraPoFilters.status===s?'selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}
+        </select>
+        <select onchange="setSitaraPoFilter('weaverId',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
+          <option value="">All Weavers</option>
+          ${sitaraWeavers.map(w=>`<option value="${w.id}" ${sitaraPoFilters.weaverId===w.id?'selected':''}>${esc(w.name)}</option>`).join('')}
+        </select>
+      </div>
       <button class="btn btn-primary" onclick="openSitaraPoModal()">+ Add Purchase</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th></th><th>Weaver</th><th>Order Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
-      <tbody>
-        ${sitaraPOs.length?sitaraPOs.map(po=>{
-          const isOpen=sitaraExpandedPoId===po.id;
-          const color=SITARA_PO_STATUS_COLOR[po.status]||'#7F7F7F';
-          const mainRow=`<tr>
-            <td><button onclick="toggleSitaraPoExpand('${po.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
-            <td><strong>${esc(sitaraWeaverName(po.weaverId))}</strong></td>
-            <td>${po.orderDate?new Date(po.orderDate).toLocaleDateString('en-GB'):(po.createdAt?new Date(po.createdAt).toLocaleDateString('en-GB'):'—')}</td>
-            <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color};text-transform:capitalize">${esc(po.status||'pending')}</span></td>
-            <td>${esc(po.notes||'—')}</td>
-            <td>
-              <select onchange="updateSitaraPoStatus('${po.id}',this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px">
-                ${SITARA_PO_STATUSES.map(s=>`<option value="${s}" ${po.status===s?'selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}
-              </select>
-              <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraPo('${po.id}')">Delete</button>
-            </td>
-          </tr>`;
-          const detailRow=isOpen?`<tr><td colspan="6" style="background:var(--g5);padding:14px">${sitaraLineItemsHtml(sitaraPoDetailCache[po.id])}</td></tr>`:'';
-          return mainRow+detailRow;
-        }).join(''):'<tr><td colspan="6" class="empty-state">No purchase orders yet.</td></tr>'}
-      </tbody>
+      <tbody id="sitara-purchases-tbody">${sitaraPurchasesTbodyHtml()}</tbody>
     </table></div>`;
+}
+function setSitaraPoFilter(key,val){
+  sitaraPoFilters[key]=val;
+  if(key==='search'){
+    const tbody=document.getElementById('sitara-purchases-tbody');
+    if(tbody) tbody.innerHTML=sitaraPurchasesTbodyHtml();
+  }else{
+    renderSitaraStocksBody();
+  }
 }
 function sitaraLineItemsHtml(detail){
   if(!detail) return '<div style="font-size:12px;color:var(--g3)">Loading items…</div>';
@@ -14250,6 +14392,51 @@ function sitaraTimeInStatus(iso){
   if(days===1) return '1 day';
   return days+' days';
 }
+function sitaraOrdersFilteredList(){
+  const oq=sitaraOrderFilters.search.trim().toLowerCase();
+  return sitaraOrders.filter(o=>
+    (!sitaraOrderFilters.status||o.status===sitaraOrderFilters.status) &&
+    (!sitaraOrderFilters.source||o.source===sitaraOrderFilters.source) &&
+    (!oq||(o.orderNumber||'').toLowerCase().includes(oq)||(o.customerName||'').toLowerCase().includes(oq))
+  );
+}
+function sitaraOrdersCountHtml(list){
+  const staleCount=sitaraOrders.filter(o=>o.isStale).length;
+  return `${list.length} of ${sitaraOrders.length} order${sitaraOrders.length===1?'':'s'}${staleCount?` · <span style="color:#C0392B;font-weight:600">⚠ ${staleCount} stale</span>`:''}`;
+}
+function sitaraOrdersTbodyHtml(list){
+  return list.length?list.map(o=>{
+    const isOpen=sitaraExpandedOrderId===o.id;
+    const color=SITARA_ORDER_STATUS_COLOR[o.status]||'#7F7F7F';
+    // If the backend's real status value doesn't exactly match one of
+    // our known options, a plain <select> silently falls back to
+    // displaying its FIRST option as if it were selected. Inject the
+    // raw value as its own selected option instead, so an
+    // unrecognized status is shown honestly rather than masked.
+    const statusKnown=SITARA_ORDER_STATUSES.includes(o.status);
+    const syncWarning=sitaraOrderSyncWarnings[o.id];
+    const mainRow=`<tr${o.isStale?' style="background:#C0392B0d"':''}>
+      <td><button onclick="toggleSitaraOrderExpand('${o.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
+      <td><strong>${esc(o.orderNumber||o.id)}</strong>${o.isStale?' <span title="Status hasn\'t changed in a while — needs attention" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#C0392B22;color:#C0392B;vertical-align:middle">⚠ STALE</span>':''}</td>
+      <td>
+        <div>${esc(o.customerName||'—')}</div>
+        ${o.customerCity?`<div style="font-size:11px;color:var(--g3)">${esc(o.customerCity)}</div>`:''}
+      </td>
+      <td>
+        <select onchange="updateSitaraOrderStatus('${o.id}',this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:${color}15;color:${color}">
+          ${!statusKnown&&o.status?`<option value="${esc(o.status)}" selected>${esc(o.status)} (unrecognized)</option>`:''}
+          ${SITARA_ORDER_STATUSES.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
+        </select>
+        ${syncWarning?`<div style="margin-top:4px;font-size:11px;color:#C0392B;display:flex;align-items:center;gap:6px">⚠ ${esc(syncWarning)} <button onclick="dismissSitaraSyncWarning('${o.id}')" style="background:none;border:none;cursor:pointer;color:#C0392B;font-size:11px;text-decoration:underline;padding:0">dismiss</button></div>`:''}
+      </td>
+      <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
+      <td>${sitaraTimeInStatus(o.statusChangedAt||o.createdAt)}</td>
+      <td style="text-transform:capitalize">${esc(o.source||'manual')}</td>
+    </tr>`;
+    const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:14px">${sitaraLineItemsHtml(sitaraOrderDetailCache[o.id])}</td></tr>`:'';
+    return mainRow+detailRow;
+  }).join(''):`<tr><td colspan="7" class="empty-state">${sitaraOrders.length?'No orders match your filters.':'No orders yet.'}</td></tr>`;
+}
 function renderSitaraOrders(){
   const ca=document.getElementById('content-area');
   if(!sitaraLoaded){
@@ -14257,16 +14444,14 @@ function renderSitaraOrders(){
     loadSitaraData().then(()=>{ if(currentView==='sitara_business_orders') renderView(); });
     return;
   }
-  const list=sitaraOrders.filter(o=>
-    (!sitaraOrderFilters.status||o.status===sitaraOrderFilters.status) &&
-    (!sitaraOrderFilters.source||o.source===sitaraOrderFilters.source)
-  );
+  const list=sitaraOrdersFilteredList();
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${list.length} of ${sitaraOrders.length} order${sitaraOrders.length===1?'':'s'}</div>
+      <div style="font-size:13px;color:var(--g3)" id="sitara-orders-count">${sitaraOrdersCountHtml(list)}</div>
       <button class="btn btn-primary" onclick="openSitaraOrderModal()">+ Add Order</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <input type="text" placeholder="Search order # or customer…" value="${esc(sitaraOrderFilters.search)}" oninput="setSitaraOrderFilter('search',this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:200px">
       <select onchange="setSitaraOrderFilter('status',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
         <option value="">All Statuses</option>
         ${SITARA_ORDER_STATUSES.map(s=>`<option value="${s}" ${sitaraOrderFilters.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
@@ -14279,42 +14464,21 @@ function renderSitaraOrders(){
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th></th><th>Order</th><th>Customer</th><th>Status</th><th>Total</th><th>Time in Status</th><th>Source</th></tr></thead>
-      <tbody>
-        ${list.length?list.map(o=>{
-          const isOpen=sitaraExpandedOrderId===o.id;
-          const color=SITARA_ORDER_STATUS_COLOR[o.status]||'#7F7F7F';
-          // If the backend's real status value doesn't exactly match one of
-          // our known options, a plain <select> silently falls back to
-          // displaying its FIRST option as if it were selected. Inject the
-          // raw value as its own selected option instead, so an
-          // unrecognized status is shown honestly rather than masked.
-          const statusKnown=SITARA_ORDER_STATUSES.includes(o.status);
-          const syncWarning=sitaraOrderSyncWarnings[o.id];
-          const mainRow=`<tr>
-            <td><button onclick="toggleSitaraOrderExpand('${o.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
-            <td><strong>${esc(o.orderNumber||o.id)}</strong></td>
-            <td>
-              <div>${esc(o.customerName||'—')}</div>
-              ${o.customerCity?`<div style="font-size:11px;color:var(--g3)">${esc(o.customerCity)}</div>`:''}
-            </td>
-            <td>
-              <select onchange="updateSitaraOrderStatus('${o.id}',this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:${color}15;color:${color}">
-                ${!statusKnown&&o.status?`<option value="${esc(o.status)}" selected>${esc(o.status)} (unrecognized)</option>`:''}
-                ${SITARA_ORDER_STATUSES.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
-              </select>
-              ${syncWarning?`<div style="margin-top:4px;font-size:11px;color:#C0392B;display:flex;align-items:center;gap:6px">⚠ ${esc(syncWarning)} <button onclick="dismissSitaraSyncWarning('${o.id}')" style="background:none;border:none;cursor:pointer;color:#C0392B;font-size:11px;text-decoration:underline;padding:0">dismiss</button></div>`:''}
-            </td>
-            <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
-            <td>${sitaraTimeInStatus(o.statusChangedAt||o.createdAt)}</td>
-            <td style="text-transform:capitalize">${esc(o.source||'manual')}</td>
-          </tr>`;
-          const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:14px">${sitaraLineItemsHtml(sitaraOrderDetailCache[o.id])}</td></tr>`:'';
-          return mainRow+detailRow;
-        }).join(''):'<tr><td colspan="7" class="empty-state">No orders yet.</td></tr>'}
-      </tbody>
+      <tbody id="sitara-orders-tbody">${sitaraOrdersTbodyHtml(list)}</tbody>
     </table></div>`;
 }
-function setSitaraOrderFilter(key,val){ sitaraOrderFilters[key]=val; renderSitaraOrders(); }
+function setSitaraOrderFilter(key,val){
+  sitaraOrderFilters[key]=val;
+  if(key==='search'){
+    const list=sitaraOrdersFilteredList();
+    const tbody=document.getElementById('sitara-orders-tbody');
+    if(tbody) tbody.innerHTML=sitaraOrdersTbodyHtml(list);
+    const countEl=document.getElementById('sitara-orders-count');
+    if(countEl) countEl.innerHTML=sitaraOrdersCountHtml(list);
+  }else{
+    renderSitaraOrders();
+  }
+}
 async function toggleSitaraOrderExpand(id){
   sitaraExpandedOrderId = sitaraExpandedOrderId===id ? null : id;
   if(sitaraExpandedOrderId && !sitaraOrderDetailCache[id]){
@@ -14468,6 +14632,34 @@ function toggleSitaraRazorpayUnmatchedOnly(){ sitaraRazorpayUnmatchedOnly=!sitar
 // ── Expenses (Business tab 3 of 3) ──────────────────────────────────────────
 // Vendors here are the ones from People (unrelated business costs — power,
 // rent, etc.) — not the weavers now used for stock Purchases.
+function sitaraExpensesFilteredList(){
+  const q=sitaraExpenseFilters.search.trim().toLowerCase();
+  let list=sitaraExpenses.filter(e=>{
+    if(q && !((e.category||'').toLowerCase().includes(q)||(e.description||'').toLowerCase().includes(q))) return false;
+    if(sitaraExpenseFilters.vendorId && e.vendorId!==sitaraExpenseFilters.vendorId) return false;
+    return true;
+  });
+  return list.slice().sort((a,b)=>sitaraExpenseFilters.sortBy==='category'
+    ? (a.category||'').localeCompare(b.category||'')
+    : new Date(b.expenseDate||b.createdAt||0)-new Date(a.expenseDate||a.createdAt||0));
+}
+function sitaraExpensesSummaryHtml(list){
+  const total=list.reduce((s,e)=>s+Number(e.amount||0),0);
+  return `${list.length} expense${list.length===1?'':'s'} · Total ${sitaraInr(total)}`;
+}
+function sitaraExpensesTbodyHtml(list){
+  return list.length?list.map(e=>`<tr>
+    <td>${e.expenseDate?new Date(e.expenseDate).toLocaleDateString('en-GB'):(e.createdAt?new Date(e.createdAt).toLocaleDateString('en-GB'):'—')}</td>
+    <td>${esc(sitaraVendorName(e.vendorId))}</td>
+    <td>${esc(e.category||'—')}</td>
+    <td>${esc(e.description||'—')}</td>
+    <td>${sitaraInr(e.amount)}</td>
+    <td>
+      <button class="btn-sm btn-ghost" onclick="openSitaraExpenseModal('${e.id}')">Edit</button>
+      <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraExpense('${e.id}')">Delete</button>
+    </td>
+  </tr>`).join(''):`<tr><td colspan="6" class="empty-state">${sitaraExpenses.length?'No expenses match your filters.':'No expenses yet.'}</td></tr>`;
+}
 function renderSitaraExpenses(){
   const ca=document.getElementById('content-area');
   if(!sitaraExpensesLoaded){
@@ -14475,40 +14667,35 @@ function renderSitaraExpenses(){
     loadSitaraExpensesData().then(()=>{ if(currentView==='sitara_business_expenses') renderView(); });
     return;
   }
-  const catFilter=sitaraExpenseFilters.category.trim().toLowerCase();
-  let list=sitaraExpenses.filter(e=>!catFilter||(e.category||'').toLowerCase().includes(catFilter));
-  list=list.slice().sort((a,b)=>sitaraExpenseFilters.sortBy==='category'
-    ? (a.category||'').localeCompare(b.category||'')
-    : new Date(b.expenseDate||b.createdAt||0)-new Date(a.expenseDate||a.createdAt||0));
-  const total=list.reduce((s,e)=>s+Number(e.amount||0),0);
+  const list=sitaraExpensesFilteredList();
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="text" placeholder="Filter by category…" value="${esc(sitaraExpenseFilters.category)}" oninput="setSitaraExpenseCategoryFilter(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:180px">
+        <input type="text" placeholder="Search category or description…" value="${esc(sitaraExpenseFilters.search)}" oninput="setSitaraExpenseSearch(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:200px">
+        <select onchange="setSitaraExpenseVendor(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px">
+          <option value="">All Vendors</option>
+          ${sitaraVendors.map(v=>`<option value="${v.id}" ${sitaraExpenseFilters.vendorId===v.id?'selected':''}>${esc(v.name)}</option>`).join('')}
+        </select>
         <button class="btn-sm ${sitaraExpenseFilters.sortBy==='date'?'btn-primary':'btn-ghost'}" onclick="setSitaraExpenseSort('date')">Sort by Date</button>
         <button class="btn-sm ${sitaraExpenseFilters.sortBy==='category'?'btn-primary':'btn-ghost'}" onclick="setSitaraExpenseSort('category')">Sort by Category</button>
       </div>
       <button class="btn btn-primary" onclick="openSitaraExpenseModal()">+ Add Expense</button>
     </div>
-    <div style="font-size:13px;color:var(--g3);margin-bottom:10px">${list.length} expense${list.length===1?'':'s'} · Total ${sitaraInr(total)}</div>
+    <div style="font-size:13px;color:var(--g3);margin-bottom:10px" id="sitara-expenses-summary">${sitaraExpensesSummaryHtml(list)}</div>
     <div class="table-wrap"><table>
       <thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>
-      <tbody>
-        ${list.length?list.map(e=>`<tr>
-          <td>${e.expenseDate?new Date(e.expenseDate).toLocaleDateString('en-GB'):(e.createdAt?new Date(e.createdAt).toLocaleDateString('en-GB'):'—')}</td>
-          <td>${esc(sitaraVendorName(e.vendorId))}</td>
-          <td>${esc(e.category||'—')}</td>
-          <td>${esc(e.description||'—')}</td>
-          <td>${sitaraInr(e.amount)}</td>
-          <td>
-            <button class="btn-sm btn-ghost" onclick="openSitaraExpenseModal('${e.id}')">Edit</button>
-            <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraExpense('${e.id}')">Delete</button>
-          </td>
-        </tr>`).join(''):'<tr><td colspan="6" class="empty-state">No expenses yet.</td></tr>'}
-      </tbody>
+      <tbody id="sitara-expenses-tbody">${sitaraExpensesTbodyHtml(list)}</tbody>
     </table></div>`;
 }
-function setSitaraExpenseCategoryFilter(v){ sitaraExpenseFilters.category=v; renderSitaraExpenses(); }
+function setSitaraExpenseSearch(v){
+  sitaraExpenseFilters.search=v;
+  const list=sitaraExpensesFilteredList();
+  const tbody=document.getElementById('sitara-expenses-tbody');
+  if(tbody) tbody.innerHTML=sitaraExpensesTbodyHtml(list);
+  const summaryEl=document.getElementById('sitara-expenses-summary');
+  if(summaryEl) summaryEl.textContent=sitaraExpensesSummaryHtml(list);
+}
+function setSitaraExpenseVendor(v){ sitaraExpenseFilters.vendorId=v; renderSitaraExpenses(); }
 function setSitaraExpenseSort(sortBy){ sitaraExpenseFilters.sortBy=sortBy; renderSitaraExpenses(); }
 function openSitaraExpenseModal(id){
   const e=id?sitaraExpenses.find(x=>x.id===id):null;
