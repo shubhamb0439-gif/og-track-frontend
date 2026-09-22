@@ -13256,11 +13256,12 @@ function mfgTraceUnitListHtml(matches){
     <span style="font-size:12px;color:var(--g3)">${u.serialNumber?esc(u.serialNumber):'unassigned'}</span>
   </div>`).join(''):'<div style="padding:10px 12px;font-size:12px;color:var(--g3)">No matching units.</div>';
 }
-// Per-unit component serial linkage — recorded only at build time, and
-// only when a component's on-hand serialized stock fully covered that
-// whole build (see backend caveat: falls back to non-serial tracking for
-// the entire build otherwise, so an older/undercovered build can
-// legitimately show no entries here).
+// Per-unit component serial linkage — recorded at build time, per physical
+// piece consumed, not all-or-nothing per build: a component with only
+// partial serial coverage on hand links whichever pieces got a real
+// serialized unit (oldest first) and simply omits the rest, so a unit can
+// legitimately show componentsUsed with only some of its BOM components
+// present, or none at all if nothing was covered.
 function mfgTraceComponentsUsedHtml(u){
   const comps=u.componentsUsed||[];
   if(!comps.length) return `<div style="width:100%;font-size:12px;color:var(--g3);margin-top:8px">No serialized components recorded.</div>`;
