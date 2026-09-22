@@ -13256,12 +13256,29 @@ function mfgTraceUnitListHtml(matches){
     <span style="font-size:12px;color:var(--g3)">${u.serialNumber?esc(u.serialNumber):'unassigned'}</span>
   </div>`).join(''):'<div style="padding:10px 12px;font-size:12px;color:var(--g3)">No matching units.</div>';
 }
+// Per-unit component serial linkage — recorded only at build time, and
+// only when a component's on-hand serialized stock fully covered that
+// whole build (see backend caveat: falls back to non-serial tracking for
+// the entire build otherwise, so an older/undercovered build can
+// legitimately show no entries here).
+function mfgTraceComponentsUsedHtml(u){
+  const comps=u.componentsUsed||[];
+  if(!comps.length) return `<div style="width:100%;font-size:12px;color:var(--g3);margin-top:8px">No serialized components recorded.</div>`;
+  return `<div style="width:100%;margin-top:8px">
+    <div style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Components Used</div>
+    ${comps.map(c=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:13px">
+      <span>${esc(c.componentItemName||c.componentItemId||'—')}</span>
+      <span style="color:var(--g3)">${esc(c.serialNumber||'—')}</span>
+    </div>`).join('')}
+  </div>`;
+}
 function mfgTraceUnitDetailHtml(u){
   return `<div style="margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <div style="font-weight:600">Unit #${u.unitNumber}</div>
     <input type="text" id="mfg-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…" style="padding:6px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:160px;max-width:220px;box-sizing:border-box">
     ${mfgUnitStatusBadge(u)}
     <button class="btn-sm btn-primary" onclick="saveMfgUnitSerial('${u.id}')">Save</button>
+    ${mfgTraceComponentsUsedHtml(u)}
   </div>`;
 }
 function mfgTraceUnitsHtml(){
