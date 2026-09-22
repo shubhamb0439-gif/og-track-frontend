@@ -2998,16 +2998,6 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group"><label>Unit</label><input type="text" id="inv-i-unit" placeholder="pcs" value="pcs"></div>
         <div class="form-group"><label style="display:flex;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="inv-i-serial" style="width:auto" onchange="onInvItemSerialToggle()"> Track Serial Numbers</label></div>
       </div>
-      <div class="form-row full" id="inv-i-serial-add-row" style="display:none">
-        <div class="form-group">
-          <label>Add Serial Number</label>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="inv-i-new-serial" placeholder="Serial number (optional)" style="flex:1">
-            <button type="button" class="btn-sm btn-primary" onclick="addInvItemSerialUnit()">Add</button>
-          </div>
-          <div style="font-size:11px;color:var(--g3);margin-top:4px">Registers one new traceable unit for stock that predates this item being marked serial-tracked.</div>
-        </div>
-      </div>
       <div class="form-row">
         <div class="form-group"><label>Group</label><select id="inv-i-group">
           <option value="">— Select —</option>
@@ -3150,6 +3140,7 @@ body { transition: background .3s ease, color .3s ease; }
       <div class="form-row full"><div class="form-group"><label>Assembly Name *</label><input type="text" id="mfg-a-name" placeholder="e.g., Batch #001"></div></div>
       <div class="form-row full"><div class="form-group"><label>Quantity *</label><input type="number" id="mfg-a-qty" value="1" min="1" oninput="onMfgAssemblyBomOrQtyChange()"></div></div>
       <div class="form-row full"><div class="form-group"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="mfg-a-for-po" style="width:auto"> This assembly is for a Purchase Order</label></div></div>
+      <div id="mfg-a-serial-inputs"></div>
       <div id="mfg-a-vendor-check"></div>
     </div>
     <div class="modal-footer">
@@ -12189,25 +12180,13 @@ function openInvItemModal(id){
   document.getElementById('inv-i-reorder').value=i?.stockReorder??'';
   document.getElementById('inv-i-serial').checked=!!i?.serialTracked;
   document.getElementById('inv-i-notes').value=i?.notes||'';
-  document.getElementById('inv-i-new-serial').value='';
-  toggleInvItemSerialAddRow();
   document.getElementById('inv-item-modal').classList.add('open');
-}
-// Shown whenever "Track Serial Numbers" is checked — whether just ticked
-// now or already was — but only for an existing item, since the POST needs
-// a real item id (a brand-new item hasn't been saved yet).
-function toggleInvItemSerialAddRow(){
-  const id=document.getElementById('inv-i-id').value;
-  const checked=document.getElementById('inv-i-serial').checked;
-  document.getElementById('inv-i-serial-add-row').style.display=(checked&&id)?'block':'none';
 }
 // Ticking/unticking only changes local form state until "Save Item" runs —
 // for an item that already exists, persist it the instant it's toggled
 // instead, so the backend is in sync right away rather than depending on
-// the user also clicking Save (or clicking Save before using "Add Serial
-// Number", which 400s otherwise since serial_tracked isn't true yet there).
+// the user also clicking Save.
 async function onInvItemSerialToggle(){
-  toggleInvItemSerialAddRow();
   const id=document.getElementById('inv-i-id').value;
   if(!id) return; // brand-new, unsaved item — nothing to persist yet
   const checked=document.getElementById('inv-i-serial').checked;
@@ -12217,27 +12196,6 @@ async function onInvItemSerialToggle(){
     const r=await fetch(`/api/inventory/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialTracked:checked})});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     if(item) item.serialTracked=checked;
-  }catch(e){ showToast(e.message,'error'); }
-}
-async function addInvItemSerialUnit(){
-  const id=document.getElementById('inv-i-id').value;
-  if(!id) return;
-  const serialNumber=document.getElementById('inv-i-new-serial').value.trim()||undefined;
-  try{
-    // The checkbox can be ticked (which is what reveals this row) before the
-    // item itself has ever been saved with that flag — persist it first so
-    // the backend's serial_tracked check passes, instead of surfacing a 400
-    // that just tells the user to go save the item first.
-    const item=invItems.find(x=>x.id===id);
-    if(!item?.serialTracked){
-      const pr=await fetch(`/api/inventory/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialTracked:true})});
-      if(!pr.ok){ const d=await pr.json(); throw new Error(d.error); }
-      if(item) item.serialTracked=true;
-    }
-    const r=await fetch(`/api/inventory/items/${id}/serial-units`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialNumber})});
-    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
-    showToast('Serial unit added ✓','success');
-    document.getElementById('inv-i-new-serial').value='';
   }catch(e){ showToast(e.message,'error'); }
 }
 async function saveInvItem(){
@@ -13003,6 +12961,14 @@ async function loadMfgAssemblyDetail(id){
 }
 
 // ── Create Assembly modal (BOM select, vendor-source hints, PO checkbox) ─────
+// Serial-tracked BOM components need one input PER PHYSICAL PIECE, not one
+// per component — a component used at quantityPerUnit=2 building 5 units
+// needs 10 separate inputs. Fetched once per BOM selection (componentItemId/
+// componentSerialTracked/quantityPerUnit don't change with quantity); the
+// input COUNT is recomputed live on every quantity change from this cache,
+// with no extra fetch needed for that.
+let mfgAssemblySerialLines=[]; // [{componentItemId, componentItemName, quantityPerUnit}] — serial_tracked lines only
+let mfgAssemblySerialLinesBomId=null;
 function openMfgAssemblyModal(){
   document.getElementById('mfg-a-bomid').value='';
   const sel=document.getElementById('mfg-a-bom-select');
@@ -13011,14 +12977,43 @@ function openMfgAssemblyModal(){
   document.getElementById('mfg-a-qty').value=1;
   document.getElementById('mfg-a-for-po').checked=false;
   document.getElementById('mfg-a-vendor-check').innerHTML='';
+  document.getElementById('mfg-a-serial-inputs').innerHTML='';
+  mfgAssemblySerialLines=[];
+  mfgAssemblySerialLinesBomId=null;
   document.getElementById('mfg-assembly-modal').classList.add('open');
+}
+function mfgAssemblySerialInputsHtml(qty){
+  if(!mfgAssemblySerialLines.length) return '';
+  return `<div style="font-weight:600;margin:10px 0 6px">Component Serial Numbers</div>` +
+    mfgAssemblySerialLines.map(line=>{
+      const total=line.quantityPerUnit*qty;
+      let pieces='';
+      for(let i=1;i<=total;i++){
+        pieces+=`<div style="flex:1 1 140px"><label style="font-size:11px;color:var(--g3)">${esc(line.componentItemName)} — piece ${i}</label>
+          <input type="text" data-component-id="${line.componentItemId}" class="mfg-a-serial-input" placeholder="Serial (optional)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;box-sizing:border-box"></div>`;
+      }
+      return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">${pieces}</div>`;
+    }).join('');
 }
 async function onMfgAssemblyBomOrQtyChange(){
   const bomId=document.getElementById('mfg-a-bom-select').value;
   document.getElementById('mfg-a-bomid').value=bomId;
   const qty=Number(document.getElementById('mfg-a-qty').value||1);
   const resultEl=document.getElementById('mfg-a-vendor-check');
-  if(!bomId){ resultEl.innerHTML=''; return; }
+  const serialEl=document.getElementById('mfg-a-serial-inputs');
+  if(!bomId){ resultEl.innerHTML=''; serialEl.innerHTML=''; mfgAssemblySerialLines=[]; mfgAssemblySerialLinesBomId=null; return; }
+  if(bomId!==mfgAssemblySerialLinesBomId){
+    mfgAssemblySerialLinesBomId=bomId;
+    try{
+      const full=await fetch(`/api/manufacturing/boms/${bomId}`).then(r=>r.json());
+      mfgAssemblySerialLines=(full.lines||[]).filter(l=>l.componentSerialTracked).map(l=>({
+        componentItemId:l.componentItemId,
+        componentItemName:l.componentItemName||invItemName(l.componentItemId),
+        quantityPerUnit:l.quantityPerUnit,
+      }));
+    }catch(e){ mfgAssemblySerialLines=[]; }
+  }
+  serialEl.innerHTML=mfgAssemblySerialInputsHtml(qty);
   resultEl.innerHTML='<div style="font-size:12px;color:var(--g3)">Checking component stock…</div>';
   try{
     const data = await fetch(`/api/manufacturing/boms/${bomId}/vendor-check?quantity=${qty}`).then(r=>r.json());
@@ -13067,8 +13062,18 @@ async function saveMfgAssembly(){
   const name=document.getElementById('mfg-a-name').value.trim();
   const forPo=document.getElementById('mfg-a-for-po').checked;
   const customerPoNumber = forPo ? (prompt('Customer PO Number for this build:')||null) : null;
+  // Flat array per component, in DOM order — the inputs were generated
+  // sequentially piece 1..N, which is already "first quantityPerUnit go to
+  // unit 1, next quantityPerUnit to unit 2, ..." — exactly what the backend
+  // expects, so no reordering needed here.
+  const componentSerials={};
+  document.querySelectorAll('#mfg-a-serial-inputs .mfg-a-serial-input').forEach(inp=>{
+    const cid=inp.dataset.componentId;
+    if(!componentSerials[cid]) componentSerials[cid]=[];
+    componentSerials[cid].push(inp.value.trim()||null);
+  });
   try{
-    const r=await fetch('/api/manufacturing/assemblies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bomId,quantityBuilt,name:name||undefined,customerPoNumber})});
+    const r=await fetch('/api/manufacturing/assemblies',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bomId,quantityBuilt,name:name||undefined,customerPoNumber,componentSerials})});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('mfg-assembly-modal');
     showToast('Assembly created ✓','success');
@@ -13270,23 +13275,44 @@ function mfgTraceMatchingUnits(){
   const q=mfgTraceUnitQuery.trim().toLowerCase();
   return !q ? mfgTraceUnits : mfgTraceUnits.filter(u=>String(u.unitNumber).includes(q)||(u.serialNumber||'').toLowerCase().includes(q));
 }
-// Per-unit component serial linkage — recorded at build time, per physical
-// piece consumed, not all-or-nothing per build: a component with only
-// partial serial coverage on hand links whichever pieces got a real
-// serialized unit (oldest first) and simply omits the rest, so a unit can
-// legitimately show componentsUsed with only some of its BOM components
-// present, or none at all if nothing was covered.
+// Per-unit component serial linkage — every physical piece of every
+// serial_tracked component used in this unit gets its own entry now,
+// filled in or not, and every entry is editable here (same control fills a
+// blank slot or corrects an existing value). Two still-blank slots of the
+// same component/unit can share the same assemblyItemId until one is
+// actually filled in — so after any save, refetch the whole assembly
+// rather than guessing which local row just changed (see
+// saveMfgComponentSerial). Row DOM ids use unit id + index (not
+// assemblyItemId) since that id isn't guaranteed unique per row.
 function mfgTraceComponentsUsedHtml(u){
   const comps=u.componentsUsed||[];
   if(!comps.length) return `<div style="font-size:12px;color:var(--g3);margin-top:8px">No serialized components recorded.</div>`;
   return `<div style="margin-top:8px">
     <div style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Components Used</div>
-    ${comps.map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:13px">
+    ${comps.map((c,idx)=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:13px">
       <span style="color:var(--g3)">▸</span>
       <span style="flex:1">${esc(c.componentItemName||c.componentItemId||'—')}</span>
-      <span style="color:var(--g3)">${esc(c.serialNumber||'—')}</span>
+      <input type="text" id="mfg-trace-comp-serial-${u.id}-${idx}" value="${esc(c.serialNumber||'')}" placeholder="Assign serial…" style="padding:5px;border:1px solid var(--border);border-radius:6px;width:150px;box-sizing:border-box">
+      <button class="btn-sm btn-primary" onclick="saveMfgComponentSerial('${c.assemblyItemId}','${u.id}',${idx})">Save</button>
     </div>`).join('')}
   </div>`;
+}
+async function saveMfgComponentSerial(assemblyItemId,unitId,idx){
+  const input=document.getElementById(`mfg-trace-comp-serial-${unitId}-${idx}`);
+  const serialNumber=input.value.trim()||null;
+  try{
+    const r=await fetch(`/api/manufacturing/assembly-items/${assemblyItemId}/serial`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialNumber})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    showToast('Serial saved ✓','success');
+    if(mfgTraceSelectedAssemblyId){
+      try{
+        const full=await fetch(`/api/manufacturing/assemblies/${mfgTraceSelectedAssemblyId}`).then(r=>r.json());
+        mfgTraceUnits=full.units||[];
+      }catch(e){}
+    }
+    const listEl=document.getElementById('mfg-trace-unit-list');
+    if(listEl) listEl.innerHTML=mfgTraceUnitListHtml(mfgTraceMatchingUnits());
+  }catch(e){ showToast(e.message,'error'); }
 }
 function mfgTraceUnitDetailHtml(u){
   return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
