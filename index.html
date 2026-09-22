@@ -13133,6 +13133,37 @@ async function loadInvSerialUnitGroups(){
 // flagged item is reachable before its first unit exists.
 let invTraceableItems=[];
 let invTraceableItemsLoaded=false;
+// Reference-only list for the small dropdown inside a unit's detail box —
+// every already-serialized unit system-wide (both purchased and
+// manufactured), so someone assigning a serial can browse what's already
+// taken. Purely informational: picking an entry doesn't do anything.
+// Lazy-loaded the first time any unit detail box opens, then cached.
+let traceReferenceLoaded=false;
+let traceReferenceUnits=[]; // [{itemName, serialNumber}]
+async function loadTraceReferenceData(){
+  const fromPurchased = invSerialUnitGroups.flatMap(g=>(g.units||[]).filter(u=>u.serialNumber).map(u=>({itemName:g.itemName, serialNumber:u.serialNumber})));
+  let fromAssemblies=[];
+  try{
+    const perAssembly = await Promise.all(mfgAssemblies.map(async a=>{
+      try{
+        const full=await fetch(`/api/manufacturing/assemblies/${a.id}`).then(r=>r.json());
+        const name=a.name||a.assemblyNumber||invItemName(a.productItemId);
+        return (full.units||[]).filter(u=>u.serialNumber).map(u=>({itemName:name, serialNumber:u.serialNumber}));
+      }catch(e){ return []; }
+    }));
+    fromAssemblies = perAssembly.flat();
+  }catch(e){}
+  traceReferenceUnits=[...fromPurchased,...fromAssemblies].sort((a,b)=>a.itemName.localeCompare(b.itemName));
+  traceReferenceLoaded=true;
+}
+function traceReferenceDropdownHtml(){
+  if(!traceReferenceLoaded) return `<select disabled style="padding:6px;border:1px solid var(--border);border-radius:6px;color:var(--g3);max-width:240px"><option>Loading reference…</option></select>`;
+  if(!traceReferenceUnits.length) return `<select disabled style="padding:6px;border:1px solid var(--border);border-radius:6px;color:var(--g3);max-width:240px"><option>No serials assigned anywhere yet</option></select>`;
+  return `<select style="padding:6px;border:1px solid var(--border);border-radius:6px;max-width:240px" title="Reference only — browse everything already serialized; picking one doesn't change anything">
+    <option value="">Browse all traceable serials…</option>
+    ${traceReferenceUnits.map(u=>`<option>${esc(u.itemName)} — ${esc(u.serialNumber)}</option>`).join('')}
+  </select>`;
+}
 async function loadInvTraceableItems(){
   try{ invTraceableItems=await fetch('/api/inventory/items?serialTracked=true').then(r=>r.json()); }
   catch(e){ invTraceableItems=[]; }
@@ -13262,6 +13293,7 @@ function mfgTraceUnitDetailHtml(u){
     <input type="text" id="mfg-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…" style="padding:6px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:160px;max-width:220px;box-sizing:border-box">
     ${mfgUnitStatusBadge(u)}
     <button class="btn-sm btn-primary" onclick="saveMfgUnitSerial('${u.id}')">Save</button>
+    ${traceReferenceDropdownHtml()}
   </div>`;
 }
 function mfgTraceUnitsHtml(){
@@ -13281,6 +13313,9 @@ function mfgTracePickUnit(unitId){
   mfgTraceSelectedUnitId = mfgTraceSelectedUnitId===unitId ? null : unitId;
   const panel=document.getElementById('mfg-trace-units-panel');
   if(panel) panel.innerHTML=mfgTraceUnitsHtml();
+  if(mfgTraceSelectedUnitId && !traceReferenceLoaded){
+    loadTraceReferenceData().then(()=>{ const p=document.getElementById('mfg-trace-units-panel'); if(p) p.innerHTML=mfgTraceUnitsHtml(); });
+  }
 }
 async function saveMfgUnitSerial(unitId){
   const input=document.getElementById('mfg-trace-serial-'+unitId);
@@ -13317,6 +13352,7 @@ function invTraceUnitDetailHtml(u){
     <input type="text" id="inv-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…" style="padding:6px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:160px;max-width:220px;box-sizing:border-box">
     ${invUnitStatusBadge(u)}
     <button class="btn-sm btn-primary" onclick="saveInvUnitSerial('${u.id}')">Save</button>
+    ${traceReferenceDropdownHtml()}
   </div>`;
 }
 function invTraceUnitsHtml(group){
@@ -13344,6 +13380,9 @@ function invTracePickUnit(unitId){
   const group=invSerialUnitGroups.find(g=>g.itemId===invTraceSelectedItemId);
   const panel=document.getElementById('inv-trace-units-panel');
   if(panel) panel.innerHTML=invTraceUnitsHtml(group);
+  if(invTraceSelectedUnitId && !traceReferenceLoaded){
+    loadTraceReferenceData().then(()=>{ const p=document.getElementById('inv-trace-units-panel'); if(p) p.innerHTML=invTraceUnitsHtml(group); });
+  }
 }
 async function saveInvUnitSerial(unitId){
   const input=document.getElementById('inv-trace-serial-'+unitId);
