@@ -13243,18 +13243,14 @@ function mfgUnitStatusBadge(unit){
 }
 // A group's units are always browsed as search-then-pick-one (never a flat
 // table of every row) — this matches, and its purchased-item counterpart
-// below, share the same three-part shape: a search box (patched alone on
-// each keystroke so it doesn't lose focus), a scrollable one-line-per-unit
-// result list, and — once a unit is picked — that unit's own editable row.
+// below, share the same shape: a search box (patched alone on each
+// keystroke so it doesn't lose focus) above a scrollable list, where each
+// unit row carries its own expand arrow — clicking it expands that row
+// in place, tree-style, to show its serial-assign editor and (for
+// assemblies) its componentsUsed nested directly underneath.
 function mfgTraceMatchingUnits(){
   const q=mfgTraceUnitQuery.trim().toLowerCase();
   return !q ? mfgTraceUnits : mfgTraceUnits.filter(u=>String(u.unitNumber).includes(q)||(u.serialNumber||'').toLowerCase().includes(q));
-}
-function mfgTraceUnitListHtml(matches){
-  return matches.length?matches.map(u=>`<div onclick="mfgTracePickUnit('${u.id}')" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${mfgTraceSelectedUnitId===u.id?'background:var(--white)':''}">
-    <span>Unit #${u.unitNumber}</span>
-    <span style="font-size:12px;color:var(--g3)">${u.serialNumber?esc(u.serialNumber):'unassigned'}</span>
-  </div>`).join(''):'<div style="padding:10px 12px;font-size:12px;color:var(--g3)">No matching units.</div>';
 }
 // Per-unit component serial linkage — recorded at build time, per physical
 // piece consumed, not all-or-nothing per build: a component with only
@@ -13264,31 +13260,41 @@ function mfgTraceUnitListHtml(matches){
 // present, or none at all if nothing was covered.
 function mfgTraceComponentsUsedHtml(u){
   const comps=u.componentsUsed||[];
-  if(!comps.length) return `<div style="width:100%;font-size:12px;color:var(--g3);margin-top:8px">No serialized components recorded.</div>`;
-  return `<div style="width:100%;margin-top:8px">
+  if(!comps.length) return `<div style="font-size:12px;color:var(--g3);margin-top:8px">No serialized components recorded.</div>`;
+  return `<div style="margin-top:8px">
     <div style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Components Used</div>
-    ${comps.map(c=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:13px">
-      <span>${esc(c.componentItemName||c.componentItemId||'—')}</span>
+    ${comps.map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px;font-size:13px">
+      <span style="color:var(--g3)">▸</span>
+      <span style="flex:1">${esc(c.componentItemName||c.componentItemId||'—')}</span>
       <span style="color:var(--g3)">${esc(c.serialNumber||'—')}</span>
     </div>`).join('')}
   </div>`;
 }
 function mfgTraceUnitDetailHtml(u){
-  return `<div style="margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <div style="font-weight:600">Unit #${u.unitNumber}</div>
+  return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <input type="text" id="mfg-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…" style="padding:6px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:160px;max-width:220px;box-sizing:border-box">
     ${mfgUnitStatusBadge(u)}
     <button class="btn-sm btn-primary" onclick="saveMfgUnitSerial('${u.id}')">Save</button>
-    ${mfgTraceComponentsUsedHtml(u)}
-  </div>`;
+  </div>
+  ${mfgTraceComponentsUsedHtml(u)}`;
+}
+function mfgTraceUnitListHtml(matches){
+  return matches.length?matches.map(u=>{
+    const isOpen=mfgTraceSelectedUnitId===u.id;
+    return `<div style="border-bottom:1px solid var(--border)">
+      <div onclick="mfgTracePickUnit('${u.id}')" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--g3);display:inline-block;width:10px">${isOpen?'▾':'▸'}</span>Unit #${u.unitNumber}</span>
+        <span style="font-size:12px;color:var(--g3)">${u.serialNumber?esc(u.serialNumber):'unassigned'}</span>
+      </div>
+      ${isOpen?`<div style="padding:10px 12px 12px 32px;background:var(--g5)">${mfgTraceUnitDetailHtml(u)}</div>`:''}
+    </div>`;
+  }).join(''):'<div style="padding:10px 12px;font-size:12px;color:var(--g3)">No matching units.</div>';
 }
 function mfgTraceUnitsHtml(){
   if(!mfgTraceUnits.length) return '<div style="font-size:13px;color:var(--g3);padding:10px 0">No units for this assembly.</div>';
-  const selected = mfgTraceSelectedUnitId ? mfgTraceUnits.find(u=>u.id===mfgTraceSelectedUnitId) : null;
   return `
     <input type="text" placeholder="Search unit # or serial…" value="${esc(mfgTraceUnitQuery)}" oninput="mfgTraceSearchUnit(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;width:100%;max-width:280px;margin:8px 0;box-sizing:border-box">
-    <div id="mfg-trace-unit-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">${mfgTraceUnitListHtml(mfgTraceMatchingUnits())}</div>
-    ${selected?mfgTraceUnitDetailHtml(selected):''}`;
+    <div id="mfg-trace-unit-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">${mfgTraceUnitListHtml(mfgTraceMatchingUnits())}</div>`;
 }
 function mfgTraceSearchUnit(v){
   mfgTraceUnitQuery=v;
@@ -13297,8 +13303,8 @@ function mfgTraceSearchUnit(v){
 }
 function mfgTracePickUnit(unitId){
   mfgTraceSelectedUnitId = mfgTraceSelectedUnitId===unitId ? null : unitId;
-  const panel=document.getElementById('mfg-trace-units-panel');
-  if(panel) panel.innerHTML=mfgTraceUnitsHtml();
+  const listEl=document.getElementById('mfg-trace-unit-list');
+  if(listEl) listEl.innerHTML=mfgTraceUnitListHtml(mfgTraceMatchingUnits());
 }
 async function saveMfgUnitSerial(unitId){
   const input=document.getElementById('mfg-trace-serial-'+unitId);
@@ -13309,7 +13315,8 @@ async function saveMfgUnitSerial(unitId){
     showToast('Serial number saved ✓','success');
     const idx=mfgTraceUnits.findIndex(u=>u.id===unitId);
     if(idx>=0) mfgTraceUnits[idx].serialNumber=serialNumber;
-    document.getElementById('mfg-trace-units-panel').innerHTML=mfgTraceUnitsHtml();
+    const listEl=document.getElementById('mfg-trace-unit-list');
+    if(listEl) listEl.innerHTML=mfgTraceUnitListHtml(mfgTraceMatchingUnits());
   }catch(e){ showToast(e.message,'error'); }
 }
 // No "Delivered" tier here (unlike mfgUnitStatusBadge) — purchased units
@@ -13323,19 +13330,24 @@ function invTraceMatchingUnits(units){
   const q=invTraceUnitQuery.trim().toLowerCase();
   return !q ? units : units.filter(u=>String(u.unitNumber).includes(q)||(u.serialNumber||'').toLowerCase().includes(q));
 }
-function invTraceUnitListHtml(matches){
-  return matches.length?matches.map(u=>`<div onclick="invTracePickUnit('${u.id}')" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${invTraceSelectedUnitId===u.id?'background:var(--white)':''}">
-    <span>Unit #${u.unitNumber}</span>
-    <span style="font-size:12px;color:var(--g3)">${u.serialNumber?esc(u.serialNumber):'unassigned'}</span>
-  </div>`).join(''):'<div style="padding:10px 12px;font-size:12px;color:var(--g3)">No matching units.</div>';
-}
 function invTraceUnitDetailHtml(u){
-  return `<div style="margin-top:10px;padding:12px;border:1px solid var(--border);border-radius:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <div style="font-weight:600">Unit #${u.unitNumber}</div>
+  return `<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <input type="text" id="inv-trace-serial-${u.id}" value="${esc(u.serialNumber||'')}" placeholder="Assign serial…" style="padding:6px;border:1px solid var(--border);border-radius:6px;flex:1;min-width:160px;max-width:220px;box-sizing:border-box">
     ${invUnitStatusBadge(u)}
     <button class="btn-sm btn-primary" onclick="saveInvUnitSerial('${u.id}')">Save</button>
   </div>`;
+}
+function invTraceUnitListHtml(matches){
+  return matches.length?matches.map(u=>{
+    const isOpen=invTraceSelectedUnitId===u.id;
+    return `<div style="border-bottom:1px solid var(--border)">
+      <div onclick="invTracePickUnit('${u.id}')" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+        <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--g3);display:inline-block;width:10px">${isOpen?'▾':'▸'}</span>Unit #${u.unitNumber}</span>
+        <span style="font-size:12px;color:var(--g3)">${u.serialNumber?esc(u.serialNumber):'unassigned'}</span>
+      </div>
+      ${isOpen?`<div style="padding:10px 12px 12px 32px;background:var(--g5)">${invTraceUnitDetailHtml(u)}</div>`:''}
+    </div>`;
+  }).join(''):'<div style="padding:10px 12px;font-size:12px;color:var(--g3)">No matching units.</div>';
 }
 function invTraceUnitsHtml(group){
   const units=group?.units||[];
@@ -13345,11 +13357,9 @@ function invTraceUnitsHtml(group){
       <input type="text" id="inv-trace-new-serial-${group.itemId}" placeholder="Serial number (optional)" style="padding:6px;border:1px solid var(--border);border-radius:6px;flex:1;max-width:220px">
       <button class="btn-sm btn-primary" onclick="addInvTraceableItemSerialUnit('${group.itemId}')">Add Unit</button>
     </div>`;
-  const selected = invTraceSelectedUnitId ? units.find(u=>u.id===invTraceSelectedUnitId) : null;
   return `
     <input type="text" placeholder="Search unit # or serial…" value="${esc(invTraceUnitQuery)}" oninput="invTraceSearchUnit(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;width:100%;max-width:280px;margin-bottom:8px;box-sizing:border-box">
-    <div id="inv-trace-unit-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">${invTraceUnitListHtml(invTraceMatchingUnits(units))}</div>
-    ${selected?invTraceUnitDetailHtml(selected):''}`;
+    <div id="inv-trace-unit-list" style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">${invTraceUnitListHtml(invTraceMatchingUnits(units))}</div>`;
 }
 function invTraceSearchUnit(v){
   invTraceUnitQuery=v;
@@ -13360,8 +13370,8 @@ function invTraceSearchUnit(v){
 function invTracePickUnit(unitId){
   invTraceSelectedUnitId = invTraceSelectedUnitId===unitId ? null : unitId;
   const group=invSerialUnitGroups.find(g=>g.itemId===invTraceSelectedItemId);
-  const panel=document.getElementById('inv-trace-units-panel');
-  if(panel) panel.innerHTML=invTraceUnitsHtml(group);
+  const listEl=document.getElementById('inv-trace-unit-list');
+  if(listEl) listEl.innerHTML=invTraceUnitListHtml(invTraceMatchingUnits(group?.units||[]));
 }
 async function saveInvUnitSerial(unitId){
   const input=document.getElementById('inv-trace-serial-'+unitId);
@@ -13372,8 +13382,8 @@ async function saveInvUnitSerial(unitId){
     showToast('Serial number saved ✓','success');
     const group=invSerialUnitGroups.find(g=>(g.units||[]).some(u=>u.id===unitId));
     if(group){ const u=group.units.find(x=>x.id===unitId); if(u) u.serialNumber=serialNumber; }
-    const panel=document.getElementById('inv-trace-units-panel');
-    if(panel) panel.innerHTML=invTraceUnitsHtml(group);
+    const listEl=document.getElementById('inv-trace-unit-list');
+    if(listEl) listEl.innerHTML=invTraceUnitListHtml(invTraceMatchingUnits(group?.units||[]));
   }catch(e){ showToast(e.message,'error'); }
 }
 // Manually registers a unit for stock that predates an item being flagged
