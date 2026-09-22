@@ -2996,7 +2996,17 @@ body { transition: background .3s ease, color .3s ease; }
       <div class="form-row full"><div class="form-group"><label>Display Name</label><input type="text" id="inv-i-displayname" placeholder="Optional shortened/customer-facing name"></div></div>
       <div class="form-row">
         <div class="form-group"><label>Unit</label><input type="text" id="inv-i-unit" placeholder="pcs" value="pcs"></div>
-        <div class="form-group"><label style="display:flex;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="inv-i-serial" style="width:auto"> Track Serial Numbers</label></div>
+        <div class="form-group"><label style="display:flex;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="inv-i-serial" style="width:auto" onchange="toggleInvItemSerialAddRow()"> Track Serial Numbers</label></div>
+      </div>
+      <div class="form-row full" id="inv-i-serial-add-row" style="display:none">
+        <div class="form-group">
+          <label>Add Serial Number</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="inv-i-new-serial" placeholder="Serial number (optional)" style="flex:1">
+            <button type="button" class="btn-sm btn-primary" onclick="addInvItemSerialUnit()">Add</button>
+          </div>
+          <div style="font-size:11px;color:var(--g3);margin-top:4px">Registers one new traceable unit for stock that predates this item being marked serial-tracked.</div>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group"><label>Group</label><select id="inv-i-group">
@@ -11761,7 +11771,12 @@ function crmOrderDetailHtml(po){
     <div style="margin-bottom:14px">
       <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">${CRM_ICONS.sale} Sales History</div>
       ${!cached ? '<div style="font-size:13px;color:var(--g3)">Loading…</div>' : (!cached.sales.length ? '<div style="font-size:13px;color:var(--g3)">No sales found for this PO.</div>' : `
-        <table style="width:100%;font-size:13px"><tbody>${cached.sales.map(s=>`<tr><td>${esc(s.saleNumber)}</td><td>${s.saleDate?new Date(s.saleDate).toLocaleDateString():'—'}</td><td>₹${Number(s.total).toLocaleString('en-IN')}</td></tr>`).join('')}</tbody></table>`)}
+        <table style="width:100%;font-size:13px"><tbody>${cached.sales.map(s=>`<tr>
+          <td>${esc(s.saleNumber)}</td>
+          <td>${s.saleDate?new Date(s.saleDate).toLocaleDateString():'—'}</td>
+          <td>₹${Number(s.total).toLocaleString('en-IN')}</td>
+          <td>${(s.items||[]).length?(s.items||[]).map(it=>`<div>${esc(it.itemName||it.itemId||'—')}${it.serialNumber?` <span style="color:var(--g3)">— SN: ${esc(it.serialNumber)}</span>`:''} ×${it.quantity}</div>`).join(''):'<span style="color:var(--g3)">—</span>'}</td>
+        </tr>`).join('')}</tbody></table>`)}
     </div>
     <div>
       <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">🚚 Delivery History</div>
@@ -12174,7 +12189,28 @@ function openInvItemModal(id){
   document.getElementById('inv-i-reorder').value=i?.stockReorder??'';
   document.getElementById('inv-i-serial').checked=!!i?.serialTracked;
   document.getElementById('inv-i-notes').value=i?.notes||'';
+  document.getElementById('inv-i-new-serial').value='';
+  toggleInvItemSerialAddRow();
   document.getElementById('inv-item-modal').classList.add('open');
+}
+// Shown whenever "Track Serial Numbers" is checked — whether just ticked
+// now or already was — but only for an existing item, since the POST needs
+// a real item id (a brand-new item hasn't been saved yet).
+function toggleInvItemSerialAddRow(){
+  const id=document.getElementById('inv-i-id').value;
+  const checked=document.getElementById('inv-i-serial').checked;
+  document.getElementById('inv-i-serial-add-row').style.display=(checked&&id)?'block':'none';
+}
+async function addInvItemSerialUnit(){
+  const id=document.getElementById('inv-i-id').value;
+  if(!id) return;
+  const serialNumber=document.getElementById('inv-i-new-serial').value.trim()||undefined;
+  try{
+    const r=await fetch(`/api/inventory/items/${id}/serial-units`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialNumber})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    showToast('Serial unit added ✓','success');
+    document.getElementById('inv-i-new-serial').value='';
+  }catch(e){ showToast(e.message,'error'); }
 }
 async function saveInvItem(){
   const id=document.getElementById('inv-i-id').value;
@@ -12669,7 +12705,10 @@ function renderMfgBom(){
       <div style="background:var(--g5);border-radius:12px;padding:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <h2 style="font-size:16px;font-weight:700">Components</h2>
-          ${selected?`<button class="btn btn-primary" onclick="openMfgAddComponentModal()">+ Add Component</button>`:''}
+          <div style="display:flex;align-items:center;gap:14px">
+            ${selected?`<div id="mfg-production-cost" style="font-size:13px;font-weight:600;color:var(--g3)"></div>`:''}
+            ${selected?`<button class="btn btn-primary" onclick="openMfgAddComponentModal()">+ Add Component</button>`:''}
+          </div>
         </div>
         <div id="mfg-components-panel">${selected?'<div class="loading">Loading…</div>':'<div class="empty-state" style="padding:40px 0;text-align:center">Select a BOM to view components</div>'}</div>
       </div>
@@ -12684,6 +12723,8 @@ async function renderMfgComponentsPanel(bom){
   const panel=document.getElementById('mfg-components-panel');
   try{
     const full=await fetch(`/api/manufacturing/boms/${bom.id}`).then(r=>r.json());
+    const costEl=document.getElementById('mfg-production-cost');
+    if(costEl) costEl.textContent = full.manufacturingPrice!=null ? `Production Cost: ₹${Number(full.manufacturingPrice).toLocaleString('en-IN',{minimumFractionDigits:2})}` : '';
     const lines=full.lines||[];
     panel.innerHTML = !lines.length
       ? '<div class="empty-state" style="padding:20px 0">No components yet. Click "+ Add Component" to build the recipe.</div>'
@@ -13067,14 +13108,26 @@ async function loadInvSerialUnitGroups(){
   catch(e){ invSerialUnitGroups=[]; }
   invSerialUnitGroupsLoaded=true;
 }
+// Items flagged serial_tracked but with zero units so far don't show up in
+// GET /serial-units at all (it only returns items with ≥1 unit) — this is a
+// separate list just to populate the "jump to item" dropdown so a freshly
+// flagged item is reachable before its first unit exists.
+let invTraceableItems=[];
+let invTraceableItemsLoaded=false;
+async function loadInvTraceableItems(){
+  try{ invTraceableItems=await fetch('/api/inventory/items?serialTracked=true').then(r=>r.json()); }
+  catch(e){ invTraceableItems=[]; }
+  invTraceableItemsLoaded=true;
+}
 
 function renderMfgTraceability(){
   const ca=document.getElementById('content-area');
-  if(!mfgLoaded || !invSerialUnitGroupsLoaded){
+  if(!mfgLoaded || !invSerialUnitGroupsLoaded || !invTraceableItemsLoaded){
     ca.innerHTML='<div class="loading">Loading Traceability...</div>';
     Promise.all([
       mfgLoaded?Promise.resolve():loadMfgData(),
       invSerialUnitGroupsLoaded?Promise.resolve():loadInvSerialUnitGroups(),
+      invTraceableItemsLoaded?Promise.resolve():loadInvTraceableItems(),
     ]).then(()=>{ if(currentView==='mfg_traceability') renderView(); });
     return;
   }
@@ -13099,7 +13152,7 @@ function renderMfgTraceability(){
   }).join('');
   const purchasedRows = invSerialUnitGroups.map(g=>{
     const isOpen=invTraceSelectedItemId===g.itemId;
-    return `<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+    return `<div id="inv-trace-group-${g.itemId}" style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
       <div onclick="invSelectItemForTrace('${g.itemId}')" style="padding:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">
         <div style="display:flex;align-items:center;gap:8px">
           <span style="color:var(--g3)">${isOpen?MFG_ICONS.chevronDown:MFG_ICONS.chevronRight}</span>
@@ -13114,12 +13167,36 @@ function renderMfgTraceability(){
     ? `<div class="empty-state">No assemblies or purchased serial-tracked items yet.</div>`
     : assemblyRows+purchasedRows;
   ca.innerHTML=`
-    <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Traceability</h1>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:2px">
+      <h1 style="font-size:22px;font-weight:700">Traceability</h1>
+      <select onchange="invJumpToTraceableItem(this.value);this.value=''" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px">
+        <option value="">Jump to a traceable item…</option>
+        ${invTraceableItems.map(i=>`<option value="${i.id}">${esc(i.displayName||i.name)}</option>`).join('')}
+      </select>
+    </div>
     <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Assign serial numbers and track assembly status</div>
     <div style="background:var(--g5);border-radius:12px;padding:16px">
       <h2 style="font-size:16px;font-weight:700;margin-bottom:12px">Assembly Traceability</h2>
       ${rows}
     </div>`;
+}
+// Serial-tracked items with zero units so far aren't in invSerialUnitGroups
+// at all (GET /serial-units only returns groups with ≥1 unit) — picking one
+// from the dropdown synthesizes an empty group client-side so it has
+// somewhere to render, and the inline "no units yet" panel (see
+// invTraceUnitsHtml) lets the very first unit be added right there.
+function invJumpToTraceableItem(itemId){
+  if(!itemId) return;
+  let group=invSerialUnitGroups.find(g=>g.itemId===itemId);
+  if(!group){
+    const item=invTraceableItems.find(i=>i.id===itemId);
+    group={itemId, itemName:item?(item.displayName||item.name):itemId, units:[]};
+    invSerialUnitGroups.push(group);
+  }
+  invTraceSelectedItemId=itemId;
+  renderMfgTraceability();
+  const el=document.getElementById('inv-trace-group-'+itemId);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'center'});
 }
 async function mfgSelectAssemblyForTrace(assemblyId){
   mfgTraceSelectedAssemblyId = mfgTraceSelectedAssemblyId===assemblyId ? null : assemblyId;
@@ -13189,7 +13266,12 @@ function invUnitStatusBadge(unit){
 }
 function invTraceUnitsHtml(group){
   const units=group?.units||[];
-  if(!units.length) return '<div style="font-size:13px;color:var(--g3);padding:10px 0">No units for this item.</div>';
+  if(!units.length) return `
+    <div style="font-size:13px;color:var(--g3);padding:10px 0 6px">No units for this item yet.</div>
+    <div style="display:flex;gap:8px;align-items:center;padding-bottom:10px">
+      <input type="text" id="inv-trace-new-serial-${group.itemId}" placeholder="Serial number (optional)" style="padding:6px;border:1px solid var(--border);border-radius:6px;flex:1;max-width:220px">
+      <button class="btn-sm btn-primary" onclick="addInvTraceableItemSerialUnit('${group.itemId}')">Add Unit</button>
+    </div>`;
   return `
     <table style="width:100%;font-size:13px;margin-top:8px;table-layout:fixed">
       <colgroup>
@@ -13223,6 +13305,29 @@ async function saveInvUnitSerial(unitId){
     if(group){ const u=group.units.find(x=>x.id===unitId); if(u) u.serialNumber=serialNumber; }
     const panel=document.getElementById('inv-trace-units-panel');
     if(panel) panel.innerHTML=invTraceUnitsHtml(group);
+  }catch(e){ showToast(e.message,'error'); }
+}
+// Manually registers a unit for stock that predates an item being flagged
+// serial_tracked (so it never went through a Purchase receiving event) —
+// same POST used by the Edit Item modal's "Add serial number" control, just
+// reachable here too via the Traceability dropdown for an item with zero
+// units so far.
+async function addInvTraceableItemSerialUnit(itemId){
+  const input=document.getElementById('inv-trace-new-serial-'+itemId);
+  const serialNumber=input?.value.trim()||undefined;
+  try{
+    const r=await fetch(`/api/inventory/items/${itemId}/serial-units`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialNumber})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    const unit=await r.json();
+    let group=invSerialUnitGroups.find(g=>g.itemId===itemId);
+    if(!group){
+      const item=invTraceableItems.find(i=>i.id===itemId);
+      group={itemId, itemName:item?(item.displayName||item.name):itemId, units:[]};
+      invSerialUnitGroups.push(group);
+    }
+    group.units.push(unit);
+    showToast('Serial unit added ✓','success');
+    renderMfgTraceability();
   }catch(e){ showToast(e.message,'error'); }
 }
 
