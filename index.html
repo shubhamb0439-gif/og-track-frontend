@@ -2996,7 +2996,7 @@ body { transition: background .3s ease, color .3s ease; }
       <div class="form-row full"><div class="form-group"><label>Display Name</label><input type="text" id="inv-i-displayname" placeholder="Optional shortened/customer-facing name"></div></div>
       <div class="form-row">
         <div class="form-group"><label>Unit</label><input type="text" id="inv-i-unit" placeholder="pcs" value="pcs"></div>
-        <div class="form-group"><label style="display:flex;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="inv-i-serial" style="width:auto" onchange="toggleInvItemSerialAddRow()"> Track Serial Numbers</label></div>
+        <div class="form-group"><label style="display:flex;align-items:center;gap:8px;margin-top:22px"><input type="checkbox" id="inv-i-serial" style="width:auto" onchange="onInvItemSerialToggle()"> Track Serial Numbers</label></div>
       </div>
       <div class="form-row full" id="inv-i-serial-add-row" style="display:none">
         <div class="form-group">
@@ -12200,6 +12200,24 @@ function toggleInvItemSerialAddRow(){
   const id=document.getElementById('inv-i-id').value;
   const checked=document.getElementById('inv-i-serial').checked;
   document.getElementById('inv-i-serial-add-row').style.display=(checked&&id)?'block':'none';
+}
+// Ticking/unticking only changes local form state until "Save Item" runs —
+// for an item that already exists, persist it the instant it's toggled
+// instead, so the backend is in sync right away rather than depending on
+// the user also clicking Save (or clicking Save before using "Add Serial
+// Number", which 400s otherwise since serial_tracked isn't true yet there).
+async function onInvItemSerialToggle(){
+  toggleInvItemSerialAddRow();
+  const id=document.getElementById('inv-i-id').value;
+  if(!id) return; // brand-new, unsaved item — nothing to persist yet
+  const checked=document.getElementById('inv-i-serial').checked;
+  const item=invItems.find(x=>x.id===id);
+  if(item && item.serialTracked===checked) return; // already in sync
+  try{
+    const r=await fetch(`/api/inventory/items/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({serialTracked:checked})});
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    if(item) item.serialTracked=checked;
+  }catch(e){ showToast(e.message,'error'); }
 }
 async function addInvItemSerialUnit(){
   const id=document.getElementById('inv-i-id').value;
