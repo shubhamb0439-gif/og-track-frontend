@@ -12048,8 +12048,8 @@ function invVendorHistoryHtml(vendor){
               <td style="text-align:center">${l.quantityOrdered}</td>
               <td style="text-align:center;color:#27AE60">${l.quantityReceived}</td>
               <td style="text-align:center">${l.quantityOrdered-l.quantityReceived}</td>
-              <td>₹${Number(l.unitCost).toLocaleString('en-IN')}</td>
-              <td>₹${Number(l.unitCost*l.quantityOrdered).toLocaleString('en-IN')}</td>
+              <td>${p.currency?p.currency+' ':'₹'}${Number(l.unitCost).toLocaleString('en-IN')}</td>
+              <td>${p.currency?p.currency+' ':'₹'}${Number(l.unitCost*l.quantityOrdered).toLocaleString('en-IN')}</td>
             </tr>`).join('')}</tbody>
           </table>`}
       </div>`;
@@ -12213,7 +12213,7 @@ function invItemHistoryHtml(item){
           <td style="text-align:center">${p.quantityOrdered}</td>
           <td style="text-align:center">${p.quantityReceived}</td>
           <td style="text-align:center">${p.quantityOrdered-p.quantityReceived}</td>
-          <td>₹${Number(p.unitCost).toLocaleString('en-IN')}</td>
+          <td>${p.currency?p.currency+' ':'₹'}${Number(p.unitCost).toLocaleString('en-IN')}</td>
           <td>${esc(p.poNumber||'—')}</td>
           <td>${p.quantityReceived>=p.quantityOrdered?'<span style="color:#27AE60">Complete</span>':'<span style="color:#F39C12">Pending</span>'}</td>
         </tr>`).join('')}</tbody>
@@ -12240,7 +12240,7 @@ async function loadInvItemHistory(itemId){
     const purchaseLines=[];
     for(const p of invPurchases){
       const lines=invPurchaseLinesCache[p.id] || await loadInvPurchaseLines(p.id);
-      lines.filter(l=>l.itemId===itemId).forEach(l=>purchaseLines.push({...l,orderDate:p.orderDate,poNumber:p.poNumber,vendorId:p.vendorId}));
+      lines.filter(l=>l.itemId===itemId).forEach(l=>purchaseLines.push({...l,orderDate:p.orderDate,poNumber:p.poNumber,vendorId:p.vendorId,currency:p.currency}));
     }
     // Assembly/usage/delivery history endpoints don't exist yet on the
     // backend — surfaced as empty until that's wired up, rather than
@@ -12382,7 +12382,7 @@ function invPurchasesTableHtml(){
           <td>${esc(p.poNumber||'—')}</td>
           <td>${esc(invVendorName(p.vendorId))}</td>
           <td style="text-align:center">${totalQty??'…'}</td>
-          <td>${totalCost!=null?'₹'+totalCost.toLocaleString('en-IN',{maximumFractionDigits:2}):'…'}</td>
+          <td>${totalCost!=null?(p.currency?p.currency+' ':'₹')+totalCost.toLocaleString('en-IN',{maximumFractionDigits:2}):'…'}</td>
           <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${statusColor[p.status]||'#7F7F7F'}22;color:${statusColor[p.status]||'#7F7F7F'};text-transform:capitalize">${esc(p.status)}</span></td>
           <td>
             ${invIconBtn('edit','Edit',`openInvPurchaseEditModal('${p.id}')`)}
@@ -12444,6 +12444,7 @@ function toggleInvPurchaseExpand(id){
 function invPurchaseDetailHtml(purchase){
   const lines=invPurchaseLinesCache[purchase.id];
   if(!lines) return '<div style="font-size:13px;color:var(--g3)">Loading…</div>';
+  const prefix=purchase.currency?purchase.currency+' ':'₹';
   return `
     <div style="font-weight:600;margin-bottom:8px">Purchase Items</div>
     <table style="width:100%;font-size:13px">
@@ -12454,8 +12455,8 @@ function invPurchaseDetailHtml(purchase){
         <td style="text-align:center">${l.quantityOrdered}</td>
         <td style="text-align:center;color:#27AE60">${l.quantityReceived}</td>
         <td style="text-align:center">${(l.quantityOrdered-l.quantityReceived).toFixed(2)}</td>
-        <td>₹${Number(l.unitCost).toLocaleString('en-IN')}</td>
-        <td>₹${Number(l.unitCost*l.quantityOrdered).toLocaleString('en-IN')}</td>
+        <td>${prefix}${Number(l.unitCost).toLocaleString('en-IN')}</td>
+        <td>${prefix}${Number(l.unitCost*l.quantityOrdered).toLocaleString('en-IN')}</td>
         <td>${l.leadTimeDays!=null?l.leadTimeDays+'d':'—'}</td>
         <td>${l.quantityReceived>=l.quantityOrdered?'<span style="color:#27AE60">Complete</span>':l.quantityReceived>0?'<span style="color:#2980B9">Partial</span>':'<span style="color:#F39C12">Pending</span>'}</td>
       </tr>`).join('')}</tbody>
