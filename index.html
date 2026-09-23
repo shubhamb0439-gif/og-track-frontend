@@ -3039,7 +3039,7 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group"><label>Purchase Date *</label><input type="date" id="inv-po-orderdate"></div>
         <div class="form-group"><label>Invoice Number</label><input type="text" id="inv-po-invoice" placeholder="Optional"></div>
       </div>
-      <div class="form-row"><div class="form-group"><label>Currency</label><select id="inv-po-currency"></select></div></div>
+      <div class="form-row"><div class="form-group"><label>Currency</label><select id="inv-po-currency" onchange="updateInvPoTotal()"></select></div></div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px">
         <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items</label>
@@ -3074,7 +3074,7 @@ body { transition: background .3s ease, color .3s ease; }
       </div>
       <div class="form-row">
         <div class="form-group"><label>Invoice Number</label><input type="text" id="inv-ep-invoice" placeholder="Optional"></div>
-        <div class="form-group"><label>Currency</label><select id="inv-ep-currency"></select></div>
+        <div class="form-group"><label>Currency</label><select id="inv-ep-currency" onchange="onInvEpCurrencyChange()"></select></div>
       </div>
       <div style="margin-top:10px">
         <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items (1)</label>
@@ -12481,6 +12481,7 @@ function openInvPoModal(prefillItemId){
 function onInvPoVendorChange(){
   const vendor=invVendors.find(v=>v.id===document.getElementById('inv-po-vendor').value);
   if(vendor?.currency) document.getElementById('inv-po-currency').value=vendor.currency;
+  updateInvPoTotal();
 }
 let invPoActivePickerIdx=null;
 function invPoRenderItemOptions(idx,search){
@@ -12540,6 +12541,11 @@ function addInvPoLine(prefillItemId){
   updateInvPoTotal();
 }
 function updateInvPoTotal(){
+  // Amounts here are in whatever Currency is picked for this PO, not
+  // necessarily INR — prefix with the actual code (e.g. "USD 100.00")
+  // instead of always showing ₹, which would misrepresent a non-INR PO.
+  const currency=document.getElementById('inv-po-currency').value||'';
+  const prefix=currency?currency+' ':'₹';
   let total=0;
   document.querySelectorAll('#inv-po-lines > div').forEach(row=>{
     const idx=row.id.split('-').pop();
@@ -12553,10 +12559,10 @@ function updateInvPoTotal(){
     const lineTotal=(qty*cost)+freight+importCh;
     total+=lineTotal;
     const totalEl=document.getElementById(`inv-po-line-total-${idx}`);
-    if(totalEl) totalEl.textContent='₹'+lineTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
+    if(totalEl) totalEl.textContent=prefix+lineTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
   });
   const totalPreview=document.getElementById('inv-po-total-preview');
-  if(totalPreview) totalPreview.textContent='₹'+total.toLocaleString('en-IN',{minimumFractionDigits:2});
+  if(totalPreview) totalPreview.textContent=prefix+total.toLocaleString('en-IN',{minimumFractionDigits:2});
 }
 async function saveInvPurchase(){
   const vendorId=document.getElementById('inv-po-vendor').value;
@@ -12620,12 +12626,21 @@ async function openInvPurchaseEditModal(id){
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Unit Cost</label><input type="number" class="inv-ep-line-cost" value="${l.unitCost}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Freight Charges <span style="font-weight:400;text-transform:none">(optional)</span></label><input type="number" class="inv-ep-line-freight" value="${l.freightCost||0}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Import Charges <span style="font-weight:400;text-transform:none">(optional)</span></label><input type="number" class="inv-ep-line-import" value="${l.importCharges||0}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
-        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Subtotal</label><div class="inv-ep-line-subtotal" style="padding:6px;background:var(--g5);border-radius:6px">₹${(l.quantityOrdered*l.unitCost).toFixed(2)}</div></div>
+        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Subtotal</label><div class="inv-ep-line-subtotal" style="padding:6px;background:var(--g5);border-radius:6px">${p.currency?p.currency+' ':'₹'}${(l.quantityOrdered*l.unitCost).toFixed(2)}</div></div>
       </div>
       <div class="inv-ep-line-status-pill"></div>
     </div>`).join('');
   document.querySelectorAll('#inv-ep-items > div').forEach(row=>invEpUpdateLineDerived(row.querySelector('.inv-ep-line-received')));
   document.getElementById('inv-purchase-edit-modal').classList.add('open');
+}
+// Changing Currency doesn't touch any line's own Ordered/Received/Cost
+// fields, just what prefix their Subtotal displays with — rerun the derived
+// update for every visible line so they all pick up the new prefix at once.
+function onInvEpCurrencyChange(){
+  document.querySelectorAll('#inv-ep-items [data-line-id]').forEach(row=>{
+    const qtyInput=row.querySelector('.inv-ep-line-qty');
+    if(qtyInput) invEpUpdateLineDerived(qtyInput);
+  });
 }
 // Recomputes Remaining, Subtotal, and the status pill for a line whenever
 // its Ordered/Received/Unit Cost fields change — no separate status
@@ -12640,7 +12655,8 @@ function invEpUpdateLineDerived(inputEl){
   row.querySelector('.inv-ep-line-received').max=ordered;
   row.querySelector('.inv-ep-line-received').value=received;
   row.querySelector('.inv-ep-line-remaining').textContent=(ordered-received).toFixed(2);
-  row.querySelector('.inv-ep-line-subtotal').textContent='₹'+(ordered*cost).toFixed(2);
+  const _epCurrency=document.getElementById('inv-ep-currency').value;
+  row.querySelector('.inv-ep-line-subtotal').textContent=(_epCurrency?_epCurrency+' ':'₹')+(ordered*cost).toFixed(2);
   const pill=row.querySelector('.inv-ep-line-status-pill');
   if(received<=0){
     pill.innerHTML=`<div style="padding:8px 12px;background:var(--g5);border-radius:6px;color:var(--g3);font-weight:600">Not Received</div>`;
