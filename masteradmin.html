@@ -1873,6 +1873,15 @@ let aidaSpeaking=false; // true for the span between the first voice chunk playi
 let aidaSocket=null; // connected once, on first entry into the AIDA screen
 let aidaOverlayOpen=false;
 let _aidaPrevPath=null; // the URL to restore on close — recorded at open time, never guessed at close time
+// Provider/model picker (manual, per-request only — no persistence across
+// reloads yet). Populated once from GET /aida/models on first overlay open;
+// null/null means "let the server use its own configured default", which
+// is also what a fresh page load resets back to.
+let aidaModelsLoaded=false;
+let aidaModelsProviders=[];
+let aidaModelsByProvider={};
+let aidaSelectedProvider=null;
+let aidaSelectedModel=null;
 
 // ── AIDA logo — the interactive 3-layer speech-bubble mark, verbatim from
 // the user's logo.js. Kept in its own render function so the SVG can be
@@ -2040,12 +2049,19 @@ function renderLogo(container) {
       aidaMessages.push({role:'user',content:text});
       renderAidaMsgRows();
       try{
-        var r=await authFetch('/api/masteradmin/aida/chat',{method:'POST',body:JSON.stringify({message:text,pageContext:buildAidaPageContext()})});
+        var body={message:text,pageContext:buildAidaPageContext()};
+        if(aidaSelectedProvider&&aidaSelectedModel){ body.provider=aidaSelectedProvider; body.model=aidaSelectedModel; }
+        var r=await authFetch('/api/masteradmin/aida/chat',{method:'POST',body:JSON.stringify(body)});
         var data=await r.json();
         if(!r.ok){
+          // A bad provider/model selection is a problem with the dropdown,
+          // not with the message itself — surface it right there instead of
+          // as a generic assistant reply in the chat.
+          if(r.status===400){ showAidaModelError(data.error||'Invalid model selection.'); return; }
           var fallback=r.status===503?"AIDA isn't set up yet.":'AIDA could not respond right now.';
           throw new Error(data.error||fallback);
         }
+        clearAidaModelError();
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
         renderAidaMsgRows();
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
@@ -2158,13 +2174,16 @@ function renderLogo(container) {
         var form=new FormData();
         form.append('audio',blob,'voice-input.webm');
         form.append('pageContext',JSON.stringify(buildAidaPageContext()));
+        if(aidaSelectedProvider&&aidaSelectedModel){ form.append('provider',aidaSelectedProvider); form.append('model',aidaSelectedModel); }
         var r=await fetch(`${API}/api/masteradmin/aida/voice-input`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:form});
         if(r.status===401){ signOut(); throw new Error('Session expired'); }
         var data=await r.json();
         if(!r.ok){
+          if(r.status===400){ showAidaModelError(data.error||'Invalid model selection.'); return; }
           var fallback=r.status===503?"AIDA isn't set up yet.":'AIDA could not respond right now.';
           throw new Error(data.error||fallback);
         }
+        clearAidaModelError();
         aidaMessages.push({role:'user',content:data.transcript||'(unrecognized)'});
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
         // No toast for the reply itself here — in voice mode the spoken
@@ -2690,7 +2709,9 @@ function ensureAidaOverlay(){
           </button>
         </div>
         <div class="msg-modal-body" id="aidaMsgBody"></div>
+        <div id="aidaModelErrorNote" style="display:none;padding:6px 16px;font-size:12px;color:#C0392B;background:#C0392B15;border-top:1px solid var(--line)"></div>
         <div class="msg-modal-inputbar">
+          <select id="aidaModelSelect" title="AI provider & model" style="display:none;max-width:120px;padding:6px 8px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text);font-size:12px;flex-shrink:0"></select>
           <input type="text" class="msg-input" id="aidaMsgInput" placeholder="Type a message to AIDA…" autocomplete="off">
           <button class="msg-send-btn" id="aidaMsgSend" aria-label="Send" title="Send">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h15M13 5l7 7-7 7"/></svg>
@@ -2880,6 +2901,47 @@ function openAidaOverlay(opts={}){
   // Kept for backend context continuity even though there's no visible
   // history panel in this design — fire-and-forget.
   if(!aidaHistoryLoaded){ aidaHistoryLoaded=true; loadAidaHistory(); }
+  if(!aidaModelsLoaded){ aidaModelsLoaded=true; loadAidaModels(); }
+}
+async function loadAidaModels(){
+  try{
+    const data=await authFetch('/api/masteradmin/aida/models').then(r=>r.json());
+    aidaModelsProviders=data.providers||[];
+    aidaModelsByProvider=data.models||{};
+    if(data.default){ aidaSelectedProvider=data.default.provider; aidaSelectedModel=data.default.model; }
+    renderAidaModelSelect();
+  }catch(e){
+    // Leave the picker hidden — sendAidaTextMessage/sendAidaVoiceInput only
+    // attach provider/model when both are set, so this degrades to the
+    // existing "always use the server's configured default" behavior.
+  }
+}
+function renderAidaModelSelect(){
+  const sel=document.getElementById('aidaModelSelect');
+  if(!sel) return;
+  if(!aidaModelsProviders.length){ sel.style.display='none'; return; }
+  sel.innerHTML=aidaModelsProviders.map(p=>{
+    const models=aidaModelsByProvider[p]||[];
+    const opts=models.map(m=>`<option value="${p}::${m.id}" ${(aidaSelectedProvider===p&&aidaSelectedModel===m.id)?'selected':''}>${esc(m.label)}</option>`).join('');
+    return `<optgroup label="${esc(p.charAt(0).toUpperCase()+p.slice(1))}">${opts}</optgroup>`;
+  }).join('');
+  sel.style.display='';
+  sel.onchange=()=>{
+    const i=sel.value.indexOf('::');
+    aidaSelectedProvider=sel.value.slice(0,i);
+    aidaSelectedModel=sel.value.slice(i+2);
+    clearAidaModelError();
+  };
+}
+function showAidaModelError(msg){
+  const el=document.getElementById('aidaModelErrorNote');
+  if(!el) return;
+  el.textContent=msg;
+  el.style.display='block';
+}
+function clearAidaModelError(){
+  const el=document.getElementById('aidaModelErrorNote');
+  if(el) el.style.display='none';
 }
 
 function closeAidaOverlay(opts={}){
@@ -3203,6 +3265,11 @@ async function clearAidaSessionOnLogout(){
   }catch(e){ /* non-blocking */ }
   aidaMessages=[];
   aidaHistoryLoaded=false;
+  aidaModelsLoaded=false;
+  aidaModelsProviders=[];
+  aidaModelsByProvider={};
+  aidaSelectedProvider=null;
+  aidaSelectedModel=null;
 }
 
 // ── Auto-login if token in storage ────────────────────────────────────────
