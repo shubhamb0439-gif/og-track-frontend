@@ -2062,7 +2062,7 @@ function renderLogo(container) {
           throw new Error(data.error||fallback);
         }
         clearAidaModelError();
-        aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
+        aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
         renderAidaMsgRows();
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
       }catch(e){
@@ -2185,7 +2185,7 @@ function renderLogo(container) {
         }
         clearAidaModelError();
         aidaMessages.push({role:'user',content:data.transcript||'(unrecognized)'});
-        aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null});
+        aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
         // No toast for the reply itself here — in voice mode the spoken
         // reply IS the answer; flashing the transcript on screen too was
         // redundant. Errors below still surface as a toast since there's
@@ -2324,6 +2324,18 @@ function renderLogo(container) {
     // "Messages" is the text alternative to the voice module — the same
     // AIDA conversation, typed instead of spoken. Renders the real turn
     // history (aidaMessages), not a preview of anything else.
+    // The reply text itself isn't proof of which model actually ran the
+    // turn (asking AIDA "which model are you" isn't reliable — it
+    // self-identifies from training data, not server state) — the only
+    // trustworthy source is the provider/model the /chat response itself
+    // resolved to, which sendAidaTextMessage/sendAidaVoiceInput store on
+    // the message object. Map that id back to its human label here.
+    function aidaModelLabel(provider,model){
+      if(!provider||!model) return null;
+      var list=aidaModelsByProvider[provider]||[];
+      var found=list.find(function(m){ return m.id===model; });
+      return found?found.label:model;
+    }
     function renderAidaMsgRows(){
       var body=document.getElementById('aidaMsgBody');
       if(!body) return;
@@ -2333,7 +2345,12 @@ function renderLogo(container) {
       }
       body.innerHTML=aidaMessages.map(function(m){
         var cls=m.role==='user'?'chat-msg chat-msg-user':'chat-msg chat-msg-assistant';
-        return '<div class="'+cls+'">'+esc(m.content||'')+'</div>';
+        var caption='';
+        if(m.role==='assistant'&&m.provider&&m.model){
+          var label=aidaModelLabel(m.provider,m.model)||m.model;
+          caption='<div style="font-size:11px;color:var(--text-dim);margin-top:3px">'+esc(label)+'</div>';
+        }
+        return '<div class="'+cls+'">'+esc(m.content||'')+caption+'</div>';
       }).join('');
       body.scrollTop=body.scrollHeight;
     }
