@@ -1098,6 +1098,11 @@ tr:hover .badge { transform: scale(1.08); }
 @media(max-width:768px){.aida-launcher-btn{bottom:94px;}}
 
 .aida-overlay{display:none;position:fixed;inset:0;z-index:900;overflow:hidden;}
+
+/* ── Report a bug/feature (floating, opposite corner from AIDA) ──────────────── */
+.report-issue-btn{display:flex;position:fixed;bottom:24px;left:24px;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:#2C3E50;color:#fff;box-shadow:0 4px 16px rgba(44,62,80,.45);z-index:850;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;}
+.report-issue-btn:hover{transform:scale(1.07);box-shadow:0 6px 24px rgba(44,62,80,.6);}
+.report-issue-btn:active{transform:scale(.95);}
 .aida-overlay.open{display:flex;}
 /* ── AIDA hub — ported verbatim (selectors scoped under #aida-overlay so
    none of these class names or @keyframes can collide with the rest of
@@ -2860,6 +2865,35 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
+<!-- Report a bug/feature idea → feeds AIDA's coding-agent pipeline (Prompt 30) -->
+<div class="modal-overlay" id="report-issue-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2>Report a Bug or Feature Idea</h2><button class="modal-close" onclick="closeModal('report-issue-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row full"><div class="form-group">
+        <label>Type</label>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button type="button" class="btn-sm btn-primary" id="ri-type-bug" onclick="setRiType('bug')">🐛 Bug</button>
+          <button type="button" class="btn-sm btn-ghost" id="ri-type-feature" onclick="setRiType('feature')">💡 Feature idea</button>
+        </div>
+      </div></div>
+      <div class="form-row full"><div class="form-group">
+        <label>Description *</label>
+        <textarea id="ri-description" rows="5" placeholder="What's wrong, or what would you like to see?"></textarea>
+      </div></div>
+      <div class="form-row full"><div class="form-group">
+        <label>Screenshot (optional)</label>
+        <input type="file" id="ri-screenshot" accept="image/*">
+      </div></div>
+      <div id="ri-error" style="display:none;padding:8px 12px;border-radius:7px;background:var(--red-light);color:var(--red);font-size:12px;margin-top:4px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('report-issue-modal')">Cancel</button>
+      <button class="btn btn-primary" id="ri-submit-btn" onclick="submitReportIssue()">Submit</button>
+    </div>
+  </div>
+</div>
+
 <!-- CRM: Add Lead Modal -->
 <div class="modal-overlay" id="crm-lead-modal">
   <div class="modal">
@@ -3851,6 +3885,8 @@ function doLogout(){
   // Fire-and-forget, before currentUser is cleared below (the call needs
   // currentUser.id) — logout must never be blocked or slowed by this.
   clearAidaSessionOnLogout();
+  const _riBtn=document.getElementById('report-issue-btn');
+  if(_riBtn) _riBtn.style.display='none';
   localStorage.removeItem('bt_user');
   localStorage.removeItem('bt_project');
   if(window.OGTRACK_clearToken) window.OGTRACK_clearToken();
@@ -4125,6 +4161,15 @@ async function launchApp(){
     _fab.innerHTML="<svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><path d=\"M14 14h.01M14 18h.01M18 14h.01M18 18h.01M17 14v1M14 17v1\"/></svg>";
     _fab.onclick=openQrScanner;document.body.appendChild(_fab);
   }
+  // Opposite corner from the AIDA launcher — tenant users only, feeds AIDA's
+  // coding-agent pipeline directly (Prompt 30).
+  if(!document.getElementById('report-issue-btn')){
+    const _rbtn=document.createElement('button');
+    _rbtn.id='report-issue-btn';_rbtn.className='report-issue-btn';_rbtn.title='Report a bug or feature idea';
+    _rbtn.innerHTML="<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 9v4M12 17h.01\"/><path d=\"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z\"/></svg>";
+    _rbtn.onclick=openReportIssueModal;document.body.appendChild(_rbtn);
+  }
+  document.getElementById('report-issue-btn').style.display=currentUser.role==='masteradmin'?'none':'flex';
   if(!document.getElementById('qr-scanner-modal')){
     const _modal=document.createElement('div');
     _modal.id='qr-scanner-modal';_modal.className='qr-modal-bg';
@@ -6373,6 +6418,59 @@ async function openConversation(id) {
   scrollMsgs();
 }
 
+// Plan-approval actions (Prompt 30) for a message from "AIDA" — e.g. in the
+// auto-created "AIDA Reports" conversation. State lives on the message
+// object itself (m._aidaReportAction), not the DOM, since every change here
+// re-renders the whole bubble list from msgMessages.
+function extractAidaJobId(text){
+  const matches=(text||'').match(/job_[A-Za-z0-9_-]+/g);
+  return matches ? matches[matches.length-1] : null;
+}
+function aidaReportActionsHtml(m){
+  if(m.senderName!=='AIDA') return '';
+  const jobId=extractAidaJobId(m.text);
+  if(!jobId) return '';
+  if(!['manager','developer','tester'].includes(currentUser?.role)) return '';
+  if(m._aidaReportAction==='approved') return `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ Approved by You</div>`;
+  if(m._aidaReportAction==='rejected') return `<div style="font-size:12px;color:var(--red);font-weight:600;margin-top:4px">✕ Rejected by You</div>`;
+  if(m._aidaReportAction==='resolved-elsewhere') return `<div style="font-size:12px;color:var(--g3);margin-top:4px">Already handled</div>`;
+  return `<div style="display:flex;gap:6px;margin-top:6px">
+    <button type="button" class="btn-sm btn-primary" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','approve','${m.id}')">Approve</button>
+    <button type="button" class="btn-sm btn-ghost" style="color:var(--red)" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','reject','${m.id}')">Reject</button>
+  </div>`;
+}
+let _aidaReportActionBusy=new Set();
+async function handleAidaReportAction(jobId,action,msgId){
+  if(_aidaReportActionBusy.has(msgId)) return;
+  _aidaReportActionBusy.add(msgId);
+  try{
+    const r=await fetch(`/api/aida/report-issue-jobs/${jobId}/${action}`,{method:'POST'});
+    const data=await r.json();
+    if(!r.ok){
+      // Someone else — this same button on another screen, or masteradmin's
+      // AIDA Job panel — already resolved it first. Show that plainly
+      // instead of surfacing the 400 as a generic error.
+      if(r.status===400 && /not awaiting approval/i.test(data.error||'')){
+        setAidaReportActionState(msgId,'resolved-elsewhere');
+        return;
+      }
+      showToast(data.error||'Could not complete this action','error');
+      return;
+    }
+    const status=data.job&&data.job.status;
+    setAidaReportActionState(msgId, status==='rejected'?'rejected':(action==='approve'?'approved':'rejected'));
+  }catch(e){
+    showToast('Could not complete this action','error');
+  }finally{
+    _aidaReportActionBusy.delete(msgId);
+  }
+}
+function setAidaReportActionState(msgId,state){
+  const m=msgMessages.find(x=>x.id===msgId);
+  if(m) m._aidaReportAction=state;
+  const area=document.getElementById('msg-messages-area');
+  if(area) area.innerHTML=renderMsgBubbles();
+}
 function renderMsgBubbles() {
   if (!msgMessages.length) return '<div style="text-align:center;color:var(--g3);font-size:13px;padding:20px">No messages yet. Say hello! 👋</div>';
   let lastDate = '';
@@ -6397,6 +6495,7 @@ function renderMsgBubbles() {
         ${urgentBadge}
         ${replyQuote}
         <div class="msg-bubble">${renderMsgText(m.text)}</div>
+        ${aidaReportActionsHtml(m)}
         <div class="msg-time" style="display:flex;align-items:center;gap:2px;${mine?'justify-content:flex-end':''}">
           ${timeStr}
           ${mine?`<span class="read-tick ${seen?'seen':''}">✓${seen?'✓':''}</span>`:''}
@@ -15084,6 +15183,56 @@ async function deleteSitaraExpense(id){
     await loadSitaraExpensesData();
     renderView();
   }catch(e){ showToast(e.message,'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Report a bug/feature idea — feeds AIDA's coding-agent pipeline directly.
+// No status tracking for the reporter: this is fire-and-forget from their
+// side (per spec, there's no GET endpoint for a report's status) — the
+// plan-approval step that follows lives in the Messages module instead
+// (see aidaReportActionsHtml() in renderMsgBubbles(), further below).
+// ══════════════════════════════════════════════════════════════════════════════
+let riType='bug';
+function openReportIssueModal(){
+  riType='bug';
+  document.getElementById('ri-description').value='';
+  document.getElementById('ri-screenshot').value='';
+  document.getElementById('ri-error').style.display='none';
+  updateRiTypeButtons();
+  document.getElementById('report-issue-modal').classList.add('open');
+}
+function setRiType(t){ riType=t; updateRiTypeButtons(); }
+function updateRiTypeButtons(){
+  document.getElementById('ri-type-bug').className='btn-sm '+(riType==='bug'?'btn-primary':'btn-ghost');
+  document.getElementById('ri-type-feature').className='btn-sm '+(riType==='feature'?'btn-primary':'btn-ghost');
+}
+async function submitReportIssue(){
+  const description=document.getElementById('ri-description').value.trim();
+  const errEl=document.getElementById('ri-error');
+  errEl.style.display='none';
+  if(!description){ errEl.textContent='Description is required'; errEl.style.display='block'; return; }
+  const fileInput=document.getElementById('ri-screenshot');
+  const btn=document.getElementById('ri-submit-btn');
+  btn.disabled=true;
+  try{
+    let screenshotUrl;
+    if(fileInput.files&&fileInput.files[0]){
+      const form=new FormData();
+      form.append('file',fileInput.files[0]);
+      const upRes=await fetch('/api/upload',{method:'POST',body:form});
+      const upData=await upRes.json();
+      if(!upRes.ok) throw new Error(upData.error||'Screenshot upload failed');
+      screenshotUrl=upData.url;
+    }
+    const r=await fetch('/api/aida/report-issue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:riType,description,screenshotUrl})});
+    const data=await r.json();
+    if(!r.ok){ errEl.textContent=data.error||'Could not submit — please try again.'; errEl.style.display='block'; return; }
+    closeModal('report-issue-modal');
+    // Honest, not a fake "we're tracking this" promise — there's genuinely
+    // no way for the reporter to check status afterward in this phase.
+    showToast('Thanks — this has been sent to the team.','success');
+  }catch(e){ errEl.textContent=e.message||'Could not submit — please try again.'; errEl.style.display='block'; }
+  finally{ btn.disabled=false; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
