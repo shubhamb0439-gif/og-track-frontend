@@ -1098,11 +1098,6 @@ tr:hover .badge { transform: scale(1.08); }
 @media(max-width:768px){.aida-launcher-btn{bottom:94px;}}
 
 .aida-overlay{display:none;position:fixed;inset:0;z-index:900;overflow:hidden;}
-
-/* ── Report a bug/feature (floating, opposite corner from AIDA) ──────────────── */
-.report-issue-btn{display:flex;position:fixed;bottom:24px;left:24px;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;background:#2C3E50;color:#fff;box-shadow:0 4px 16px rgba(44,62,80,.45);z-index:850;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s;}
-.report-issue-btn:hover{transform:scale(1.07);box-shadow:0 6px 24px rgba(44,62,80,.6);}
-.report-issue-btn:active{transform:scale(.95);}
 .aida-overlay.open{display:flex;}
 /* ── AIDA hub — ported verbatim (selectors scoped under #aida-overlay so
    none of these class names or @keyframes can collide with the rest of
@@ -2644,6 +2639,7 @@ body { transition: background .3s ease, color .3s ease; }
         </div>
         <button id="font-btn" onclick="toggleFontPicker()" title="Change font">Aa</button>
         <button id="theme-toggle" onclick="toggleTheme()" title="Toggle theme" style="padding:7px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;font-size:15px;line-height:1;transition:all .2s">🌙</button>
+        <button id="report-issue-btn" onclick="openReportIssueModal()" title="Report a bug or feature idea" style="display:none;padding:7px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;font-size:15px;line-height:1;transition:all .2s">🐞</button>
         <button class="notif-bell" id="notif-bell-btn" onclick="toggleNotifs()" style="display:none">🔔<span class="notif-badge" id="notif-count"></span></button>
         <button class="btn btn-ghost btn-sm" id="import-btn" style="display:none" onclick="document.getElementById('excel-import-input').click()" title="Import bugs from Excel">📥 Import</button>
         <input type="file" id="excel-import-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelImport(this)">
@@ -3885,8 +3881,6 @@ function doLogout(){
   // Fire-and-forget, before currentUser is cleared below (the call needs
   // currentUser.id) — logout must never be blocked or slowed by this.
   clearAidaSessionOnLogout();
-  const _riBtn=document.getElementById('report-issue-btn');
-  if(_riBtn) _riBtn.style.display='none';
   localStorage.removeItem('bt_user');
   localStorage.removeItem('bt_project');
   if(window.OGTRACK_clearToken) window.OGTRACK_clearToken();
@@ -4161,14 +4155,9 @@ async function launchApp(){
     _fab.innerHTML="<svg width=\"26\" height=\"26\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><path d=\"M14 14h.01M14 18h.01M18 14h.01M18 18h.01M17 14v1M14 17v1\"/></svg>";
     _fab.onclick=openQrScanner;document.body.appendChild(_fab);
   }
-  // Opposite corner from the AIDA launcher — tenant users only, feeds AIDA's
-  // coding-agent pipeline directly (Prompt 30).
-  if(!document.getElementById('report-issue-btn')){
-    const _rbtn=document.createElement('button');
-    _rbtn.id='report-issue-btn';_rbtn.className='report-issue-btn';_rbtn.title='Report a bug or feature idea';
-    _rbtn.innerHTML="<svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 9v4M12 17h.01\"/><path d=\"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z\"/></svg>";
-    _rbtn.onclick=openReportIssueModal;document.body.appendChild(_rbtn);
-  }
+  // Header button (Prompt 30) — tenant users only, feeds AIDA's coding-agent
+  // pipeline directly. Static HTML in the topbar, just role-gated here same
+  // as notif-bell-btn above.
   document.getElementById('report-issue-btn').style.display=currentUser.role==='masteradmin'?'none':'flex';
   if(!document.getElementById('qr-scanner-modal')){
     const _modal=document.createElement('div');
