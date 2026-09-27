@@ -12907,24 +12907,55 @@ function mfgSelectBom(id){
   mfgSelectedBomId = mfgSelectedBomId===id ? null : id;
   renderMfgBom();
 }
+// Search input lives outside #mfg-components-list so searching only patches
+// the list on each keystroke — replacing the whole panel (search box
+// included) on every keystroke would recreate the <input> and kick focus
+// out of it, same fix as every other search box in this app.
+let mfgComponentsCache=[];
+let mfgComponentsSearch='';
+let mfgComponentsBomId=null;
 async function renderMfgComponentsPanel(bom){
   const panel=document.getElementById('mfg-components-panel');
   try{
     const full=await fetch(`/api/manufacturing/boms/${bom.id}`).then(r=>r.json());
     const costEl=document.getElementById('mfg-production-cost');
     if(costEl) costEl.textContent = full.manufacturingPrice!=null ? `Production Cost: ₹${Number(full.manufacturingPrice).toLocaleString('en-IN',{minimumFractionDigits:2})}` : '';
-    const lines=full.lines||[];
-    panel.innerHTML = !lines.length
-      ? '<div class="empty-state" style="padding:20px 0">No components yet. Click "+ Add Component" to build the recipe.</div>'
-      : lines.map(l=>`
-        <div style="padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-weight:600">${esc(invItemName(l.componentItemId))}</div>
-            <div style="font-size:12px;color:var(--g3)">Quantity: ${l.quantityPerUnit}</div>
-          </div>
-          ${mfgIconBtn('delete','Remove',`removeMfgBomLine('${bom.id}','${l.id}')`,'color:var(--red)')}
-        </div>`).join('');
+    mfgComponentsCache=full.lines||[];
+    mfgComponentsSearch='';
+    mfgComponentsBomId=bom.id;
+    panel.innerHTML=`
+      <input type="text" placeholder="Search components…" value="" oninput="setMfgComponentsSearch(this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;box-sizing:border-box">
+      <div id="mfg-components-list">${mfgComponentsListHtml()}</div>`;
   }catch(e){ panel.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load components.</div>'; }
+}
+function mfgComponentsFilteredLines(){
+  const q=mfgComponentsSearch.trim().toLowerCase();
+  if(!q) return mfgComponentsCache;
+  return mfgComponentsCache.filter(l=>{
+    const name=(invItemName(l.componentItemId)||'').toLowerCase();
+    const code=(invItemRecord(l.componentItemId)?.itemCode||'').toLowerCase();
+    return name.includes(q)||code.includes(q);
+  });
+}
+function mfgComponentsListHtml(){
+  const lines=mfgComponentsFilteredLines();
+  if(!lines.length) return `<div class="empty-state" style="padding:20px 0">${mfgComponentsCache.length?'No components match your search.':'No components yet. Click "+ Add Component" to build the recipe.'}</div>`;
+  return lines.map((l,idx)=>`
+    <div style="padding:12px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div style="font-weight:700;color:var(--g3);min-width:20px">${idx+1}.</div>
+        <div>
+          <div style="font-weight:600">${esc(invItemName(l.componentItemId))}</div>
+          <div style="font-size:12px;color:var(--g3)">Quantity: ${l.quantityPerUnit}</div>
+        </div>
+      </div>
+      ${mfgIconBtn('delete','Remove',`removeMfgBomLine('${mfgComponentsBomId}','${l.id}')`,'color:var(--red)')}
+    </div>`).join('');
+}
+function setMfgComponentsSearch(v){
+  mfgComponentsSearch=v;
+  const listEl=document.getElementById('mfg-components-list');
+  if(listEl) listEl.innerHTML=mfgComponentsListHtml();
 }
 
 function mfgItemOptionLabel(i){
