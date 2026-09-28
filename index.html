@@ -6433,16 +6433,67 @@ function aidaJobAlreadyResolvedElsewhere(jobId,currentMsgId){
   }
   return false;
 }
+// Message 2 (the fix) has a `Type: bug|feature` line that Message 1 (the
+// plan) never has — that alone is what distinguishes them. A terminal
+// informational message ("investigated but found nothing", "wasn't able to
+// produce a fix", etc.) shares the same Type/Job ID suffix per spec but
+// never has a PR (nothing was ever opened) — presence of `PR:` is what
+// separates "there's a real fix pending review" from "nothing to act on".
+function parseAidaFixFields(text){
+  const t=text||'';
+  const typeMatch=t.match(/Type:\s*(bug|feature)/i);
+  const previewMatch=t.match(/Preview:\s*(\S+)/);
+  const prMatch=t.match(/PR:\s*(\S+)/);
+  return {
+    type: typeMatch?typeMatch[1].toLowerCase():null,
+    preview: previewMatch?previewMatch[1]:null,
+    pr: prMatch?prMatch[1]:null,
+  };
+}
 function aidaReportActionsHtml(m){
   if(m.senderName!=='AIDA') return '';
   const jobId=extractAidaJobId(m.text);
   if(!jobId) return '';
+  const fix=parseAidaFixFields(m.text);
+  if(fix.type) return aidaFixMessageActionsHtml(m,jobId,fix);
+  // Message 1 (the plan) — approving here only starts the build (stage 2);
+  // it does not merge anything.
   if(!['manager','developer','tester'].includes(currentUser?.role)) return '';
   if(m._aidaReportAction==='approved') return `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ Approved by You</div>`;
   if(m._aidaReportAction==='rejected') return `<div style="font-size:12px;color:var(--red);font-weight:600;margin-top:4px">✕ Rejected by You</div>`;
   if(m._aidaReportAction==='resolved-elsewhere') return `<div style="font-size:12px;color:var(--g3);margin-top:4px">Already handled</div>`;
   if(aidaJobAlreadyResolvedElsewhere(jobId,m.id)) return `<div style="font-size:12px;color:var(--g3);margin-top:4px">Already handled — see messages below</div>`;
   return `<div style="display:flex;gap:6px;margin-top:6px">
+    <button type="button" class="btn-sm btn-primary" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','approve','${m.id}')">Approve</button>
+    <button type="button" class="btn-sm btn-ghost" style="color:var(--red)" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','reject','${m.id}')">Reject</button>
+  </div>`;
+}
+function aidaFixMessageActionsHtml(m,jobId,fix){
+  const links=[
+    fix.preview?`<a href="${esc(fix.preview)}" target="_blank" rel="noopener" class="btn-sm btn-ghost" style="text-decoration:none;display:inline-block">🔗 Preview</a>`:'',
+    fix.pr?`<a href="${esc(fix.pr)}" target="_blank" rel="noopener" class="btn-sm btn-ghost" style="text-decoration:none;display:inline-block">📄 View PR</a>`:'',
+  ].filter(Boolean).join('');
+  const linksRow=links?`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${links}</div>`:'';
+  // No PR at all → a terminal informational message (nothing was ever
+  // opened to review or merge), regardless of Type — just the links row
+  // (usually empty too, since these rarely carry a Preview either).
+  if(!fix.pr) return linksRow;
+  if(fix.type==='feature'){
+    // Feature-type fixes are master-admin-only, via the existing AIDA Job
+    // panel — not actionable from this Messages conversation at all.
+    return linksRow+`<div style="font-size:12px;color:var(--g3);margin-top:4px">Pending master admin review</div>`;
+  }
+  // Type is 'bug' from here on.
+  if(m._aidaReportAction==='approved') return linksRow+`<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ Fix Approved by You</div>`;
+  if(m._aidaReportAction==='rejected') return linksRow+`<div style="font-size:12px;color:var(--red);font-weight:600;margin-top:4px">✕ Fix Rejected by You</div>`;
+  if(m._aidaReportAction==='resolved-elsewhere') return linksRow+`<div style="font-size:12px;color:var(--g3);margin-top:4px">Already handled</div>`;
+  if(aidaJobAlreadyResolvedElsewhere(jobId,m.id)) return linksRow+`<div style="font-size:12px;color:var(--g3);margin-top:4px">Already handled — see messages below</div>`;
+  // Narrower than the plan message's role gate — manager can approve the
+  // plan but NOT the final fix for a bug; only developer/tester here (a
+  // master admin also could, but acts from their own Job panel instead,
+  // never from this Messages UI).
+  if(!['developer','tester'].includes(currentUser?.role)) return linksRow;
+  return linksRow+`<div style="display:flex;gap:6px;margin-top:6px">
     <button type="button" class="btn-sm btn-primary" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','approve','${m.id}')">Approve</button>
     <button type="button" class="btn-sm btn-ghost" style="color:var(--red)" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','reject','${m.id}')">Reject</button>
   </div>`;
