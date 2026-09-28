@@ -6415,6 +6415,24 @@ function extractAidaJobId(text){
   const matches=(text||'').match(/job_[A-Za-z0-9_-]+/g);
   return matches ? matches[matches.length-1] : null;
 }
+// There's no GET-status endpoint for a job, so the only way to know a plan
+// was already resolved (approved/rejected from the OTHER surface —
+// masteradmin's Job panel — or from an earlier session before this
+// conversation was reopened) without clicking is to notice that AIDA later
+// posted a follow-up message about this same job into this same
+// conversation (per Prompt 31 pt.4: an ack, then a build result, always
+// arrive after approval). This is a heuristic, not a status read — if a
+// follow-up doesn't happen to repeat the job id, this just quietly falls
+// back to showing live buttons, same as before.
+function aidaJobAlreadyResolvedElsewhere(jobId,currentMsgId){
+  const idx=msgMessages.findIndex(x=>x.id===currentMsgId);
+  if(idx<0) return false;
+  for(let i=idx+1;i<msgMessages.length;i++){
+    const later=msgMessages[i];
+    if(later.senderName==='AIDA' && (later.text||'').includes(jobId)) return true;
+  }
+  return false;
+}
 function aidaReportActionsHtml(m){
   if(m.senderName!=='AIDA') return '';
   const jobId=extractAidaJobId(m.text);
@@ -6423,6 +6441,7 @@ function aidaReportActionsHtml(m){
   if(m._aidaReportAction==='approved') return `<div style="font-size:12px;color:#27AE60;font-weight:600;margin-top:4px">✓ Approved by You</div>`;
   if(m._aidaReportAction==='rejected') return `<div style="font-size:12px;color:var(--red);font-weight:600;margin-top:4px">✕ Rejected by You</div>`;
   if(m._aidaReportAction==='resolved-elsewhere') return `<div style="font-size:12px;color:var(--g3);margin-top:4px">Already handled</div>`;
+  if(aidaJobAlreadyResolvedElsewhere(jobId,m.id)) return `<div style="font-size:12px;color:var(--g3);margin-top:4px">Already handled — see messages below</div>`;
   return `<div style="display:flex;gap:6px;margin-top:6px">
     <button type="button" class="btn-sm btn-primary" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','approve','${m.id}')">Approve</button>
     <button type="button" class="btn-sm btn-ghost" style="color:var(--red)" onclick="event.stopPropagation();handleAidaReportAction('${jobId}','reject','${m.id}')">Reject</button>
