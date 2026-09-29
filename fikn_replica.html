@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIKN Replica</title>
+<style>
+  :root{
+    --red:#C0392B;--red2:#E74C3C;--red-light:#fdecea;
+    --dark:#1A1A1A;--g1:#2C2C2C;--g2:#4A4A4A;--g3:#7F7F7F;
+    --g4:#D0D0D0;--g5:#F2F2F2;--white:#fff;--border:#D8D8D8;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font);color:var(--dark);background:var(--g5);line-height:1.65;}
+  a{color:inherit;}
+  img.ph{display:block;width:100%;height:100%;object-fit:cover;}
+  .topbar{background:var(--dark);color:#ddd;font-size:12px;padding:6px 0;}
+  .topbar .wrap{max-width:1160px;margin:0 auto;padding:0 24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50;}
+  header.site .wrap{max-width:1160px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .mark{width:42px;height:42px;border-radius:8px;background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;}
+  .brand .name{font-weight:800;font-size:20px;letter-spacing:.5px;}
+  .brand .tag{font-size:11px;color:var(--g3);}
+  nav.main{display:flex;gap:22px;flex-wrap:wrap;}
+  nav.main a{text-decoration:none;font-size:14px;font-weight:600;color:var(--g1);padding:6px 2px;border-bottom:2px solid transparent;}
+  nav.main a:hover{border-bottom-color:var(--red);color:var(--red);}
+  .btn{display:inline-block;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;border:1px solid transparent;}
+  .btn-primary{background:var(--red);color:#fff;box-shadow:0 2px 6px rgba(192,57,43,.3);}
+  .btn-primary:hover{background:var(--red2);}
+  .btn-outline{background:#fff;border-color:var(--border);color:var(--g1);}
+  .btn-outline:hover{border-color:var(--red);color:var(--red);}
+  .hero{background:linear-gradient(160deg,var(--dark) 0%,#3a1512 55%,var(--red) 130%);color:#fff;padding:76px 24px;text-align:center;}
+  .hero .eyebrow{letter-spacing:2px;text-transform:uppercase;font-size:12px;color:#f3b5ac;font-weight:700;margin-bottom:14px;}
+  .hero h1{font-size:40px;max-width:780px;margin:0 auto 18px;font-weight:800;}
+  .hero p{max-width:640px;margin:0 auto 28px;font-size:16px;color:#f0d9d6;}
+  .hero .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;}
+  section{max-width:1160px;margin:0 auto;padding:64px 24px;}
+  .section-head{max-width:680px;margin:0 auto 40px;text-align:center;}
+  .section-head .kicker{color:var(--red);font-weight:700;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;}
+  .section-head h2{font-size:28px;margin:10px 0 12px;}
+  .section-head p{color:var(--g2);font-size:15px;}
+  .grid{display:grid;gap:22px;}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr);}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr);}
+  @media (max-width:900px){.grid.cols-3,.grid.cols-4{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:600px){.grid.cols-3,.grid.cols-4{grid-template-columns:1fr;} .hero h1{font-size:30px;} nav.main{display:none;}}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:24px;}
+  .card .icon{width:46px;height:46px;border-radius:10px;background:var(--red-light);color:var(--red);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;font-weight:800;}
+  .card h3{font-size:17px;margin-bottom:8px;}
+  .card p{font-size:14px;color:var(--g2);}
+  .alt-bg{background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+  .stats{display:flex;justify-content:space-around;flex-wrap:wrap;gap:24px;text-align:center;}
+  .stats .stat b{display:block;font-size:32px;color:var(--red);}
+  .stats .stat span{font-size:13px;color:var(--g2);text-transform:uppercase;letter-spacing:.5px;}
+  .two-col{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;}
+  @media (max-width:800px){.two-col{grid-template-columns:1fr;}}
+  .imgph{background:linear-gradient(135deg,var(--g4),var(--g5));border:1px dashed var(--g3);border-radius:12px;min-height:220px;display:flex;align-items:center;justify-content:center;color:var(--g3);font-size:13px;font-weight:600;}
+  .news-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .news-card .thumb{height:140px;background:linear-gradient(135deg,var(--dark),var(--red));}
+  .news-card .body{padding:18px;}
+  .news-card .date{font-size:11px;color:var(--red);font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+  .news-card h3{font-size:16px;margin:8px 0;}
+  .news-card p{font-size:13px;color:var(--g2);}
+  .team{text-align:center;}
+  .team .avatar{width:88px;height:88px;border-radius:50%;background:linear-gradient(135deg,var(--red2),var(--red));color:#fff;font-weight:700;font-size:26px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
+  .team h3{font-size:15px;margin-bottom:2px;}
+  .team span{font-size:12px;color:var(--g3);}
+  .form-wrap{background:#fff;border:1px solid var(--border);border-radius:14px;padding:32px;max-width:640px;margin:0 auto;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--g1);}
+  .field input,.field select,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;}
+  .field input:focus,.field textarea:focus{border-color:var(--red);}
+  .field textarea{min-height:100px;resize:vertical;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:560px){.row2{grid-template-columns:1fr;}}
+  footer.site{background:var(--dark);color:#c9c9c9;padding:50px 24px 20px;}
+  footer .fwrap{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;}
+  @media (max-width:800px){footer .fwrap{grid-template-columns:1fr 1fr;}}
+  footer h4{color:#fff;font-size:14px;margin-bottom:14px;}
+  footer ul{list-style:none;padding:0;margin:0;}
+  footer li{margin-bottom:8px;font-size:13px;}
+  footer a{text-decoration:none;color:#c9c9c9;}
+  footer a:hover{color:#fff;}
+  .bottom-bar{max-width:1160px;margin:34px auto 0;padding-top:18px;border-top:1px solid #333;font-size:12px;color:#888;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .social{display:flex;gap:10px;}
+  .social a{width:32px;height:32px;border-radius:50%;background:#2C2C2C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;}
+  .social a:hover{background:var(--red);}
+  .badge-note{font-size:11px;color:var(--g3);text-align:center;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <span>Federation of Indian Knowledge Networks (FIKN) &mdash; Empowering Communities Through Knowledge</span>
+    <span>info@fikn.org.example &nbsp;|&nbsp; +91 (000) 000-0000</span>
+  </div>
+</div>
+
+<header class="site">
+  <div class="wrap">
+    <div class="brand">
+      <div class="mark">FK</div>
+      <div>
+        <div class="name">FIKN</div>
+        <div class="tag">Federation of Indian Knowledge Networks</div>
+      </div>
+    </div>
+    <nav class="main">
+      <a href="#about">About Us</a>
+      <a href="#work">Our Work</a>
+      <a href="#news">News &amp; Events</a>
+      <a href="#team">Leadership</a>
+      <a href="#involved">Get Involved</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="#involved">Become a Member</a>
+  </div>
+</header>
+
+<section class="hero" style="padding-top:76px;margin:0;max-width:none;">
+  <div class="eyebrow">Est. — a national knowledge &amp; community network</div>
+  <h1>Building Bridges Between Knowledge, Skills, and Communities</h1>
+  <p>FIKN is a federation of regional knowledge networks working together to expand access to education,
+     vocational training, and civic resources across underserved communities.</p>
+  <div class="cta">
+    <a class="btn btn-primary" href="#work">Explore Our Work</a>
+    <a class="btn btn-outline" href="#contact" style="background:transparent;border-color:rgba(255,255,255,.5);color:#fff;">Contact Us</a>
+  </div>
+</section>
+
+<section id="about">
+  <div class="section-head">
+    <div class="kicker">Who We Are</div>
+    <h2>About FIKN</h2>
+    <p>A federated network of member organizations united by a shared mission: knowledge for all, regardless of geography or background.</p>
+  </div>
+  <div class="two-col">
+    <div>
+      <h3 style="font-size:20px;margin-bottom:10px;">Our Mission</h3>
+      <p style="color:var(--g2);margin-bottom:18px;">
+        FIKN exists to connect grassroots knowledge networks, libraries, training centers, and volunteer educators
+        into a single federated body — sharing resources, standardizing curricula, and amplifying local initiatives
+        so that no community is left behind in the pursuit of learning.
+      </p>
+      <h3 style="font-size:20px;margin-bottom:10px;">Our Vision</h3>
+      <p style="color:var(--g2);">
+        A future in which every individual, in every region we serve, has equitable access to the knowledge,
+        skills, and mentorship needed to build a self-sufficient livelihood and contribute meaningfully to society.
+      </p>
+    </div>
+    <div class="imgph">Photo: FIKN member community workshop</div>
+  </div>
+</section>
+
+<div class="alt-bg">
+  <section>
+    <div class="stats">
+      <div class="stat"><b>120+</b><span>Member Networks</span></div>
+      <div class="stat"><b>48</b><span>Districts Reached</span></div>
+      <div class="stat"><b>65,000+</b><span>Learners Supported</span></div>
+      <div class="stat"><b>900+</b><span>Volunteer Educators</span></div>
+    </div>
+  </section>
+</div>
+
+<section id="work">
+  <div class="section-head">
+    <div class="kicker">What We Do</div>
+    <h2>Our Programs</h2>
+    <p>Four core pillars guide every initiative undertaken by FIKN and its member networks.</p>
+  </div>
+  <div class="grid cols-4">
+    <div class="card">
+      <div class="icon">01</div>
+      <h3>Community Learning Centers</h3>
+      <p>Establishing and supporting local learning hubs equipped with libraries, digital access points, and tutoring programs.</p>
+    </div>
+    <div class="card">
+      <div class="icon">02</div>
+      <h3>Vocational Training</h3>
+      <p>Partnering with local industry to deliver skill-building courses in trades, digital literacy, and entrepreneurship.</p>
+    </div>
+    <div class="card">
+      <div class="icon">03</div>
+      <h3>Educator Fellowships</h3>
+      <p>Recruiting, training, and placing volunteer educators in under-resourced schools and community centers.</p>
+    </div>
+    <div class="card">
+      <div class="icon">04</div>
+      <h3>Research &amp; Policy</h3>
+      <p>Publishing research on educational access and advocating for policy reforms that support equitable learning.</p>
+    </div>
+  </div>
+</section>
+
+<div class="alt-bg">
+<section id="news">
+  <div class="section-head">
+    <div class="kicker">Stay Updated</div>
+    <h2>News &amp; Events</h2>
+    <p>Recent updates from across the FIKN federation.</p>
+  </div>
+  <div class="grid cols-3">
+    <div class="news-card">
+      <div class="thumb"></div>
+      <div class="body">
+        <div class="date">Annual Report</div>
+        <h3>FIKN Releases Annual Impact Report</h3>
+        <p>A look back at the year's milestones across all member networks, including learner outcomes and new center openings.</p>
+      </div>
+    </div>
+    <div class="news-card">
+      <div class="thumb"></div>
+      <div class="body">
+        <div class="date">Partnership</div>
+        <h3>New Partnership Expands Digital Literacy Program</h3>
+        <p>FIKN partners with regional technology providers to bring digital literacy training to five additional districts.</p>
+      </div>
+    </div>
+    <div class="news-card">
+      <div class="thumb"></div>
+      <div class="body">
+        <div class="date">Event</div>
+        <h3>National Knowledge Summit — Registration Open</h3>
+        <p>Member organizations and volunteers are invited to the annual summit to share best practices and network.</p>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<section id="team">
+  <div class="section-head">
+    <div class="kicker">Our People</div>
+    <h2>Leadership</h2>
+    <p>A federation guided by educators, community organizers, and policy practitioners.</p>
+  </div>
+  <div class="grid cols-4">
+    <div class="team"><div class="avatar">A</div><h3>Chairperson</h3><span>Governing Council</span></div>
+    <div class="team"><div class="avatar">R</div><h3>Executive Director</h3><span>National Secretariat</span></div>
+    <div class="team"><div class="avatar">S</div><h3>Program Director</h3><span>Learning &amp; Training</span></div>
+    <div class="team"><div class="avatar">M</div><h3>Regional Coordinator</h3><span>Member Networks</span></div>
+  </div>
+</section>
+
+<div class="alt-bg">
+<section id="involved">
+  <div class="section-head">
+    <div class="kicker">Join Us</div>
+    <h2>Get Involved</h2>
+    <p>Become a member network, volunteer educator, or supporter of FIKN's mission.</p>
+  </div>
+  <form class="form-wrap" onsubmit="event.preventDefault(); alert('This is a non-functional replica form. No data is submitted.');">
+    <div class="row2">
+      <div class="field">
+        <label for="fname">Full Name</label>
+        <input id="fname" type="text" placeholder="Your name" />
+      </div>
+      <div class="field">
+        <label for="femail">Email Address</label>
+        <input id="femail" type="email" placeholder="you@example.com" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="finterest">I am interested in</label>
+      <select id="finterest">
+        <option>Becoming a Member Network</option>
+        <option>Volunteering as an Educator</option>
+        <option>Supporting / Donating</option>
+        <option>General Inquiry</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="fmsg">Message</label>
+      <textarea id="fmsg" placeholder="Tell us a bit about yourself and how you'd like to get involved..."></textarea>
+    </div>
+    <button class="btn btn-primary" type="submit" style="width:100%;">Submit Interest Form</button>
+    <p class="badge-note">This form is a static UI replica and does not submit data anywhere.</p>
+  </form>
+</section>
+</div>
+
+<section id="contact">
+  <div class="section-head">
+    <div class="kicker">Reach Out</div>
+    <h2>Contact FIKN</h2>
+    <p>We'd love to hear from you — reach out with questions, partnership ideas, or feedback.</p>
+  </div>
+  <div class="two-col">
+    <div class="imgph">Map Placeholder</div>
+    <div>
+      <p style="margin-bottom:10px;"><strong>Head Office</strong><br>FIKN National Secretariat, Sector Road, New Delhi, India</p>
+      <p style="margin-bottom:10px;"><strong>Email</strong><br>info@fikn.org.example</p>
+      <p style="margin-bottom:10px;"><strong>Phone</strong><br>+91 (000) 000-0000</p>
+      <p><strong>Office Hours</strong><br>Monday – Friday, 9:00 AM – 6:00 PM</p>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="fwrap">
+    <div>
+      <div class="brand" style="margin-bottom:14px;">
+        <div class="mark">FK</div>
+        <div>
+          <div class="name" style="color:#fff;">FIKN</div>
+          <div class="tag" style="color:#999;">Federation of Indian Knowledge Networks</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#999;max-width:320px;">A federated network of community organizations working
+        together to expand access to knowledge, skills, and opportunity nationwide.</p>
+      <div class="social" style="margin-top:16px;">
+        <a href="#">f</a><a href="#">x</a><a href="#">in</a><a href="#">yt</a>
+      </div>
+    </div>
+    <div>
+      <h4>About</h4>
+      <ul>
+        <li><a href="#about">Our Mission</a></li>
+        <li><a href="#team">Leadership</a></li>
+        <li><a href="#news">News</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Programs</h4>
+      <ul>
+        <li><a href="#work">Learning Centers</a></li>
+        <li><a href="#work">Vocational Training</a></li>
+        <li><a href="#work">Fellowships</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Get Involved</h4>
+      <ul>
+        <li><a href="#involved">Membership</a></li>
+        <li><a href="#involved">Volunteer</a></li>
+        <li><a href="#contact">Contact Us</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <span>&copy; FIKN — Federation of Indian Knowledge Networks. All rights reserved.</span>
+    <span>This is an unofficial, independently redesigned replica page for demonstration purposes.</span>
+  </div>
+</footer>
+
+</body>
+</html>
