@@ -3110,10 +3110,33 @@ body { transition: background .3s ease, color .3s ease; }
         <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items (1)</label>
         <div id="inv-ep-items" style="margin-top:8px"></div>
       </div>
+      <div style="margin-top:10px">
+        <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Receipts</label>
+        <div id="inv-ep-receipts" style="margin-top:8px"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('inv-purchase-edit-modal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveInvPurchaseEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory: Invoice Number prompt for a receipt (shown when received qty increases) -->
+<div class="modal-overlay" id="inv-receipt-invoice-modal" style="z-index:210">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h2>Invoice Number for this receipt</h2><button class="modal-close" onclick="cancelInvReceiptInvoice()">×</button></div>
+    <div class="modal-body">
+      <div id="inv-ri-summary" style="font-size:13px;color:var(--g3);margin-bottom:10px"></div>
+      <div class="form-group">
+        <label>Invoice Number <span style="color:#E74C3C">*</span></label>
+        <input type="text" id="inv-ri-invoice" maxlength="100" oninput="onInvReceiptInvoiceInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();confirmInvReceiptInvoice();}">
+        <div id="inv-ri-error" style="display:none;color:#E74C3C;font-size:12px;margin-top:4px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cancelInvReceiptInvoice()">Cancel</button>
+      <button class="btn btn-primary" id="inv-ri-confirm" onclick="confirmInvReceiptInvoice()" disabled>Confirm</button>
     </div>
   </div>
 </div>
@@ -12498,16 +12521,27 @@ let invPurchaseLinesBulkLoading=false;
 // triggering its own table re-render on completion) caused the whole
 // Purchases page to visibly flicker/re-render dozens or hundreds of times
 // in a row once there were hundreds of real purchase orders to display.
+// Bumped wherever invPurchaseLinesCache is cleared, so a bulk load that was
+// already in flight doesn't write its (now stale) lines back into the cache.
+let invPurchaseLinesCacheGen=0;
 async function loadInvPurchaseLinesBulk(){
   if(invPurchaseLinesBulkLoaded||invPurchaseLinesBulkLoading) return;
   invPurchaseLinesBulkLoading=true;
+  const startGen=invPurchaseLinesCacheGen;
+  let stale=false;
   try{
     const byPurchase=await fetch('/api/inventory/purchases/all-items').then(r=>r.json());
+    if(startGen!==invPurchaseLinesCacheGen){ stale=true; return; }
     Object.assign(invPurchaseLinesCache, byPurchase);
     invPurchaseLinesBulkLoaded=true;
     if(currentView==='inv_purchases') invPurchasesRerenderTableOnly();
   }catch(e){ console.error('Failed to bulk-load purchase lines',e); }
-  finally{ invPurchaseLinesBulkLoading=false; }
+  finally{
+    invPurchaseLinesBulkLoading=false;
+    // The cache was cleared mid-flight; any caller that asked in the meantime
+    // was turned away by the loading flag, so fetch again with fresh data.
+    if(stale) loadInvPurchaseLinesBulk();
+  }
 }
 
 function invPurchasesTableHtml(){
@@ -12749,7 +12783,7 @@ async function saveInvPurchase(){
     closeModal('inv-po-modal');
     showToast('Purchase created ✓','success');
     await loadInvData();
-    invPurchaseLinesCache={};
+    invPurchaseLinesCache={}; invPurchaseLinesCacheGen++;
     invPurchaseLinesBulkLoaded=false;
     renderView();
   }catch(e){ showToast(e.message,'error'); }
@@ -12768,9 +12802,12 @@ async function openInvPurchaseEditModal(id){
   document.getElementById('inv-ep-currency').innerHTML=invCurrencyOptionsHtml(p.currency||'');
   document.getElementById('inv-ep-vendor').innerHTML='<option value="">Select Vendor (Optional)</option>'+
     invVendors.map(v=>`<option value="${v.id}" ${p.vendorId===v.id?'selected':''}>${esc(v.name)}</option>`).join('');
-  const lines=invPurchaseLinesCache[id] || await loadInvPurchaseLines(id);
+  // Always fetch fresh lines — the cache can be stale (no socket event
+  // carries line changes), and Save sends Quantity Received for every line.
+  const lines=await loadInvPurchaseLines(id);
+  if(invEditPurchaseId!==id) return;
   document.getElementById('inv-ep-items').innerHTML=lines.map((l,idx)=>`
-    <div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" data-line-id="${l.id}" data-ordered="${l.quantityOrdered}">
+    <div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" data-line-id="${l.id}" data-ordered="${l.quantityOrdered}" data-saved-received="${l.quantityReceived}" data-item-label="${esc(invItemName(l.itemId))}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <strong>${esc(invItemName(l.itemId))} (${esc(invItemRecord(l.itemId)?.itemCode||'')})</strong>
       </div>
@@ -12791,6 +12828,68 @@ async function openInvPurchaseEditModal(id){
     </div>`).join('');
   document.querySelectorAll('#inv-ep-items > div').forEach(row=>invEpUpdateLineDerived(row.querySelector('.inv-ep-line-received')));
   document.getElementById('inv-purchase-edit-modal').classList.add('open');
+  loadInvEpReceipts(id);
+}
+// Read-only list of each delivery (one row per line per receipt) with the
+// vendor invoice it came in on — separate from the PO header Invoice Number.
+async function loadInvEpReceipts(id){
+  const box=document.getElementById('inv-ep-receipts');
+  box.innerHTML='<div style="font-size:12px;color:var(--g3)">Loading…</div>';
+  try{
+    const r=await fetch(`/api/inventory/purchases/${id}/receipts`);
+    if(!r.ok) throw new Error();
+    const rows=await r.json();
+    if(invEditPurchaseId!==id) return;
+    if(!rows.length){ box.innerHTML='<div style="font-size:12px;color:var(--g3)">No receipts yet</div>'; return; }
+    box.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="text-align:left;color:var(--g3)"><th style="padding:4px 6px">Date</th><th style="padding:4px 6px">Item</th><th style="padding:4px 6px;text-align:right">Qty</th><th style="padding:4px 6px">Invoice No.</th></tr></thead>
+      <tbody>${rows.map(rc=>{
+        const d=rc.receivedDate||rc.createdAt;
+        return `<tr style="border-top:1px solid var(--border)">
+          <td style="padding:4px 6px">${d?new Date(d).toLocaleDateString():'—'}</td>
+          <td style="padding:4px 6px">${esc(invItemName(rc.itemId))}</td>
+          <td style="padding:4px 6px;text-align:right">${Number(rc.quantityReceived)}</td>
+          <td style="padding:4px 6px">${rc.invoiceNumber?esc(rc.invoiceNumber):'—'}</td>
+        </tr>`;}).join('')}</tbody></table>`;
+  }catch(e){
+    if(invEditPurchaseId===id) box.innerHTML='<div style="font-size:12px;color:var(--g3)">Receipts unavailable</div>';
+  }
+}
+// Invoice-number prompt shown before saving when any line's Received
+// Quantity went up versus the last saved value. Resolves to the trimmed
+// invoice number on Confirm, or null on Cancel/close.
+let invReceiptInvoiceResolve=null;
+function promptInvReceiptInvoice(summary){
+  document.getElementById('inv-ri-summary').textContent=summary;
+  const input=document.getElementById('inv-ri-invoice');
+  input.value='';
+  document.getElementById('inv-ri-error').style.display='none';
+  document.getElementById('inv-ri-confirm').disabled=true;
+  document.getElementById('inv-receipt-invoice-modal').classList.add('open');
+  setTimeout(()=>input.focus(),50);
+  return new Promise(resolve=>{ invReceiptInvoiceResolve=resolve; });
+}
+function onInvReceiptInvoiceInput(){
+  const v=document.getElementById('inv-ri-invoice').value.trim();
+  document.getElementById('inv-ri-confirm').disabled=!v;
+  if(v) document.getElementById('inv-ri-error').style.display='none';
+}
+function confirmInvReceiptInvoice(){
+  const v=document.getElementById('inv-ri-invoice').value.trim();
+  if(!v){
+    const err=document.getElementById('inv-ri-error');
+    err.textContent='Invoice number is required.';
+    err.style.display='block';
+    return;
+  }
+  closeModal('inv-receipt-invoice-modal');
+  const res=invReceiptInvoiceResolve; invReceiptInvoiceResolve=null;
+  if(res) res(v);
+}
+function cancelInvReceiptInvoice(){
+  closeModal('inv-receipt-invoice-modal');
+  const res=invReceiptInvoiceResolve; invReceiptInvoiceResolve=null;
+  if(res) res(null);
 }
 // Changing Currency doesn't touch any line's own Ordered/Received/Cost
 // fields, just what prefix their Subtotal displays with — rerun the derived
@@ -12834,6 +12933,24 @@ async function saveInvPurchaseEdit(){
   const invoiceNumber=document.getElementById('inv-ep-invoice').value.trim()||null;
   const receivedDate=document.getElementById('inv-ep-receiveddate').value||null;
   const currency=document.getElementById('inv-ep-currency').value||null;
+  // Compare each line's Received Quantity with the last SAVED value (from the
+  // loaded purchase lines). Any increase is a new delivery that needs its own
+  // vendor invoice number, so ask for it before anything is sent — Cancel
+  // leaves the user's unsaved edits in the form untouched.
+  const increases=[];
+  document.querySelectorAll('#inv-ep-items > div').forEach(row=>{
+    const ordered=Number(row.dataset.ordered);
+    const qty=Number(row.querySelector('.inv-ep-line-qty').value||ordered);
+    const newReceived=Math.min(Number(row.querySelector('.inv-ep-line-received').value||0), qty);
+    const savedReceived=Number(row.dataset.savedReceived||0);
+    if(newReceived>savedReceived) increases.push(`${row.dataset.itemLabel}: +${+(newReceived-savedReceived).toFixed(2)}`);
+  });
+  const receiptSummary=increases.join(', ');
+  let receiptInvoice;
+  if(increases.length){
+    receiptInvoice=await promptInvReceiptInvoice(receiptSummary);
+    if(!receiptInvoice) return;
+  }
   try{
     await fetch(`/api/inventory/purchases/${invEditPurchaseId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({poNumber,vendorId,orderDate,invoiceNumber,receivedDate,currency})});
 
@@ -12851,18 +12968,41 @@ async function saveInvPurchaseEdit(){
       lineUpdates.push({lineId,quantityOrdered:qty,unitCost:cost,vendorItemCode,leadTimeDays,freightCost,importCharges});
 
       const quantityReceived=Math.min(Number(row.querySelector('.inv-ep-line-received').value||0), qty);
-      receiveUpdates.push({purchaseItemId:lineId,quantityReceived});
+      receiveUpdates.push({purchaseItemId:lineId,quantityReceived,previousQuantityReceived:Number(row.dataset.savedReceived||0)});
     });
 
     for(const lu of lineUpdates){
       await fetch(`/api/inventory/purchases/${invEditPurchaseId}/items/${lu.lineId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({quantityOrdered:lu.quantityOrdered,unitCost:lu.unitCost,vendorItemCode:lu.vendorItemCode,leadTimeDays:lu.leadTimeDays,freightCost:lu.freightCost,importCharges:lu.importCharges})});
     }
-    const r=await fetch(`/api/inventory/purchases/${invEditPurchaseId}/receive-lines`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:receiveUpdates})});
-    if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
+    // Loop only to re-prompt if the server still requires an invoice (e.g.
+    // another user saved lower quantities in the meantime, so this save now
+    // counts as an increase server-side).
+    while(true){
+      const receiveBody={lines:receiveUpdates};
+      if(receiptInvoice) receiveBody.invoiceNumber=receiptInvoice;
+      const r=await fetch(`/api/inventory/purchases/${invEditPurchaseId}/receive-lines`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(receiveBody)});
+      if(r.ok) break;
+      const d=await r.json().catch(()=>({}));
+      if(d.code==='INVOICE_NUMBER_REQUIRED'){
+        receiptInvoice=await promptInvReceiptInvoice(receiptSummary);
+        if(!receiptInvoice) return;
+        continue;
+      }
+      if(d.code==='RECEIVED_QUANTITY_CHANGED'){
+        // Someone else changed received quantities since this form was
+        // loaded — nothing was saved; reload the form with current values.
+        showToast(d.error||'Received quantities were changed since this form was opened.','warning');
+        const reopenId=invEditPurchaseId;
+        await loadInvData(); // header PATCH above already saved; reopen from current values
+        await openInvPurchaseEditModal(reopenId);
+        return;
+      }
+      throw new Error(d.error||'Failed to save received quantities');
+    }
 
     closeModal('inv-purchase-edit-modal');
     showToast('Purchase updated ✓','success');
-    invPurchaseLinesCache={};
+    invPurchaseLinesCache={}; invPurchaseLinesCacheGen++;
     invPurchaseLinesBulkLoaded=false;
     await loadInvData();
     renderView();
