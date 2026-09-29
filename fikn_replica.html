@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIKN | Streetwear Essentials</title>
+<style>
+  :root{
+    --bg:#0e0e10;
+    --panel:#17171a;
+    --panel2:#1f1f23;
+    --red:#C0392B;
+    --red2:#E74C3C;
+    --red3:#FF6B5B;
+    --text:#f2f2f2;
+    --muted:#a3a3ab;
+    --border:#2a2a2f;
+    --font:'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.5;
+  }
+  a{color:inherit;text-decoration:none;}
+
+  .announce{
+    background:linear-gradient(90deg,var(--red),var(--red2));
+    color:#fff;
+    text-align:center;
+    font-size:12.5px;
+    letter-spacing:1px;
+    padding:8px 10px;
+    font-weight:600;
+    text-transform:uppercase;
+  }
+
+  header{
+    padding:18px 32px;
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    position:sticky;
+    top:0;
+    z-index:50;
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  .logo{
+    font-weight:800;
+    font-size:26px;
+    letter-spacing:2px;
+    color:#fff;
+  }
+  .logo span{color:var(--red2);}
+  nav.main-nav{
+    display:flex;
+    gap:26px;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    color:var(--muted);
+    flex-wrap:wrap;
+  }
+  nav.main-nav a:hover{color:var(--red3);}
+  .head-actions{
+    display:flex;
+    align-items:center;
+    gap:18px;
+  }
+  .cart-btn{
+    position:relative;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    color:#fff;
+    padding:9px 14px;
+    border-radius:8px;
+    font-size:14px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .cart-btn:hover{border-color:var(--red2);}
+  .cart-count{
+    background:var(--red2);
+    color:#fff;
+    font-size:11px;
+    font-weight:700;
+    border-radius:999px;
+    padding:1px 7px;
+  }
+
+  .hero{
+    position:relative;
+    padding:90px 24px 80px;
+    text-align:center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(231,76,60,0.18), transparent 45%),
+      radial-gradient(circle at 80% 80%, rgba(192,57,43,0.15), transparent 45%),
+      #0a0a0c;
+    overflow:hidden;
+    border-bottom:1px solid var(--border);
+  }
+  .hero .eyebrow{
+    font-size:13px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--red3);
+    font-weight:700;
+    margin-bottom:16px;
+  }
+  .hero h1{
+    font-size:52px;
+    font-weight:900;
+    letter-spacing:1px;
+    color:#fff;
+    margin-bottom:16px;
+    line-height:1.08;
+  }
+  .hero h1 span{color:var(--red2);}
+  .hero p{
+    max-width:520px;
+    margin:0 auto 30px;
+    color:var(--muted);
+    font-size:16px;
+  }
+  .btn{
+    display:inline-block;
+    padding:14px 30px;
+    border-radius:999px;
+    background:linear-gradient(120deg,var(--red),var(--red2));
+    color:#fff;
+    font-weight:700;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    cursor:pointer;
+    border:none;
+    box-shadow:0 12px 26px -10px rgba(192,57,43,0.6);
+    transition:transform .15s ease;
+  }
+  .btn:hover{transform:translateY(-2px);}
+  .btn.ghost{
+    background:transparent;
+    border:1px solid var(--border);
+    color:#fff;
+    box-shadow:none;
+    margin-left:12px;
+  }
+
+  section.shop{
+    max-width:1180px;
+    margin:0 auto;
+    padding:70px 24px 40px;
+  }
+  .section-head{
+    text-align:center;
+    margin-bottom:40px;
+  }
+  .section-head .tag{
+    font-size:12px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--red3);
+    font-weight:700;
+    margin-bottom:10px;
+  }
+  .section-head h2{
+    font-size:32px;
+    color:#fff;
+    font-weight:800;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:26px;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+    overflow:hidden;
+    transition:transform .2s ease, border-color .2s ease;
+  }
+  .card:hover{
+    transform:translateY(-5px);
+    border-color:var(--red2);
+  }
+  .card .thumb{
+    position:relative;
+    height:210px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--panel2);
+    border-bottom:1px solid var(--border);
+  }
+  .card .thumb .wm{
+    position:absolute;
+    top:10px;
+    left:12px;
+    font-size:11px;
+    letter-spacing:2px;
+    color:rgba(255,255,255,0.15);
+    font-weight:800;
+  }
+  .card .badge{
+    position:absolute;
+    top:10px;
+    right:12px;
+    background:var(--red2);
+    color:#fff;
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    padding:4px 9px;
+    border-radius:999px;
+  }
+  .card .info{
+    padding:16px 18px 20px;
+  }
+  .card .cat{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .card .name{
+    font-size:16px;
+    font-weight:700;
+    color:#fff;
+    margin-bottom:8px;
+  }
+  .card .price-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .card .price{
+    font-size:17px;
+    font-weight:800;
+    color:var(--red3);
+  }
+  .card .price .was{
+    font-size:13px;
+    font-weight:500;
+    color:var(--muted);
+    text-decoration:line-through;
+    margin-right:6px;
+  }
+  .card .add-btn{
+    background:var(--panel2);
+    border:1px solid var(--border);
+    color:#fff;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:12.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    cursor:pointer;
+  }
+  .card .add-btn:hover{
+    background:var(--red2);
+    border-color:var(--red2);
+  }
+
+  footer.site-footer{
+    border-top:1px solid var(--border);
+    background:var(--panel);
+    padding:56px 24px 30px;
+    margin-top:40px;
+  }
+  .footer-inner{
+    max-width:1180px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr 1.4fr;
+    gap:36px;
+  }
+  .footer-inner h4{
+    color:#fff;
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    margin-bottom:14px;
+  }
+  .footer-inner p, .footer-inner a{
+    color:var(--muted);
+    font-size:13.5px;
+    display:block;
+    margin-bottom:8px;
+  }
+  .footer-inner a:hover{color:var(--red3);}
+  .newsletter{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+    flex-wrap:wrap;
+  }
+  .newsletter input{
+    flex:1;
+    min-width:140px;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    background:var(--panel2);
+    color:#fff;
+    font-size:13px;
+  }
+  .newsletter button{
+    padding:10px 16px;
+    border-radius:8px;
+    border:none;
+    background:linear-gradient(120deg,var(--red),var(--red2));
+    color:#fff;
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .foot-bottom{
+    text-align:center;
+    color:#6f6f76;
+    font-size:12px;
+    margin-top:40px;
+    border-top:1px solid var(--border);
+    padding-top:20px;
+  }
+
+  .cart-drawer{
+    position:fixed;
+    top:0;
+    right:-380px;
+    width:360px;
+    height:100%;
+    background:var(--panel);
+    border-left:1px solid var(--border);
+    z-index:200;
+    transition:right .25s ease;
+    padding:24px;
+    overflow-y:auto;
+  }
+  .cart-drawer.open{right:0;}
+  .cart-drawer h3{color:#fff;margin-bottom:16px;}
+  .cart-drawer .cd-item{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+    border-bottom:1px solid var(--border);
+    font-size:13.5px;
+    color:var(--muted);
+  }
+  .cart-drawer .close-cd{
+    position:absolute;
+    top:20px;
+    right:20px;
+    background:none;
+    border:none;
+    color:var(--muted);
+    font-size:18px;
+    cursor:pointer;
+  }
+  .cart-drawer .cd-note{
+    margin-top:20px;
+    font-size:12px;
+    color:#6f6f76;
+  }
+
+  @media (max-width:760px){
+    .footer-inner{grid-template-columns:1fr 1fr;}
+    .hero h1{font-size:38px;}
+    nav.main-nav{order:3;width:100%;justify-content:center;}
+  }
+</style>
+</head>
+<body>
+
+<div class="announce">Free Shipping On Orders Over $75 &nbsp;&bull;&nbsp; New Drop Every Friday &nbsp;&bull;&nbsp; Est. 2019</div>
+
+<header>
+  <div class="logo">FIK<span>N</span></div>
+  <nav class="main-nav">
+    <a href="#shop">Shop</a>
+    <a href="#hoodies">Hoodies</a>
+    <a href="#tees">Tees</a>
+    <a href="#accessories">Accessories</a>
+    <a href="#about">About</a>
+  </nav>
+  <div class="head-actions">
+    <button class="cart-btn" onclick="toggleCart()">🛍 Bag <span class="cart-count" id="cartCount">0</span></button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="eyebrow">Fall / Winter Collection</div>
+  <h1>WEAR THE<br><span>UNSEEN</span> UNIFORM.</h1>
+  <p>FIKN is streetwear built for the in-between hours — heavyweight fleece, boxy fits, and quiet-loud branding for people who move different.</p>
+  <a href="#shop" class="btn">Shop New Drop</a>
+  <a href="#about" class="btn ghost">Our Story</a>
+</section>
+
+<section class="shop" id="shop">
+  <div class="section-head">
+    <div class="tag">The Collection</div>
+    <h2>Best Sellers</h2>
+  </div>
+  <div class="grid" id="productGrid"></div>
+</section>
+
+<footer class="site-footer" id="about">
+  <div class="footer-inner">
+    <div>
+      <h4>FIKN</h4>
+      <p>Independent streetwear label designing heavyweight essentials for everyday uniform. Small batches, no restocks.</p>
+    </div>
+    <div>
+      <h4>Shop</h4>
+      <a href="#shop">Hoodies</a>
+      <a href="#shop">Tees</a>
+      <a href="#shop">Accessories</a>
+      <a href="#shop">New Arrivals</a>
+    </div>
+    <div>
+      <h4>Help</h4>
+      <a href="#">Shipping</a>
+      <a href="#">Returns</a>
+      <a href="#">Size Guide</a>
+      <a href="#">Contact</a>
+    </div>
+    <div>
+      <h4>Stay Updated</h4>
+      <p>Get 10% off your first order and early access to drops.</p>
+      <form class="newsletter" onsubmit="return handleNewsletter(event)">
+        <input type="email" placeholder="you@example.com" required>
+        <button type="submit">Join</button>
+      </form>
+      <div class="cd-note" id="newsletterMsg"></div>
+    </div>
+  </div>
+  <div class="foot-bottom">&copy; <span id="year"></span> FIKN. All rights reserved. This is a fan-made replica for demonstration purposes only — no checkout or payment processing.</div>
+</footer>
+
+<div class="cart-drawer" id="cartDrawer">
+  <button class="close-cd" onclick="toggleCart()">✕</button>
+  <h3>Your Bag</h3>
+  <div id="cartItems"></div>
+  <div class="cd-note">This is a UI preview only — checkout is not implemented on this replica page.</div>
+</div>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  var products = [
+    {name:"Classic Pullover Hoodie", cat:"Hoodies", color:"#3a3a40", accent:"#C0392B", price:89, was:null, badge:"Best Seller", shape:"hoodie"},
+    {name:"Oversized Box Tee", cat:"Tees", color:"#e8e2d8", accent:"#111", price:45, was:null, badge:"New", shape:"tee"},
+    {name:"Fleece Track Pants", cat:"Bottoms", color:"#33363a", accent:"#E74C3C", price:75, was:95, badge:"Sale", shape:"pants"},
+    {name:"Signature Bucket Hat", cat:"Accessories", color:"#C0392B", accent:"#fff", price:38, was:null, badge:null, shape:"bucket"},
+    {name:"Heavyweight Crewneck", cat:"Hoodies", color:"#8b8b90", accent:"#111", price:69, was:null, badge:null, shape:"crew"},
+    {name:"Utility Cargo Shorts", cat:"Bottoms", color:"#5a5f45", accent:"#111", price:62, was:null, badge:null, shape:"shorts"},
+    {name:"Embroidered Logo Cap", cat:"Accessories", color:"#161616", accent:"#E74C3C", price:34, was:null, badge:"New", shape:"cap"},
+    {name:"Reversible Windbreaker", cat:"Outerwear", color:"#111", accent:"#FF6B5B", price:120, was:150, badge:"Sale", shape:"jacket"}
+  ];
+
+  function shapeSvg(p){
+    var c = p.color, a = p.accent;
+    if(p.shape==="hoodie"){
+      return '<svg width="120" height="150" viewBox="0 0 120 150"><path d="M30 20 Q60 0 90 20 L100 45 L85 52 L85 140 L35 140 L35 52 L20 45 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/><circle cx="60" cy="30" r="10" fill="none" stroke="'+a+'" stroke-width="3"/></svg>';
+    }
+    if(p.shape==="tee"){
+      return '<svg width="120" height="150" viewBox="0 0 120 150"><path d="M40 15 L60 25 L80 15 L100 35 L85 50 L80 45 L80 135 L40 135 L40 45 L35 50 L20 35 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/></svg>';
+    }
+    if(p.shape==="pants"){
+      return '<svg width="120" height="150" viewBox="0 0 120 150"><path d="M35 15 L85 15 L88 140 L68 140 L60 70 L52 140 L32 140 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/></svg>';
+    }
+    if(p.shape==="bucket"){
+      return '<svg width="120" height="150" viewBox="0 0 120 150"><ellipse cx="60" cy="55" rx="55" ry="14" fill="'+c+'" stroke="'+a+'" stroke-width="3"/><path d="M25 55 Q25 100 60 100 Q95 100 95 55 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/></svg>';
+    }
+    if(p.shape==="crew"){
+      return '<svg width="120" height="150" viewBox="0 0 120 150"><path d="M32 20 Q60 5 88 20 L100 45 L86 52 L86 140 L34 140 L34 52 L20 45 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/></svg>';
+    }
+    if(p.shape==="shorts"){
+      return '<svg width="120" height="150" viewBox="0 0 120 150"><path d="M35 20 L85 20 L88 95 L66 95 L60 60 L54 95 L32 95 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/></svg>';
+    }
+    if(p.shape==="cap"){
+      return '<svg width="120" height="150" viewBox="0 0 120 150"><path d="M20 90 Q60 40 100 90 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/><path d="M95 88 Q118 92 116 100 Q95 100 90 92 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/></svg>';
+    }
+    return '<svg width="120" height="150" viewBox="0 0 120 150"><path d="M28 22 Q60 2 92 22 L104 48 L88 55 L88 140 L32 140 L32 55 L16 48 Z" fill="'+c+'" stroke="'+a+'" stroke-width="3"/></svg>';
+  }
+
+  var cart = [];
+
+  function renderProducts(){
+    var grid = document.getElementById('productGrid');
+    grid.innerHTML = products.map(function(p, i){
+      var priceHtml = p.was ? '<span class="was">$'+p.was+'</span>$'+p.price : '$'+p.price;
+      var badgeHtml = p.badge ? '<span class="badge">'+p.badge+'</span>' : '';
+      return '' +
+        '<div class="card">' +
+          '<div class="thumb">' +
+            '<span class="wm">FIKN</span>' +
+            badgeHtml +
+            shapeSvg(p) +
+          '</div>' +
+          '<div class="info">' +
+            '<div class="cat">'+p.cat+'</div>' +
+            '<div class="name">'+p.name+'</div>' +
+            '<div class="price-row">' +
+              '<div class="price">'+priceHtml+'</div>' +
+              '<button class="add-btn" onclick="addToCart('+i+')">Add to Bag</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function addToCart(i){
+    cart.push(products[i]);
+    document.getElementById('cartCount').textContent = cart.length;
+    renderCart();
+  }
+
+  function renderCart(){
+    var el = document.getElementById('cartItems');
+    if(cart.length===0){
+      el.innerHTML = '<p style="color:#a3a3ab;font-size:13.5px;">Your bag is empty.</p>';
+      return;
+    }
+    el.innerHTML = cart.map(function(p){
+      return '<div class="cd-item"><span>'+p.name+'</span><span>$'+p.price+'</span></div>';
+    }).join('');
+  }
+
+  function toggleCart(){
+    document.getElementById('cartDrawer').classList.toggle('open');
+  }
+
+  function handleNewsletter(e){
+    e.preventDefault();
+    document.getElementById('newsletterMsg').textContent = "Thanks! You're on the list.";
+    e.target.reset();
+    return false;
+  }
+
+  renderProducts();
+  renderCart();
+</script>
+
+</body>
+</html>
