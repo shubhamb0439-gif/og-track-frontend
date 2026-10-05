@@ -3107,8 +3107,9 @@ body { transition: background .3s ease, color .3s ease; }
         <div class="form-group"><label>Currency</label><select id="inv-ep-currency" onchange="onInvEpCurrencyChange()"></select></div>
       </div>
       <div style="margin-top:10px">
-        <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items (1)</label>
-        <div id="inv-ep-items" style="margin-top:8px"></div>
+        <label id="inv-ep-items-count" style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items</label>
+        <input type="text" id="inv-ep-items-search" placeholder="Search items by name or code…" oninput="setInvEpItemsSearch(this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin:8px 0;box-sizing:border-box">
+        <div id="inv-ep-items"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -12769,10 +12770,16 @@ async function openInvPurchaseEditModal(id){
   document.getElementById('inv-ep-vendor').innerHTML='<option value="">Select Vendor (Optional)</option>'+
     invVendors.map(v=>`<option value="${v.id}" ${p.vendorId===v.id?'selected':''}>${esc(v.name)}</option>`).join('');
   const lines=invPurchaseLinesCache[id] || await loadInvPurchaseLines(id);
+  document.getElementById('inv-ep-items-count').textContent=`Items (${lines.length})`;
+  document.getElementById('inv-ep-items-search').value='';
+  // Numbers are fixed reference tags assigned once at render time, never
+  // renumbered by the search filter below — searching only shows/hides
+  // rows (never rebuilds them, which would wipe out any Quantity Received/
+  // Unit Cost/etc the user already typed into an untouched row).
   document.getElementById('inv-ep-items').innerHTML=lines.map((l,idx)=>`
-    <div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" data-line-id="${l.id}" data-ordered="${l.quantityOrdered}">
+    <div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px" data-line-id="${l.id}" data-ordered="${l.quantityOrdered}" data-search="${esc((invItemName(l.itemId)+' '+(invItemRecord(l.itemId)?.itemCode||'')).toLowerCase())}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <strong>${esc(invItemName(l.itemId))} (${esc(invItemRecord(l.itemId)?.itemCode||'')})</strong>
+        <strong>${idx+1}. ${esc(invItemName(l.itemId))} (${esc(invItemRecord(l.itemId)?.itemCode||'')})</strong>
       </div>
       <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label><input type="text" class="inv-ep-line-vcode" value="${esc(l.vendorItemCode||'')}" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
@@ -12791,6 +12798,15 @@ async function openInvPurchaseEditModal(id){
     </div>`).join('');
   document.querySelectorAll('#inv-ep-items > div').forEach(row=>invEpUpdateLineDerived(row.querySelector('.inv-ep-line-received')));
   document.getElementById('inv-purchase-edit-modal').classList.add('open');
+}
+// Show/hide only — never rebuilds a row's HTML, so any edit already typed
+// into Quantity Received/Unit Cost/etc on a still-visible row survives
+// searching (unlike re-rendering from cached data, which would discard it).
+function setInvEpItemsSearch(v){
+  const q=v.trim().toLowerCase();
+  document.querySelectorAll('#inv-ep-items [data-line-id]').forEach(row=>{
+    row.style.display = (!q || (row.dataset.search||'').includes(q)) ? '' : 'none';
+  });
 }
 // Changing Currency doesn't touch any line's own Ordered/Received/Cost
 // fields, just what prefix their Subtotal displays with — rerun the derived
