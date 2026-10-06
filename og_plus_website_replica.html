@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OG Plus — Outsourcing &amp; Automation Solutions</title>
+<style>
+:root{--bg:#141414;--bg2:#1E1E1E;--bg3:#2A2A2A;--border:#333;--text:#F0F0F0;--muted:#A0A0A0;--dim:#6A6A6A;--accent:#E74C3C;--accent-dark:#C0392B;--accent-light:#FF6B5B;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;}
+a{color:var(--accent-light);text-decoration:none;}
+.container{max-width:1100px;margin:0 auto;padding:0 24px;}
+header{position:sticky;top:0;z-index:50;background:rgba(20,20,20,.92);border-bottom:1px solid var(--border);}
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;max-width:1100px;margin:0 auto;}
+.logo{font-weight:800;font-size:20px;}
+.logo .plus{color:var(--accent-light);}
+.nav-links{display:flex;gap:28px;list-style:none;}
+.nav-links a{color:var(--muted);font-weight:600;font-size:14px;}
+.btn{display:inline-block;padding:14px 28px;border-radius:8px;font-weight:700;font-size:15px;cursor:pointer;border:none;font-family:inherit;}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;}
+.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text);}
+.hero{padding:100px 24px 80px;text-align:center;border-bottom:1px solid var(--border);}
+.hero h1{font-size:46px;font-weight:800;max-width:760px;margin:0 auto 20px;}
+.hero h1 span{color:var(--accent-light);}
+.hero p{max-width:600px;margin:0 auto 32px;color:var(--muted);}
+.hero-ctas{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
+.hero-stats{display:flex;justify-content:center;gap:50px;margin-top:60px;flex-wrap:wrap;}
+.hero-stats .stat{text-align:center;}
+.hero-stats .num{font-size:28px;font-weight:800;color:var(--accent-light);}
+.hero-stats .label{font-size:13px;color:var(--dim);}
+section{padding:80px 24px;border-bottom:1px solid var(--border);}
+section:nth-of-type(even){background:var(--bg2);}
+.section-head{text-align:center;max-width:620px;margin:0 auto 50px;}
+.kicker{color:var(--accent-light);font-size:12.5px;font-weight:700;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:10px;}
+.section-head h2{font-size:32px;font-weight:800;margin-bottom:12px;}
+.section-head p{color:var(--muted);}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;max-width:1100px;margin:0 auto;}
+.service-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:30px;}
+.service-card .icon{width:48px;height:48px;border-radius:10px;background:rgba(231,76,60,.15);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:16px;}
+.service-card h3{margin-bottom:10px;font-size:18px;}
+.service-card p{color:var(--muted);font-size:14.5px;margin-bottom:12px;}
+.service-card ul{list-style:none;color:var(--muted);font-size:13.5px;}
+.service-card ul li{padding:3px 0;padding-left:18px;position:relative;}
+.service-card ul li::before{content:"✓";position:absolute;left:0;color:var(--accent-light);}
+.about-wrap{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;max-width:1100px;margin:0 auto;}
+.about-copy h2{font-size:30px;font-weight:800;margin-bottom:16px;}
+.about-copy p{color:var(--muted);margin-bottom:14px;font-size:15px;}
+.timeline{list-style:none;margin-top:24px;}
+.timeline li{display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--border);}
+.timeline li:first-child{border-top:none;}
+.timeline .year{min-width:60px;font-weight:800;color:var(--accent-light);font-size:14px;}
+.timeline .desc{color:var(--muted);font-size:14px;}
+.timeline .desc strong{color:var(--text);}
+.about-panel{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:32px;}
+.about-panel .mission{font-size:18px;font-weight:700;margin-bottom:18px;}
+.about-panel .mission span{color:var(--accent-light);}
+.values{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.values h4{font-size:14px;margin-bottom:4px;}
+.values p{font-size:12.5px;color:var(--dim);}
+.contact-wrap{display:grid;grid-template-columns:1fr 1fr;gap:44px;max-width:1100px;margin:0 auto;}
+.info-row{display:flex;gap:14px;padding:16px 0;border-top:1px solid var(--border);}
+.info-row:first-child{border-top:none;}
+.info-row .ico{width:40px;height:40px;border-radius:10px;background:rgba(231,76,60,.12);border:1px solid rgba(231,76,60,.3);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.info-row h4{font-size:14.5px;margin-bottom:4px;}
+.info-row p,.info-row a{font-size:13.5px;color:var(--muted);}
+.map-box{margin-top:24px;border-radius:12px;height:180px;background:repeating-linear-gradient(45deg,#202020,#202020 10px,#1a1a1a 10px,#1a1a1a 20px);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--dim);font-size:13px;text-align:center;padding:14px;}
+.contact-form{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:32px;}
+.contact-form h3{font-size:19px;margin-bottom:6px;}
+.contact-form .sub{color:var(--muted);font-size:13.5px;margin-bottom:22px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-group{margin-bottom:14px;}
+.form-group label{display:block;font-size:12.5px;font-weight:700;margin-bottom:6px;color:var(--muted);}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:11px 13px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text);font-size:14px;font-family:inherit;outline:none;}
+.form-group textarea{resize:vertical;min-height:110px;}
+.form-success{display:none;margin-top:14px;padding:11px 14px;border-radius:8px;font-size:13px;background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.35);color:#7fe3a0;}
+.form-success.show{display:block;}
+.cta-band{text-align:center;padding:70px 24px;background:linear-gradient(135deg,rgba(231,76,60,.12),rgba(20,20,20,.4));}
+.cta-band h2{font-size:28px;margin-bottom:12px;}
+.cta-band p{color:var(--muted);margin-bottom:26px;max-width:500px;margin-left:auto;margin-right:auto;}
+footer{padding:50px 24px 24px;background:var(--bg);}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:36px;max-width:1100px;margin:0 auto 36px;}
+.footer-grid h4{font-size:13.5px;margin-bottom:14px;}
+.footer-grid ul{list-style:none;}
+.footer-grid ul li{margin-bottom:9px;}
+.footer-grid ul li a{color:var(--muted);font-size:13px;}
+.footer-bottom{max-width:1100px;margin:0 auto;padding-top:22px;border-top:1px solid var(--border);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;color:var(--dim);font-size:12px;}
+@media (max-width:860px){.nav-links{display:none;}.about-wrap,.contact-wrap{grid-template-columns:1fr;}.footer-grid{grid-template-columns:1fr 1fr;}.hero h1{font-size:34px;}.form-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header>
+<nav>
+<div class="logo">OG <span class="plus">Plus</span></div>
+<ul class="nav-links">
+<li><a href="#services">Services</a></li>
+<li><a href="#about">About</a></li>
+<li><a href="#location">Location</a></li>
+<li><a href="#contact">Contact</a></li>
+</ul>
+<button class="btn btn-primary" type="button" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Get In Touch</button>
+</nav>
+</header>
+
+<section class="hero">
+<div class="container">
+<span class="kicker">Outsourcing &amp; Automation Partner</span>
+<h1>Smarter operations, <span>powered by people and automation.</span></h1>
+<p>OG Plus helps growing companies cut costs and scale faster by combining skilled outsourced teams with intelligent process automation — so you can focus on what matters most: your customers and your product.</p>
+<div class="hero-ctas">
+<button class="btn btn-primary" type="button" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Request a Consultation</button>
+<a class="btn btn-secondary" href="#services">Explore Our Services</a>
+</div>
+<div class="hero-stats">
+<div class="stat"><div class="num">150+</div><div class="label">Clients Served</div></div>
+<div class="stat"><div class="num">12</div><div class="label">Years in Business</div></div>
+<div class="stat"><div class="num">98%</div><div class="label">Client Retention</div></div>
+<div class="stat"><div class="num">24/7</div><div class="label">Support Coverage</div></div>
+</div>
+</div>
+</section>
+
+<section id="services">
+<div class="container">
+<div class="section-head">
+<span class="kicker">What We Do</span>
+<h2>Services built to scale with you</h2>
+<p>From dedicated outsourced teams to end-to-end workflow automation, we tailor every engagement to your business goals.</p>
+</div>
+<div class="services-grid">
+<div class="service-card">
+<div class="icon">🌍</div>
+<h3>Business Process Outsourcing</h3>
+<p>Dedicated, trained teams that plug directly into your operations — without the overhead of hiring in-house.</p>
+<ul><li>Customer support &amp; back office</li><li>Data entry &amp; processing</li><li>Virtual assistants</li><li>Finance &amp; accounting support</li></ul>
+</div>
+<div class="service-card">
+<div class="icon">⚙️</div>
+<h3>Workflow Automation</h3>
+<p>We design and implement automations that eliminate repetitive manual work and reduce human error.</p>
+<ul><li>Robotic process automation (RPA)</li><li>Custom integrations &amp; APIs</li><li>Reporting &amp; dashboard automation</li><li>Document &amp; approval workflows</li></ul>
+</div>
+<div class="service-card">
+<div class="icon">📈</div>
+<h3>Process Consulting</h3>
+<p>We audit your current operations and build a roadmap to outsource or automate the right pieces, in the right order.</p>
+<ul><li>Operational audits</li><li>Cost &amp; efficiency analysis</li><li>Implementation roadmaps</li><li>Ongoing optimization</li></ul>
+</div>
+<div class="service-card">
+<div class="icon">🛠️</div>
+<h3>Managed IT Support</h3>
+<p>Reliable, always-on technical support for your tools, systems, and the teams that depend on them.</p>
+<ul><li>Helpdesk &amp; ticketing</li><li>System monitoring</li><li>Software deployment</li><li>Security &amp; compliance basics</li></ul>
+</div>
+<div class="service-card">
+<div class="icon">👥</div>
+<h3>Staff Augmentation</h3>
+<p>Scale your team up or down quickly with pre-vetted professionals across a wide range of disciplines.</p>
+<ul><li>Project-based staffing</li><li>Seasonal &amp; overflow support</li><li>Specialized skill placement</li><li>Flexible contract terms</li></ul>
+</div>
+<div class="service-card">
+<div class="icon">🔗</div>
+<h3>Systems Integration</h3>
+<p>We connect the tools you already use so data flows automatically instead of being copied by hand.</p>
+<ul><li>CRM &amp; ERP integration</li><li>Third-party API connections</li><li>Legacy system bridging</li><li>Data migration</li></ul>
+</div>
+</div>
+</div>
+</section>
+
+<section id="about">
+<div class="container">
+<div class="about-wrap">
+<div class="about-copy">
+<span class="kicker">Our Story</span>
+<h2>About OG Plus</h2>
+<p>OG Plus was founded with a simple idea: businesses shouldn't have to choose between affordability and quality when it comes to getting work done. What started as a small outsourcing shop serving a handful of local businesses has grown into a full-service outsourcing and automation partner trusted by companies across multiple industries.</p>
+<p>Today, our team blends experienced offshore talent with modern automation tooling to deliver results that are faster, cheaper, and more consistent than traditional in-house hiring alone. We believe the future of operations isn't "people vs. automation" — it's people and automation, working together.</p>
+<ul class="timeline">
+<li><span class="year">2012</span><span class="desc"><strong>Founded</strong> as a small back-office outsourcing provider for local businesses.</span></li>
+<li><span class="year">2016</span><span class="desc"><strong>Expanded services</strong> to include dedicated customer support and virtual assistant teams.</span></li>
+<li><span class="year">2019</span><span class="desc"><strong>Launched our automation practice</strong>, helping clients replace manual workflows with RPA and integrations.</span></li>
+<li><span class="year">2022</span><span class="desc"><strong>Opened our second delivery center</strong> to support growing client demand around the clock.</span></li>
+<li><span class="year">Today</span><span class="desc">Proudly serving <strong>150+ clients</strong> with combined outsourcing and automation solutions.</span></li>
+</ul>
+</div>
+<div class="about-panel">
+<div class="mission">Our mission is to help businesses do <span>more with less</span> — without sacrificing quality.</div>
+<div class="values">
+<div class="value"><h4>🤝 Partnership</h4><p>We act as an extension of your team, not just a vendor.</p></div>
+<div class="value"><h4>🎯 Precision</h4><p>Every process we touch is measured and improved.</p></div>
+<div class="value"><h4>🔒 Reliability</h4><p>Consistent delivery, every day, around the clock.</p></div>
+<div class="value"><h4>💡 Innovation</h4><p>We adopt new tools and automation before they're mainstream.</p></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section id="location">
+<div class="container">
+<div class="section-head">
+<span class="kicker">Find Us</span>
+<h2>Location &amp; Contact Details</h2>
+<p>Reach out directly or stop by one of our offices — we'd love to talk about your business.</p>
+</div>
+<div class="contact-wrap">
+<div class="contact-info">
+<div class="info-row"><div class="ico">📍</div><div><h4>Headquarters</h4><p>1420 Harborview Plaza, Suite 300<br>Tampa, FL 33602, USA</p></div></div>
+<div class="info-row"><div class="ico">🏢</div><div><h4>Delivery Center</h4><p>8 Rizal Business Park, 5th Floor<br>Cebu City, 6000, Philippines</p></div></div>
+<div class="info-row"><div class="ico">📞</div><div><h4>Phone</h4><p><a href="tel:+18135550142">+1 (813) 555-0142</a></p></div></div>
+<div class="info-row"><div class="ico">✉️</div><div><h4>Email</h4><p><a href="mailto:hello@ogplus.example">hello@ogplus.example</a></p></div></div>
+<div class="info-row"><div class="ico">🕐</div><div><h4>Business Hours</h4><p>Mon–Fri: 8:00 AM – 7:00 PM EST<br>Sat: 9:00 AM – 1:00 PM EST</p></div></div>
+</div>
+<div class="map-box">Map preview unavailable in this showcase.<br>1420 Harborview Plaza, Suite 300, Tampa, FL 33602</div>
+</div>
+</div>
+</section>
+
+<section id="contact">
+<div class="container">
+<div class="section-head">
+<span class="kicker">Get In Touch</span>
+<h2>Let's talk about your business</h2>
+<p>Tell us a bit about what you need and a member of our team will follow up within one business day.</p>
+</div>
+<div style="max-width:640px;margin:0 auto;">
+<div class="contact-form">
+<h3>Send us a message</h3>
+<div class="sub">This form is for demonstration purposes only and does not submit anywhere.</div>
+<form id="contactForm" onsubmit="return handleContactSubmit(event)">
+<div class="form-row">
+<div class="form-group"><label for="cf-name">Full Name</label><input type="text" id="cf-name" placeholder="Jane Doe" required></div>
+<div class="form-group"><label for="cf-company">Company</label><input type="text" id="cf-company" placeholder="Acme Inc."></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label for="cf-email">Email</label><input type="email" id="cf-email" placeholder="you@company.com" required></div>
+<div class="form-group"><label for="cf-phone">Phone</label><input type="tel" id="cf-phone" placeholder="(555) 555-5555"></div>
+</div>
+<div class="form-group">
+<label for="cf-interest">I'm interested in</label>
+<select id="cf-interest">
+<option>Business Process Outsourcing</option>
+<option>Workflow Automation</option>
+<option>Process Consulting</option>
+<option>Managed IT Support</option>
+<option>Staff Augmentation</option>
+<option>Systems Integration</option>
+<option>Something else</option>
+</select>
+</div>
+<div class="form-group"><label for="cf-message">Message</label><textarea id="cf-message" placeholder="Tell us about your project or challenge..." required></textarea></div>
+<button class="btn btn-primary" type="submit">Send Message</button>
+<div class="form-success" id="contact-success">✅ Thanks for reaching out! This is a showcase page, so no message was actually sent — in production this would reach our team.</div>
+</form>
+</div>
+</div>
+</div>
+</section>
+
+<div class="cta-band">
+<div class="container">
+<h2>Ready to do more with less?</h2>
+<p>Whether you need a dedicated outsourced team, smarter automation, or both — OG Plus can help you get there.</p>
+<button class="btn btn-primary" type="button" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">Request a Consultation</button>
+</div>
+</div>
+
+<footer>
+<div class="container">
+<div class="footer-grid">
+<div class="footer-brand">
+<div class="logo">OG <span class="plus">Plus</span></div>
+<p style="color:var(--dim);font-size:13.5px;margin-top:12px;max-width:280px;">Outsourcing and automation solutions that help growing companies do more with less.</p>
+</div>
+<div><h4>Services</h4><ul>
+<li><a href="#services">Outsourcing</a></li>
+<li><a href="#services">Automation</a></li>
+<li><a href="#services">Consulting</a></li>
+<li><a href="#services">IT Support</a></li>
+</ul></div>
+<div><h4>Company</h4><ul>
+<li><a href="#about">About Us</a></li>
+<li><a href="#location">Locations</a></li>
+<li><a href="#contact">Contact</a></li>
+</ul></div>
+<div><h4>Contact</h4><ul>
+<li><a href="mailto:hello@ogplus.example">hello@ogplus.example</a></li>
+<li><a href="tel:+18135550142">+1 (813) 555-0142</a></li>
+<li>Tampa, FL &amp; Cebu City, PH</li>
+</ul></div>
+</div>
+<div class="footer-bottom">
+<div>&copy; <span id="year"></span> OG Plus. All rights reserved.</div>
+<div>This is a showcase replica page for demonstration purposes only.</div>
+</div>
+</div>
+</footer>
+
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+function handleContactSubmit(e){
+  e.preventDefault();
+  var success = document.getElementById('contact-success');
+  success.classList.add('show');
+  document.getElementById('contactForm').reset();
+  return false;
+}
+</script>
+
+</body>
+</html>
