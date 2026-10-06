@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tasks Done Today — OG Track</title>
+<style>
+  :root{
+    --navy:#122142;
+    --navy-light:#1c3366;
+    --blue:#2f6fed;
+    --blue-dark:#1f4fc4;
+    --teal:#19b3a6;
+    --amber:#f0a93a;
+    --bg:#f3f6fb;
+    --card:#ffffff;
+    --border:#e1e7f0;
+    --text:#1d2735;
+    --muted:#6b7a90;
+    --green:#2bb673;
+    --font: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    padding:0;
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--text);
+  }
+  .topbar{
+    background:linear-gradient(120deg, var(--navy), var(--navy-light));
+    color:#fff;
+    padding:22px 32px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .brand .logo{
+    width:42px;
+    height:42px;
+    border-radius:10px;
+    background:linear-gradient(135deg, var(--blue), var(--teal));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:800;
+    font-size:18px;
+    color:#fff;
+  }
+  .brand h1{
+    font-size:19px;
+    margin:0;
+    font-weight:700;
+    letter-spacing:0.2px;
+  }
+  .brand p{
+    margin:0;
+    font-size:12.5px;
+    color:#c7d3ec;
+  }
+  .topbar .date-chip{
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.25);
+    padding:9px 16px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.3px;
+  }
+
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
+
+  .summary-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:16px;
+    margin-bottom:28px;
+  }
+  .stat-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:18px 20px;
+    box-shadow:0 2px 6px rgba(18,33,66,0.04);
+  }
+  .stat-card .num{
+    font-size:28px;
+    font-weight:800;
+    color:var(--navy);
+  }
+  .stat-card .label{
+    font-size:12.5px;
+    color:var(--muted);
+    margin-top:4px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+  }
+  .stat-card.done .num{color:var(--green);}
+  .stat-card.progress .num{color:var(--blue);}
+  .stat-card.future .num{color:var(--amber);}
+  .stat-card.rate .num{color:var(--teal);}
+
+  .board{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:20px;
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:20px;
+    box-shadow:0 2px 10px rgba(18,33,66,0.05);
+    display:flex;
+    flex-direction:column;
+    min-height:420px;
+  }
+  .panel-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .panel-header h2{
+    font-size:16px;
+    margin:0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .panel-header .icon-badge{
+    width:30px;
+    height:30px;
+    border-radius:9px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:15px;
+    color:#fff;
+  }
+  .done-panel .icon-badge{background:linear-gradient(135deg,#2bb673,#1f9a5e);}
+  .progress-panel .icon-badge{background:linear-gradient(135deg,#2f6fed,#1f4fc4);}
+  .future-panel .icon-badge{background:linear-gradient(135deg,#f0a93a,#d98a16);}
+
+  .panel-sub{
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+
+  .task-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    flex:1;
+    overflow-y:auto;
+  }
+  .task-item{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px 14px;
+    background:#fafcff;
+    transition:box-shadow .15s ease, transform .15s ease;
+  }
+  .task-item:hover{
+    box-shadow:0 4px 12px rgba(18,33,66,0.08);
+    transform:translateY(-1px);
+  }
+  .task-item.completed{
+    background:#f2fbf6;
+    border-color:#cdeedc;
+  }
+  .task-top{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .task-top input[type="checkbox"]{
+    margin-top:3px;
+    width:16px;
+    height:16px;
+    accent-color:var(--green);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .task-title{
+    font-size:14px;
+    font-weight:600;
+    color:var(--text);
+    line-height:1.35;
+  }
+  .task-item.completed .task-title{
+    text-decoration:line-through;
+    color:var(--muted);
+  }
+  .task-meta{
+    display:flex;
+    gap:8px;
+    margin-top:6px;
+    flex-wrap:wrap;
+    padding-left:26px;
+  }
+  .tag{
+    font-size:10.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.3px;
+    padding:3px 9px;
+    border-radius:999px;
+  }
+  .tag.time{background:#eef4ff;color:var(--blue-dark);}
+  .tag.priority-high{background:#fdecec;color:#c0392b;}
+  .tag.priority-med{background:#fff4e2;color:#b5790f;}
+  .tag.priority-low{background:#eefaf3;color:#1f9a5e;}
+  .tag.date{background:#f1edff;color:#6a4ce0;}
+
+  .progress-bar-wrap{
+    padding-left:26px;
+    margin-top:8px;
+  }
+  .progress-bar-bg{
+    width:100%;
+    height:6px;
+    border-radius:4px;
+    background:#e6ecf5;
+    overflow:hidden;
+  }
+  .progress-bar-fill{
+    height:100%;
+    border-radius:4px;
+    background:linear-gradient(90deg, var(--blue), var(--teal));
+  }
+  .progress-pct{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:4px;
+    font-weight:600;
+  }
+
+  .add-form{
+    margin-top:14px;
+    display:flex;
+    gap:8px;
+  }
+  .add-form input[type="text"]{
+    flex:1;
+    padding:9px 12px;
+    border-radius:8px;
+    border:1px solid var(--border);
+    font-size:13px;
+    font-family:inherit;
+    outline:none;
+  }
+  .add-form input[type="text"]:focus{
+    border-color:var(--blue);
+    box-shadow:0 0 0 3px rgba(47,111,237,0.15);
+  }
+  .add-form button{
+    border:none;
+    border-radius:8px;
+    padding:9px 14px;
+    background:var(--navy);
+    color:#fff;
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .add-form button:hover{background:var(--navy-light);}
+
+  .empty-state{
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    padding:30px 10px;
+  }
+
+  /* Future planning panel specifics */
+  .future-item select{
+    font-family:inherit;
+    font-size:11px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    padding:2px 8px;
+    background:#fff;
+    color:var(--navy);
+  }
+
+  footer.page-footer{
+    text-align:center;
+    color:var(--muted);
+    font-size:12px;
+    padding:30px 0 10px;
+  }
+
+  @media (max-width: 980px){
+    .summary-row{grid-template-columns:repeat(2,1fr);}
+    .board{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">OG</div>
+      <div>
+        <h1>Tasks Done Today</h1>
+        <p>A simple daily snapshot — completed, ongoing, and upcoming work</p>
+      </div>
+    </div>
+    <div class="date-chip" id="today-chip">Loading date…</div>
+  </div>
+
+  <div class="wrap">
+
+    <div class="summary-row">
+      <div class="stat-card done">
+        <div class="num" id="stat-done">0</div>
+        <div class="label">Completed Today</div>
+      </div>
+      <div class="stat-card progress">
+        <div class="num" id="stat-progress">0</div>
+        <div class="label">Ongoing</div>
+      </div>
+      <div class="stat-card future">
+        <div class="num" id="stat-future">0</div>
+        <div class="label">Planned Ahead</div>
+      </div>
+      <div class="stat-card rate">
+        <div class="num" id="stat-rate">0%</div>
+        <div class="label">Completion Rate</div>
+      </div>
+    </div>
+
+    <div class="board">
+
+      <!-- Completed Today -->
+      <div class="panel done-panel">
+        <div class="panel-header">
+          <h2><span class="icon-badge">✓</span> Done Today</h2>
+        </div>
+        <div class="panel-sub">Tasks you've wrapped up — nice work.</div>
+        <ul class="task-list" id="done-list"></ul>
+        <form class="add-form" onsubmit="return addTask(event,'done')">
+          <input type="text" placeholder="Add a completed task…" id="done-input">
+          <button type="submit">Add</button>
+        </form>
+      </div>
+
+      <!-- Ongoing -->
+      <div class="panel progress-panel">
+        <div class="panel-header">
+          <h2><span class="icon-badge">⏳</span> Ongoing</h2>
+        </div>
+        <div class="panel-sub">Currently in progress, with completion so far.</div>
+        <ul class="task-list" id="progress-list"></ul>
+        <form class="add-form" onsubmit="return addTask(event,'progress')">
+          <input type="text" placeholder="Add an ongoing task…" id="progress-input">
+          <button type="submit">Add</button>
+        </form>
+      </div>
+
+      <!-- Future Planning -->
+      <div class="panel future-panel">
+        <div class="panel-header">
+          <h2><span class="icon-badge">🗓</span> Future Tasks</h2>
+        </div>
+        <div class="panel-sub">Planned work for upcoming days.</div>
+        <ul class="task-list" id="future-list"></ul>
+        <form class="add-form" onsubmit="return addTask(event,'future')">
+          <input type="text" placeholder="Plan a future task…" id="future-input">
+          <button type="submit">Add</button>
+        </form>
+      </div>
+
+    </div>
+
+    <footer class="page-footer">This is a standalone, self-contained page. Nothing here is saved to a server — it resets on reload.</footer>
+  </div>
+
+<script>
+  // ---- Initial demo data (purely client-side, non-persistent) ----
+  var state = {
+    done: [
+      { title: 'Reviewed and approved weekly timesheets', time: '9:10 AM', priority: 'med' },
+      { title: 'Replied to client onboarding email', time: '10:45 AM', priority: 'low' },
+      { title: 'Fixed login bug reported by QA', time: '11:30 AM', priority: 'high' },
+      { title: 'Daily standup meeting', time: '9:00 AM', priority: 'low' }
+    ],
+    progress: [
+      { title: 'Building the new reporting dashboard', pct: 65, priority: 'high' },
+      { title: 'Writing documentation for API v2', pct: 30, priority: 'med' },
+      { title: 'Testing payment gateway integration', pct: 80, priority: 'high' }
+    ],
+    future: [
+      { title: 'Plan Q3 roadmap review', date: 'Tomorrow', priority: 'med' },
+      { title: 'Prepare slides for client demo', date: 'In 2 days', priority: 'high' },
+      { title: 'Audit unused dependencies', date: 'Next week', priority: 'low' }
+    ]
+  };
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  function priorityTagClass(p){
+    if(p === 'high') return 'priority-high';
+    if(p === 'med') return 'priority-med';
+    return 'priority-low';
+  }
+  function priorityLabel(p){
+    if(p === 'high') return 'High';
+    if(p === 'med') return 'Medium';
+    return 'Low';
+  }
+
+  function renderDone(){
+    var list = document.getElementById('done-list');
+    if(state.done.length === 0){
+      list.innerHTML = '<div class="empty-state">No tasks completed yet today.</div>';
+      return;
+    }
+    list.innerHTML = state.done.map(function(t, i){
+      return (
+        '<li class="task-item completed">' +
+          '<div class="task-top">' +
+            '<input type="checkbox" checked onclick="toggleDone(' + i + ')">' +
+            '<div class="task-title">' + escapeHtml(t.title) + '</div>' +
+          '</div>' +
+          '<div class="task-meta">' +
+            '<span class="tag time">' + escapeHtml(t.time) + '</span>' +
+            '<span class="tag ' + priorityTagClass(t.priority) + '">' + priorityLabel(t.priority) + '</span>' +
+          '</div>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
+  function renderProgress(){
+    var list = document.getElementById('progress-list');
+    if(state.progress.length === 0){
+      list.innerHTML = '<div class="empty-state">Nothing in progress right now.</div>';
+      return;
+    }
+    list.innerHTML = state.progress.map(function(t, i){
+      return (
+        '<li class="task-item">' +
+          '<div class="task-top">' +
+            '<input type="checkbox" onclick="completeFromProgress(' + i + ')" title="Mark as done">' +
+            '<div class="task-title">' + escapeHtml(t.title) + '</div>' +
+          '</div>' +
+          '<div class="task-meta">' +
+            '<span class="tag ' + priorityTagClass(t.priority) + '">' + priorityLabel(t.priority) + '</span>' +
+          '</div>' +
+          '<div class="progress-bar-wrap">' +
+            '<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:' + t.pct + '%;"></div></div>' +
+            '<div class="progress-pct">' + t.pct + '% complete</div>' +
+          '</div>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
+  function renderFuture(){
+    var list = document.getElementById('future-list');
+    if(state.future.length === 0){
+      list.innerHTML = '<div class="empty-state">No future tasks planned yet.</div>';
+      return;
+    }
+    list.innerHTML = state.future.map(function(t, i){
+      return (
+        '<li class="task-item future-item">' +
+          '<div class="task-top">' +
+            '<input type="checkbox" disabled title="Not started yet">' +
+            '<div class="task-title">' + escapeHtml(t.title) + '</div>' +
+          '</div>' +
+          '<div class="task-meta">' +
+            '<span class="tag date">' + escapeHtml(t.date) + '</span>' +
+            '<select onchange="updatePriority(' + i + ', this.value)">' +
+              '<option value="low" ' + (t.priority==='low'?'selected':'') + '>Low</option>' +
+              '<option value="med" ' + (t.priority==='med'?'selected':'') + '>Medium</option>' +
+              '<option value="high" ' + (t.priority==='high'?'selected':'') + '>High</option>' +
+            '</select>' +
+          '</div>' +
+        '</li>'
+      );
+    }).join('');
+  }
+
+  function renderStats(){
+    document.getElementById('stat-done').textContent = state.done.length;
+    document.getElementById('stat-progress').textContent = state.progress.length;
+    document.getElementById('stat-future').textContent = state.future.length;
+    var total = state.done.length + state.progress.length;
+    var rate = total === 0 ? 0 : Math.round((state.done.length / total) * 100);
+    document.getElementById('stat-rate').textContent = rate + '%';
+  }
+
+  function renderAll(){
+    renderDone();
+    renderProgress();
+    renderFuture();
+    renderStats();
+  }
+
+  function toggleDone(i){
+    // Unchecking a completed task moves it back to ongoing
+    var t = state.done.splice(i, 1)[0];
+    state.progress.push({ title: t.title, pct: 90, priority: t.priority });
+    renderAll();
+  }
+
+  function completeFromProgress(i){
+    var t = state.progress.splice(i, 1)[0];
+    var now = new Date();
+    var hours = now.getHours();
+    var mins = now.getMinutes();
+    var ampm = hours >= 12 ? 'PM' : 'AM';
+    var h12 = hours % 12 || 12;
+    var timeStr = h12 + ':' + (mins < 10 ? '0' : '') + mins + ' ' + ampm;
+    state.done.push({ title: t.title, time: timeStr, priority: t.priority });
+    renderAll();
+  }
+
+  function updatePriority(i, val){
+    state.future[i].priority = val;
+  }
+
+  function addTask(e, bucket){
+    e.preventDefault();
+    var inputId = bucket + '-input';
+    var input = document.getElementById(inputId);
+    var val = input.value.trim();
+    if(!val) return false;
+
+    if(bucket === 'done'){
+      var now = new Date();
+      var hours = now.getHours();
+      var mins = now.getMinutes();
+      var ampm = hours >= 12 ? 'PM' : 'AM';
+      var h12 = hours % 12 || 12;
+      var timeStr = h12 + ':' + (mins < 10 ? '0' : '') + mins + ' ' + ampm;
+      state.done.push({ title: val, time: timeStr, priority: 'med' });
+    } else if(bucket === 'progress'){
+      state.progress.push({ title: val, pct: 0, priority: 'med' });
+    } else if(bucket === 'future'){
+      state.future.push({ title: val, date: 'Unscheduled', priority: 'med' });
+    }
+
+    input.value = '';
+    renderAll();
+    return false;
+  }
+
+  function setTodayChip(){
+    var el = document.getElementById('today-chip');
+    var today = new Date();
+    var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    el.textContent = today.toLocaleDateString(undefined, options);
+  }
+
+  setTodayChip();
+  renderAll();
+</script>
+
+</body>
+</html>
