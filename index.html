@@ -14048,7 +14048,12 @@ async function zohoBooksApiCall(path){
   }catch(e){ return {errorKind:'other',message:e.message}; }
 }
 async function ensureZohoBooksTabData(tab,force){
-  if(!force && zohoBooksState[tab] && zohoBooksState[tab].loaded) return;
+  // Guards on BOTH already-loaded (success or error — see below, an error
+  // result is still marked loaded:true) and already-in-flight, so this is
+  // safe to call from multiple entry points without ever double-firing a
+  // request for the same tab. Only `force` (an explicit filter change)
+  // bypasses it and fetches again.
+  if(!force && zohoBooksState[tab] && (zohoBooksState[tab].loaded || zohoBooksState[tab].loading)) return;
   zohoBooksState[tab]={loading:true};
   if(currentView==='zoho_books') renderZohoBooksTabContent();
   const res=await zohoBooksApiCall(zohoBooksEndpointFor(tab));
@@ -14183,8 +14188,17 @@ function renderZohoBooksTabContent(){
       <option value="vendor" ${zohoBooksFilters.contactType==='vendor'?'selected':''}>Vendors</option>
     </select>`;
   }
+  // Pure render only — must NEVER trigger a fetch here. This function is
+  // also called FROM ensureZohoBooksTabData() itself (to reflect loading/
+  // loaded/error state) while state is still `{loading:true}`, i.e. before
+  // `.loaded` is set — calling ensureZohoBooksTabData() again from in here
+  // used to see that not-yet-loaded state and immediately re-fetch, which
+  // re-rendered, which re-fetched, recursing synchronously until the call
+  // stack overflowed — each unwind fired a real request, which is exactly
+  // what flooded Zoho's token endpoint on 2026-10-08. Fetching is only ever
+  // triggered from the controlled call sites below (initial tab open, an
+  // explicit filter change, or a tab switch) — never from a render path.
   el.innerHTML=filterHtml+zohoBooksTabTableHtml(zohoBooksTab);
-  ensureZohoBooksTabData(zohoBooksTab);
 }
 function switchZohoBooksTab(tab){
   zohoBooksTab=tab;
@@ -14201,6 +14215,13 @@ function renderZohoBooks(){
     </div>
     <div id="zoho-books-tab-content"><div class="loading">Loading…</div></div>`;
   renderZohoBooksTabContent();
+  // The one and only place a tab's data load is kicked off on open/switch —
+  // ensureZohoBooksTabData's own `.loaded` guard makes this a no-op for a
+  // tab that's already loaded (success OR error — see its guard), so
+  // switching tabs back and forth never re-fetches, and no automatic retry
+  // ever happens after a failure. The only way to fetch again is a forced
+  // call from an explicit user action (a filter dropdown's onchange below).
+  if(zohoBooksTab!=='reports') ensureZohoBooksTabData(zohoBooksTab);
 }
 
 let salesSearchTerm='';
