@@ -4208,11 +4208,11 @@ function buildSidebar(){
   if(BUILTIN_ROLES.includes(role)){
     const items={
       masteradmin:      [['companies','Companies','#C0392B'],['company_modules','Modules','#8E44AD'],['admin','User Management','#D0D0D0'],['messages','Messages','#E74C3C']],
-      superadmin:       [['ceo_dashboard','Dashboard','#C0392B'],['admin_bugs','All Bugs','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},SITARA_GROUP_DEF,['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      superadmin:       [['ceo_dashboard','Dashboard','#C0392B'],['admin_bugs','All Bugs','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},SITARA_GROUP_DEF,['zoho_books','Zoho Books','#1ABC9C'],['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},SITARA_GROUP_DEF,['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       tester:           [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['bugs','All Bugs','#7F7F7F'],['mybugs','My Bugs','#D0D0D0'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       developer:        [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['mybugs','My Bugs','#7F7F7F'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
-      accounts_manager: [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','Clients','#8E44AD'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Reports','#F39C12'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
+      accounts_manager: [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','Clients','#8E44AD'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Reports','#F39C12'],['zoho_books','Zoho Books','#1ABC9C'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
       senior_accountant:[['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','Clients','#8E44AD'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Reports','#F39C12'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
       accountant:       [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','My Clients','#16A085'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Report','#F39C12'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
       intern:           [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','My Clients','#16A085'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Report','#F39C12'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
@@ -4397,6 +4397,7 @@ function buildSidebar(){
     sitara_business_orders:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><rect x="1.5" y="5" width="15" height="8" rx="1.5"/><line x1="6" y1="5" x2="6" y2="13"/><line x1="12" y1="5" x2="12" y2="13"/></svg>`,
     sitara_business_razorpay:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><path d="M6 2h7l-4 6h4l-8 8 2-7H5l1-7z"/></svg>`,
     sitara_business_expenses:`<svg width="16" height="16" viewBox="0 0 18 18" ${_si}><path d="M4 2h10v14l-2.5-1.5L9 16l-2.5-1.5L4 16V2z"/><line x1="6.5" y1="6" x2="11.5" y2="6"/><line x1="6.5" y1="9" x2="11.5" y2="9"/></svg>`,
+    zoho_books:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="2" y="2" width="14" height="14" rx="1.5"/><line x1="2" y1="6.5" x2="16" y2="6.5"/><line x1="5.5" y1="10" x2="8.5" y2="10"/><line x1="5.5" y1="13" x2="10.5" y2="13"/></svg>`,
   };
   document.getElementById('sidebar-nav').innerHTML=navItems.map(item=>renderNavNode(item,_si,_navIcons,0)).join('');
 }
@@ -4560,6 +4561,15 @@ function connectSocket(){
     sitaraExpenses=sitaraExpenses.filter(x=>x.id!==id);
     if(currentView==='sitara_business_expenses')renderView();
     if(currentView==='sitara_dashboard'){sitaraDashboardData=null;renderView();}
+  });
+  // Fires once a sale's async Zoho push finishes (success or failure) —
+  // zohoSyncStatus/zohoInvoiceId/zohoSyncError are null at sale-creation time
+  // since the push happens after the create request returns, so this is the
+  // only way the UI learns the outcome.
+  socket.on('sales:zoho_sync_updated',sale=>{
+    if(!salesLoaded) return;
+    salesList=salesList.map(s=>s.id===sale.id?{...s,...sale}:s);
+    if(currentView==='sales') salesRerenderTableOnly();
   });
   // Purchased serial-tracked units (Traceability page) — units are only ever
   // auto-created at receiving time, never through this app, so the only
@@ -4774,6 +4784,7 @@ function renderView(){
   if(currentView==='sitara_business_orders')   return renderSitaraOrders();
   if(currentView==='sitara_business_razorpay') return renderSitaraRazorpay();
   if(currentView==='sitara_business_expenses') return renderSitaraExpenses();
+  if(currentView==='zoho_books') return renderZohoBooks();
   renderBugTable();
 }
 
@@ -13990,7 +14001,222 @@ function salesCustomerName(id){
   return c?c.name:'—';
 }
 
+// ── Zoho Books (tenant read-only views) ──────────────────────────────────────
+// Every field under these six endpoints is Zoho's own raw API shape
+// (snake_case: invoice_id, invoice_number, customer_name, total, status,
+// date, …) — pass-through reads, not mapped through this app's usual
+// camelCase row convention. Don't assume camelCase anywhere in this section.
+const ZOHO_BOOKS_TABS=[
+  ['invoices','Invoices'],['bills','Bills'],['expenses','Expenses'],
+  ['contacts','Contacts'],['bank_accounts','Bank Accounts'],['reports','Reports'],
+];
+let zohoBooksTab='invoices';
+let zohoBooksState={}; // tab -> {loading} | {loaded:true, errorKind, message} | {loaded:true, rows}
+let zohoBooksFilters={invoiceStatus:'',billStatus:'',contactType:''};
+let zohoReportType='pl'; // 'pl' | 'bs'
+let zohoReportFrom='', zohoReportTo='', zohoReportBsTo='';
+let zohoReportState=null; // {loading} | {errorKind,message} | {data}
+
+function zohoBooksEndpointFor(tab){
+  if(tab==='invoices') return '/api/zoho/invoices'+(zohoBooksFilters.invoiceStatus?('?status='+encodeURIComponent(zohoBooksFilters.invoiceStatus)):'');
+  if(tab==='bills') return '/api/zoho/bills'+(zohoBooksFilters.billStatus?('?status='+encodeURIComponent(zohoBooksFilters.billStatus)):'');
+  if(tab==='expenses') return '/api/zoho/expenses';
+  if(tab==='contacts') return '/api/zoho/contacts'+(zohoBooksFilters.contactType?('?type='+encodeURIComponent(zohoBooksFilters.contactType)):'');
+  if(tab==='bank_accounts') return '/api/zoho/bank-accounts';
+  return null;
+}
+// Zoho's list endpoints wrap the array under an endpoint-specific key
+// (invoices/bills/expenses/contacts/bankaccounts) that isn't documented here
+// precisely — this looks for any array-valued property rather than assuming
+// one exact key name, so it keeps working if that wrapper key differs.
+function zohoExtractList(d){
+  if(Array.isArray(d)) return d;
+  if(!d||typeof d!=='object') return [];
+  for(const k of ['invoices','bills','expenses','contacts','bankaccounts','bank_accounts']) if(Array.isArray(d[k])) return d[k];
+  for(const k in d) if(Array.isArray(d[k])) return d[k];
+  return [];
+}
+async function zohoBooksApiCall(path){
+  try{
+    const r=await fetch(path);
+    let d={}; try{ d=await r.json(); }catch(e){}
+    if(r.status===403) return {errorKind:'not_enabled',message:d.error||'Zoho Books is not enabled for this company.'};
+    if(r.status===409) return {errorKind:'not_connected',message:d.error||'This company has no Zoho Books connection linked yet — ask master admin to connect it.'};
+    if(r.status===502) return {errorKind:'reports_unavailable',message:d.error||'Reports are not available for this company.'};
+    if(!r.ok) return {errorKind:'other',message:d.error||('Request failed ('+r.status+')')};
+    return {data:d};
+  }catch(e){ return {errorKind:'other',message:e.message}; }
+}
+async function ensureZohoBooksTabData(tab,force){
+  if(!force && zohoBooksState[tab] && zohoBooksState[tab].loaded) return;
+  zohoBooksState[tab]={loading:true};
+  if(currentView==='zoho_books') renderZohoBooksTabContent();
+  const res=await zohoBooksApiCall(zohoBooksEndpointFor(tab));
+  zohoBooksState[tab]=res.errorKind
+    ? {loaded:true,errorKind:res.errorKind,message:res.message}
+    : {loaded:true,rows:zohoExtractList(res.data)};
+  if(currentView==='zoho_books') renderZohoBooksTabContent();
+}
+function zohoBooksErrorBannerHtml(st){
+  const tone = st.errorKind==='not_connected' ? '#F39C12' : st.errorKind==='reports_unavailable' ? '#2980B9' : 'var(--red)';
+  return `<div style="padding:14px 16px;border-radius:8px;background:${tone}15;border:1px solid ${tone}40;color:${tone};font-size:13px">${esc(st.message)}</div>`;
+}
+function zohoFmtMoney(v){ return v==null?'—':Number(v).toLocaleString('en-IN',{maximumFractionDigits:2}); }
+function zohoFmtDate(v){ return v?new Date(v).toLocaleDateString('en-GB'):'—'; }
+function zohoChip(text){ return `<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;background:var(--g5);color:var(--g2,#555);text-transform:capitalize">${esc(text||'—')}</span>`; }
+
+function zohoBooksTabTableHtml(tab){
+  const st=zohoBooksState[tab];
+  if(!st||st.loading) return '<div class="loading">Loading…</div>';
+  if(st.errorKind) return zohoBooksErrorBannerHtml(st);
+  const rows=st.rows||[];
+  if(!rows.length) return '<div class="empty-state">Nothing to show yet.</div>';
+  if(tab==='invoices'){
+    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Invoice #</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${zohoFmtDate(r.date)}</td><td>${esc(r.invoice_number||r.invoice_id||'—')}</td>
+        <td>${esc(r.customer_name||'—')}</td><td>₹${zohoFmtMoney(r.total)}</td>
+        <td>${zohoChip(r.status)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+  if(tab==='bills'){
+    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Bill #</th><th>Vendor</th><th>Total</th><th>Status</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${zohoFmtDate(r.date)}</td><td>${esc(r.bill_number||r.bill_id||'—')}</td>
+        <td>${esc(r.vendor_name||'—')}</td><td>₹${zohoFmtMoney(r.total)}</td>
+        <td>${zohoChip(r.status)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+  if(tab==='expenses'){
+    return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Account</th><th>Vendor</th><th>Reference</th><th>Amount</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${zohoFmtDate(r.date)}</td><td>${esc(r.account_name||'—')}</td>
+        <td>${esc(r.vendor_name||'—')}</td><td>${esc(r.reference_number||'—')}</td>
+        <td>₹${zohoFmtMoney(r.total||r.amount)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+  if(tab==='contacts'){
+    return `<div class="table-wrap"><table><thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Type</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td><strong>${esc(r.contact_name||'—')}</strong></td><td>${esc(r.company_name||'—')}</td>
+        <td>${esc(r.email||'—')}</td><td>${esc(r.phone||r.mobile||'—')}</td>
+        <td>${zohoChip(r.contact_type)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+  if(tab==='bank_accounts'){
+    return `<div class="table-wrap"><table><thead><tr><th>Account</th><th>Bank</th><th>Type</th><th>Balance</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td><strong>${esc(r.account_name||'—')}</strong></td><td>${esc(r.bank_name||'—')}</td>
+        <td>${esc(r.account_type||'—')}</td><td>₹${zohoFmtMoney(r.balance!=null?r.balance:r.current_balance)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+  return '';
+}
+
+async function runZohoReport(){
+  if(zohoReportType==='pl' && (!zohoReportFrom||!zohoReportTo)){ showToast('Pick a From and To date','error'); return; }
+  if(zohoReportType==='bs' && !zohoReportBsTo){ showToast('Pick an As-of date','error'); return; }
+  zohoReportState={loading:true};
+  renderZohoBooksTabContent();
+  const path = zohoReportType==='pl'
+    ? `/api/zoho/reports/profit-and-loss?from=${zohoReportFrom}&to=${zohoReportTo}`
+    : `/api/zoho/reports/balance-sheet?to=${zohoReportBsTo}`;
+  const res=await zohoBooksApiCall(path);
+  zohoReportState=res.errorKind ? {errorKind:res.errorKind,message:res.message} : {data:res.data};
+  if(currentView==='zoho_books') renderZohoBooksTabContent();
+}
+// Zoho's report JSON isn't a flat list — it's commonly an array of named
+// sections, each with its own total (and sometimes nested line items). This
+// renders that shape if present, and otherwise falls back to a readable raw
+// dump rather than guessing at a schema Zoho hasn't confirmed to us.
+function zohoReportResultHtml(){
+  if(!zohoReportState) return '';
+  if(zohoReportState.loading) return '<div class="loading">Running report…</div>';
+  if(zohoReportState.errorKind) return zohoBooksErrorBannerHtml(zohoReportState);
+  const d=zohoReportState.data;
+  const sections = Array.isArray(d) ? d : (Array.isArray(d?.profit_and_loss) ? d.profit_and_loss : Array.isArray(d?.balance_sheet) ? d.balance_sheet : null);
+  if(sections){
+    return `<div class="table-wrap"><table><thead><tr><th>Section</th><th>Total</th></tr></thead>
+      <tbody>${sections.map(s=>`<tr><td>${esc(s.name||s.account_name||'—')}</td><td>₹${zohoFmtMoney(s.total)}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  return `<pre style="background:var(--g5);padding:12px;border-radius:8px;font-size:12px;overflow:auto;max-height:420px">${esc(JSON.stringify(d,null,2))}</pre>`;
+}
+function zohoReportsTabHtml(){
+  return `
+    <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+      <div><label style="display:block;font-size:12px;color:var(--g3);margin-bottom:4px">Report</label>
+        <select onchange="zohoReportType=this.value;zohoReportState=null;renderZohoBooksTabContent()" style="padding:7px;border:1px solid var(--border);border-radius:6px">
+          <option value="pl" ${zohoReportType==='pl'?'selected':''}>Profit & Loss</option>
+          <option value="bs" ${zohoReportType==='bs'?'selected':''}>Balance Sheet</option>
+        </select>
+      </div>
+      ${zohoReportType==='pl' ? `
+        <div><label style="display:block;font-size:12px;color:var(--g3);margin-bottom:4px">From</label><input type="date" value="${zohoReportFrom}" onchange="zohoReportFrom=this.value" style="padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+        <div><label style="display:block;font-size:12px;color:var(--g3);margin-bottom:4px">To</label><input type="date" value="${zohoReportTo}" onchange="zohoReportTo=this.value" style="padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      ` : `
+        <div><label style="display:block;font-size:12px;color:var(--g3);margin-bottom:4px">As of</label><input type="date" value="${zohoReportBsTo}" onchange="zohoReportBsTo=this.value" style="padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      `}
+      <button class="btn btn-primary" onclick="runZohoReport()">Run Report</button>
+    </div>
+    <div id="zoho-report-result">${zohoReportResultHtml()}</div>`;
+}
+
+function renderZohoBooksTabContent(){
+  const el=document.getElementById('zoho-books-tab-content');
+  if(!el) return;
+  if(zohoBooksTab==='reports'){ el.innerHTML=zohoReportsTabHtml(); return; }
+  let filterHtml='';
+  if(zohoBooksTab==='invoices'){
+    filterHtml=`<select onchange="zohoBooksFilters.invoiceStatus=this.value;ensureZohoBooksTabData('invoices',true)" style="padding:7px;border:1px solid var(--border);border-radius:6px;margin-bottom:12px">
+      <option value="">All statuses</option>
+      ${['draft','sent','overdue','paid','void'].map(s=>`<option value="${s}" ${zohoBooksFilters.invoiceStatus===s?'selected':''}>${s}</option>`).join('')}
+    </select>`;
+  } else if(zohoBooksTab==='bills'){
+    filterHtml=`<select onchange="zohoBooksFilters.billStatus=this.value;ensureZohoBooksTabData('bills',true)" style="padding:7px;border:1px solid var(--border);border-radius:6px;margin-bottom:12px">
+      <option value="">All statuses</option>
+      ${['draft','open','overdue','paid','void'].map(s=>`<option value="${s}" ${zohoBooksFilters.billStatus===s?'selected':''}>${s}</option>`).join('')}
+    </select>`;
+  } else if(zohoBooksTab==='contacts'){
+    filterHtml=`<select onchange="zohoBooksFilters.contactType=this.value;ensureZohoBooksTabData('contacts',true)" style="padding:7px;border:1px solid var(--border);border-radius:6px;margin-bottom:12px">
+      <option value="">Customers & Vendors</option>
+      <option value="customer" ${zohoBooksFilters.contactType==='customer'?'selected':''}>Customers</option>
+      <option value="vendor" ${zohoBooksFilters.contactType==='vendor'?'selected':''}>Vendors</option>
+    </select>`;
+  }
+  el.innerHTML=filterHtml+zohoBooksTabTableHtml(zohoBooksTab);
+  ensureZohoBooksTabData(zohoBooksTab);
+}
+function switchZohoBooksTab(tab){
+  zohoBooksTab=tab;
+  renderZohoBooks();
+}
+function renderZohoBooks(){
+  const ca=document.getElementById('content-area');
+  ca.innerHTML=`
+    <h1 style="font-size:22px;font-weight:700;margin-bottom:2px">Zoho Books</h1>
+    <div style="font-size:13px;color:var(--g3);margin-bottom:16px">Financial data synced from Zoho Books</div>
+    <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border)">
+      ${ZOHO_BOOKS_TABS.map(([key,label])=>`<button onclick="switchZohoBooksTab('${key}')"
+        style="padding:9px 14px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid ${zohoBooksTab===key?'var(--red2)':'transparent'};color:${zohoBooksTab===key?'var(--red2)':'var(--g3)'}">${label}</button>`).join('')}
+    </div>
+    <div id="zoho-books-tab-content"><div class="loading">Loading…</div></div>`;
+  renderZohoBooksTabContent();
+}
+
 let salesSearchTerm='';
+
+// zohoSyncStatus is null until the async post-create push resolves (see
+// `sales:zoho_sync_updated` socket handler) — null is the normal, non-error
+// state for a company with no Zoho connection too, so it renders nothing.
+function zohoSyncBadgeHtml(s){
+  if(s.zohoSyncStatus==='synced'){
+    return `<div style="font-size:11px;color:#16A085;margin-top:2px" title="${s.zohoInvoiceId?'Zoho invoice '+esc(s.zohoInvoiceId):''}">✓ Synced to Zoho</div>`;
+  }
+  if(s.zohoSyncStatus==='failed'){
+    return `<div style="font-size:11px;color:var(--red);margin-top:2px;cursor:help" title="${esc(s.zohoSyncError||'Zoho sync failed')}">⚠ Zoho sync failed</div>`;
+  }
+  return '';
+}
 
 function salesTableHtml(){
   const q=(salesSearchTerm||'').trim().toLowerCase();
@@ -14006,7 +14232,7 @@ function salesTableHtml(){
     : list.map(s=>{
         const cust=crmCustomerRecord?crmCustomerRecord(s.customerId):null;
         return `<tr>
-          <td><strong>${esc(s.saleNumber)}</strong></td>
+          <td><strong>${esc(s.saleNumber)}</strong>${zohoSyncBadgeHtml(s)}</td>
           <td><strong>${esc(cust?.name||salesCustomerName(s.customerId))}</strong>${cust?.company?`<div style="font-size:11px;color:var(--g3)">${esc(cust.company)}</div>`:''}</td>
           <td>${esc(s.productSummary||'—')}${s.firstSerial?`<div style="font-size:11px;color:var(--g3)">SN: ${esc(s.firstSerial)}</div>`:''}</td>
           <td>${s.saleDate?new Date(s.saleDate).toLocaleDateString('en-GB'):'—'}</td>
@@ -14180,6 +14406,7 @@ async function openSaleDetailModal(id){
     document.getElementById('sale-detail-body').innerHTML=`
       <div style="margin-bottom:10px"><strong>${esc(full.saleNumber)}</strong> — ${esc(salesCustomerName(full.customerId))}</div>
       <div style="margin-bottom:10px;font-size:13px;color:var(--g3)">${full.saleDate?new Date(full.saleDate).toLocaleDateString():'—'}</div>
+      ${zohoSyncBadgeHtml(full)}
       <table style="width:100%;font-size:13px;margin-bottom:12px">
         <thead><tr><th style="text-align:left">Product</th><th style="text-align:left">Serial</th><th>Price</th></tr></thead>
         <tbody>${(full.items||[]).map(i=>`<tr>

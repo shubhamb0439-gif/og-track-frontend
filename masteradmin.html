@@ -1134,6 +1134,65 @@
         </table>
       </div>
     </div>
+    <!-- Zoho Books connections -->
+    <div class="section" id="zoho-section">
+      <div class="section-header">
+        <h2>Zoho Books <span style="font-weight:400;color:var(--g3);font-size:13px">— connection management</span></h2>
+        <button class="btn-add" onclick="loadZohoConnections()">↻ Refresh</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Zoho Org</th><th>Org ID</th><th>Connected By</th><th>Connected At</th><th>Linked Companies</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="zoho-connections-tbody">
+            <tr><td colspan="6" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="section-header" style="margin-top:20px">
+        <h2 style="font-size:15px">Companies awaiting connection</h2>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Company</th><th>Slug</th><th>Action</th></tr></thead>
+          <tbody id="zoho-unconnected-tbody">
+            <tr><td colspan="3" class="empty-state">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Zoho Link-Company Modal -->
+<div class="modal-overlay" id="zoho-link-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h3>Link Company to Zoho Connection</h3>
+      <button class="modal-close" onclick="closeModal('zoho-link-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Company</label>
+        <select id="zl-company"></select>
+      </div>
+      <div class="field">
+        <label>Zoho Location/Branch <span style="font-weight:400;color:var(--g3)">(optional — only if this Zoho org uses Locations)</span></label>
+        <select id="zl-branch"><option value="">— None / not using Locations —</option></select>
+      </div>
+      <div class="field">
+        <label>Or isolate by specific Zoho customer contact IDs <span style="font-weight:400;color:var(--g3)">(comma-separated, advanced — used for orgs shared across companies, e.g. Sitara)</span></label>
+        <textarea id="zl-contact-ids" rows="2" placeholder="1234567890000123456, 1234567890000123457"></textarea>
+        <div style="font-size:12px;color:var(--g3);margin-top:4px">Note: there's no dedicated endpoint to set a contact-id filter yet — this field is a placeholder for a manual backend step until one exists. Branch is the only filter this form can actually submit today.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('zoho-link-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveZohoLink()">Link Company</button>
+    </div>
   </div>
 </div>
 
@@ -1262,6 +1321,7 @@ const ALL_MODULES = [
   { key:'manufacturing',label:'Manufacturing (needs Inventory)' },
   { key:'sales',        label:'Sales & Deliveries (needs CRM + Inventory + Manufacturing)' },
   { key:'ops_dashboard',label:'Ops Dashboard (Sales/Inventory/Manufacturing overview)' },
+  { key:'zoho_books',   label:'Zoho Books (financial data integration)' },
   { key:'admin',        label:'User Mgmt' },
   { key:'roles',        label:'Roles' },
 ];
@@ -1344,6 +1404,7 @@ function showMain() {
   loadCompanies();
   loadPendingUsers();
   loadDashboardSummary();
+  loadZohoConnections();
   if (MA_WANTS_AIDA) openAidaOverlay({skipPush:true});
 }
 
@@ -1379,6 +1440,7 @@ function renderCompanies() {
   if (!companies.length) {
     tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No companies yet. Click "+ New Company" to create one.</td></tr>';
     renderDashboardSummary(); // still re-run — an empty company list is itself a real (if uneventful) input to the fallbacks
+    renderZohoUnconnected();
     return;
   }
   tbody.innerHTML = companies.map(c => {
@@ -1408,6 +1470,7 @@ function renderCompanies() {
     </tr>`;
   }).join('');
   renderDashboardSummary();
+  renderZohoUnconnected();
 }
 
 // ── Pending Signups (all companies) ─────────────────────────────────────────
@@ -1447,6 +1510,123 @@ function renderPendingUsers(pending) {
   // still-default '—', never overwrites a real value).
   const tile=document.getElementById('stat-pending-approvals');
   if(tile&&tile.textContent==='—') tile.textContent=pending.length;
+}
+
+// ── Zoho Books connections ──────────────────────────────────────────────────
+let zohoConnections = [];
+let zohoLinks = [];
+
+async function loadZohoConnections() {
+  try {
+    const r = await authFetch('/api/masteradmin/zoho/connections');
+    if (!r.ok) { const d = await r.json(); throw new Error(d.error); }
+    const data = await r.json();
+    zohoConnections = data.connections || [];
+    zohoLinks = data.links || [];
+    renderZohoConnections();
+    renderZohoUnconnected();
+  } catch(e) {
+    document.getElementById('zoho-connections-tbody').innerHTML =
+      `<tr><td colspan="6" class="empty-state" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+  }
+}
+
+function renderZohoConnections() {
+  const tbody = document.getElementById('zoho-connections-tbody');
+  if (!zohoConnections.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No Zoho connections yet.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = zohoConnections.map(c => {
+    const linked = zohoLinks.filter(l => l.connectionId === c.id);
+    const linkedHtml = linked.length
+      ? linked.map(l => `<span class="mod-chip">${esc(l.companyName)}${l.branchId ? ' ('+esc(l.branchId)+')' : ''}</span>`).join(' ')
+      : '<span style="color:var(--g3)">—</span>';
+    return `<tr>
+      <td><strong>${esc(c.display_name)}</strong></td>
+      <td><code style="font-size:11px;color:var(--g3)">${esc(c.zoho_organization_id)}</code></td>
+      <td>${esc(c.connected_by||'')}</td>
+      <td>${c.connected_at ? new Date(c.connected_at).toLocaleString() : ''}</td>
+      <td>${linkedHtml}</td>
+      <td><button class="btn-sm btn-edit" onclick="openZohoLinkModal('${c.id}')">Link another company</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderZohoUnconnected() {
+  const tbody = document.getElementById('zoho-unconnected-tbody');
+  const linkedCompanyIds = new Set(zohoLinks.map(l => l.companyId));
+  const candidates = companies.filter(c => (c.enabled_modules||[]).includes('zoho_books') && !linkedCompanyIds.has(c.id));
+  if (!candidates.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Every company with Zoho Books enabled is already connected.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = candidates.map(c => `<tr>
+    <td><strong>${esc(c.name)}</strong></td>
+    <td><code style="font-size:11px;color:var(--g3)">${esc(c.slug)}</code></td>
+    <td><button class="btn-sm btn-edit" onclick="connectZohoCompany('${c.id}')">Connect</button></td>
+  </tr>`).join('');
+}
+
+async function connectZohoCompany(companyId) {
+  try {
+    const r = await authFetch(`/api/masteradmin/zoho/connect?companyId=${encodeURIComponent(companyId)}`);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not start Zoho connection');
+    // Zoho's real OAuth consent screen — must be a direct browser navigation,
+    // not fetched/XHR'd. It redirects back to the backend's own callback
+    // route when done, not back to this page — the admin just closes that
+    // tab and refreshes the connections list here afterward.
+    window.open(d.authUrl, '_blank');
+    showToast('Opened Zoho sign-in in a new tab — approve it, then come back and refresh this list.', 'info');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function openZohoLinkModal(connectionId) {
+  document.getElementById('zoho-link-modal').dataset.connectionId = connectionId;
+  const linkedCompanyIds = new Set(zohoLinks.map(l => l.companyId));
+  const candidates = companies.filter(c => (c.enabled_modules||[]).includes('zoho_books') && !linkedCompanyIds.has(c.id));
+  const sel = document.getElementById('zl-company');
+  sel.innerHTML = candidates.length
+    ? candidates.map(c => `<option value="${c.id}">${esc(c.name)} (${esc(c.slug)})</option>`).join('')
+    : '<option value="">No eligible companies — enable Zoho Books for a company first</option>';
+  document.getElementById('zl-contact-ids').value = '';
+  const branchSel = document.getElementById('zl-branch');
+  branchSel.innerHTML = '<option value="">Loading branches…</option>';
+  loadZohoBranches(connectionId);
+  document.getElementById('zoho-link-modal').classList.add('open');
+}
+
+async function loadZohoBranches(connectionId) {
+  const branchSel = document.getElementById('zl-branch');
+  try {
+    const r = await authFetch(`/api/masteradmin/zoho/connections/${connectionId}/branches`);
+    if (!r.ok) { branchSel.innerHTML = '<option value="">— None / not using Locations —</option>'; return; }
+    const d = await r.json();
+    const branches = d.branches || [];
+    branchSel.innerHTML = '<option value="">— None / not using Locations —</option>' +
+      branches.map(b => `<option value="${esc(b.branch_id)}">${esc(b.branch_name)}</option>`).join('');
+  } catch(e) {
+    branchSel.innerHTML = '<option value="">— None / not using Locations —</option>';
+  }
+}
+
+async function saveZohoLink() {
+  const connectionId = document.getElementById('zoho-link-modal').dataset.connectionId;
+  const companyId = document.getElementById('zl-company').value;
+  const branchId = document.getElementById('zl-branch').value || undefined;
+  if (!companyId) { showToast('Pick a company to link', 'error'); return; }
+  try {
+    const r = await authFetch(`/api/masteradmin/zoho/connections/${connectionId}/link-company`, {
+      method: 'POST',
+      body: JSON.stringify({ companyId, ...(branchId ? { branchId } : {}) }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Could not link company');
+    showToast('Company linked', 'success');
+    closeModal('zoho-link-modal');
+    loadZohoConnections();
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 // ── Dashboard overview (stat tiles, trend, module adoption, provisioning health) ──
