@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Cases for AIDA</title>
+<style>
+  :root{
+    --red:#C0392B;--red2:#E74C3C;--red-light:#fdecea;
+    --dark:#1A1A1A;--g1:#2C2C2C;--g2:#4A4A4A;--g3:#7F7F7F;
+    --g4:#D0D0D0;--g5:#F2F2F2;--white:#fff;--border:#D8D8D8;--radius:10px;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --bg:var(--g5);--surface:var(--white);--text:var(--dark);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font);
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.5;
+  }
+  header.page-header{
+    background:linear-gradient(135deg,var(--red),var(--red2));
+    color:#fff;
+    padding:28px 24px;
+    box-shadow:0 2px 10px rgba(0,0,0,.15);
+  }
+  header.page-header h1{
+    margin:0 0 4px 0;
+    font-size:26px;
+    letter-spacing:.3px;
+  }
+  header.page-header p{
+    margin:0;
+    opacity:.9;
+    font-size:14px;
+  }
+  .container{
+    max-width:1100px;
+    margin:0 auto;
+    padding:24px 20px 60px;
+  }
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:20px;
+  }
+  .search-wrap{
+    flex:1;
+    min-width:220px;
+    display:flex;
+    gap:8px;
+  }
+  .search-wrap input{
+    flex:1;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    font-family:inherit;
+    font-size:14px;
+    outline:none;
+    background:var(--surface);
+    color:var(--text);
+  }
+  .search-wrap input:focus{
+    border-color:var(--red);
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:10px 16px;
+    border-radius:var(--radius);
+    border:none;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:600;
+    font-family:inherit;
+  }
+  .btn-primary{
+    background:linear-gradient(180deg,var(--red2),var(--red));
+    color:#fff;
+    box-shadow:0 2px 6px rgba(192,57,43,.28);
+  }
+  .btn-secondary{
+    background:var(--white);
+    color:var(--g1);
+    border:1px solid var(--border);
+  }
+  .filters{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+  }
+  select{
+    padding:9px 12px;
+    border-radius:var(--radius);
+    border:1px solid var(--border);
+    background:var(--white);
+    font-family:inherit;
+    font-size:14px;
+    color:var(--text);
+  }
+  .stats-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:14px;
+    margin-bottom:24px;
+  }
+  .stat-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  .stat-card .label{
+    font-size:12px;
+    color:var(--g3);
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    margin-bottom:6px;
+  }
+  .stat-card .value{
+    font-size:24px;
+    font-weight:700;
+    color:var(--g1);
+  }
+  .table-wrap{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    margin-bottom:28px;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+  }
+  thead th{
+    background:var(--g5);
+    text-align:left;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.4px;
+    color:var(--g2);
+    padding:12px 14px;
+    border-bottom:1px solid var(--border);
+  }
+  tbody td{
+    padding:12px 14px;
+    border-bottom:1px solid var(--border);
+    font-size:14px;
+    vertical-align:top;
+  }
+  tbody tr:last-child td{
+    border-bottom:none;
+  }
+  tbody tr:hover{
+    background:var(--red-light);
+  }
+  .badge{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:600;
+  }
+  .badge-pass{background:#e8f8ef;color:#1e8449;}
+  .badge-fail{background:#fdecea;color:var(--red);}
+  .badge-pending{background:#fff6e0;color:#b8860b;}
+  .badge-blocked{background:#eee;color:var(--g2);}
+  .priority-high{color:var(--red);font-weight:700;}
+  .priority-medium{color:#b8860b;font-weight:700;}
+  .priority-low{color:var(--g3);font-weight:600;}
+  .section-title{
+    font-size:18px;
+    font-weight:700;
+    margin:0 0 14px 0;
+    color:var(--g1);
+    border-left:4px solid var(--red);
+    padding-left:10px;
+  }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    margin-bottom:24px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  form .form-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-bottom:14px;
+  }
+  form .form-group{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  form .form-group.full{
+    grid-column:1 / -1;
+  }
+  label{
+    font-size:13px;
+    font-weight:600;
+    color:var(--g2);
+  }
+  input[type=text], input[type=email], textarea, form select{
+    padding:9px 12px;
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    font-family:inherit;
+    font-size:14px;
+    outline:none;
+    background:var(--white);
+    color:var(--text);
+  }
+  input[type=text]:focus, textarea:focus, form select:focus{
+    border-color:var(--red);
+  }
+  textarea{
+    resize:vertical;
+    min-height:70px;
+  }
+  footer.page-footer{
+    text-align:center;
+    color:var(--g3);
+    font-size:12px;
+    padding:20px;
+  }
+  .hidden{display:none;}
+  @media(max-width:640px){
+    form .form-row{grid-template-columns:1fr;}
+    .table-wrap{overflow-x:auto;}
+  }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>Test Cases for AIDA</h1>
+  <p>A reference list of manual &amp; automated test cases for the AIDA module — standalone page, no backend required.</p>
+</header>
+
+<div class="container">
+
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="label">Total Cases</div><div class="value" id="statTotal">0</div></div>
+    <div class="stat-card"><div class="label">Passed</div><div class="value" id="statPass">0</div></div>
+    <div class="stat-card"><div class="label">Failed</div><div class="value" id="statFail">0</div></div>
+    <div class="stat-card"><div class="label">Pending</div><div class="value" id="statPending">0</div></div>
+  </div>
+
+  <h2 class="section-title">Test Case List</h2>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search by title, ID, or description...">
+      <button class="btn btn-secondary" onclick="clearSearch()">Clear</button>
+    </div>
+    <button class="btn btn-primary" onclick="toggleAddForm()">+ Add Test Case</button>
+  </div>
+
+  <div class="filters">
+    <select id="filterStatus" onchange="renderTable()">
+      <option value="">All Statuses</option>
+      <option value="Pass">Pass</option>
+      <option value="Fail">Fail</option>
+      <option value="Pending">Pending</option>
+      <option value="Blocked">Blocked</option>
+    </select>
+    <select id="filterPriority" onchange="renderTable()">
+      <option value="">All Priorities</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+    <select id="filterType" onchange="renderTable()">
+      <option value="">All Types</option>
+      <option value="Functional">Functional</option>
+      <option value="Regression">Regression</option>
+      <option value="UI">UI</option>
+      <option value="API">API</option>
+      <option value="Performance">Performance</option>
+    </select>
+  </div>
+
+  <div class="card hidden" id="addForm">
+    <h2 class="section-title" style="margin-top:0;">New Test Case (UI only — not persisted)</h2>
+    <form onsubmit="return addTestCase(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="tcTitle">Title</label>
+          <input type="text" id="tcTitle" placeholder="e.g. AIDA responds to greeting intent" required>
+        </div>
+        <div class="form-group">
+          <label for="tcType">Type</label>
+          <select id="tcType">
+            <option>Functional</option>
+            <option>Regression</option>
+            <option>UI</option>
+            <option>API</option>
+            <option>Performance</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="tcPriority">Priority</label>
+          <select id="tcPriority">
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="tcStatus">Status</label>
+          <select id="tcStatus">
+            <option>Pending</option>
+            <option>Pass</option>
+            <option>Fail</option>
+            <option>Blocked</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label for="tcSteps">Steps</label>
+          <textarea id="tcSteps" placeholder="1. Open AIDA chat...&#10;2. Send message...&#10;3. Verify response..."></textarea>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group full">
+          <label for="tcExpected">Expected Result</label>
+          <textarea id="tcExpected" placeholder="Describe the expected outcome"></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Test Case</button>
+      <button type="button" class="btn btn-secondary" onclick="toggleAddForm()">Cancel</button>
+    </form>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Expected Result</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <h2 class="section-title">Test Case Detail View</h2>
+  <div class="card" id="detailCard">
+    <p style="color:var(--g3);margin:0;">Click a row above to preview its full steps and expected result here.</p>
+  </div>
+
+</div>
+
+<footer class="page-footer">
+  Test Cases HTML Page &middot; AIDA Module &middot; Standalone reference document, not connected to any backend.
+</footer>
+
+<script>
+  const seedCases = [
+    {
+      id: 'TC-001',
+      title: 'AIDA greets user with correct welcome message',
+      type: 'Functional',
+      priority: 'High',
+      status: 'Pass',
+      steps: '1. Open AIDA chat widget.\n2. Observe the first automated message.',
+      expected: 'AIDA displays a personalized welcome message within 2 seconds.'
+    },
+    {
+      id: 'TC-002',
+      title: 'AIDA correctly parses a scheduling request',
+      type: 'Functional',
+      priority: 'High',
+      status: 'Pass',
+      steps: '1. Type "Schedule a meeting for tomorrow at 3pm".\n2. Submit the message.',
+      expected: 'AIDA recognizes the intent and proposes a calendar event with the correct date/time.'
+    },
+    {
+      id: 'TC-003',
+      title: 'AIDA handles unrecognized input gracefully',
+      type: 'Functional',
+      priority: 'Medium',
+      status: 'Pending',
+      steps: '1. Send a nonsensical or unsupported message.\n2. Observe AIDA response.',
+      expected: 'AIDA responds with a fallback message asking for clarification, no crash/error.'
+    },
+    {
+      id: 'TC-004',
+      title: 'AIDA UI renders correctly on mobile viewport',
+      type: 'UI',
+      priority: 'Medium',
+      status: 'Fail',
+      steps: '1. Open AIDA on a 375px wide viewport.\n2. Inspect chat bubble layout and input box.',
+      expected: 'Chat bubbles wrap correctly; input box remains fully visible and usable.'
+    },
+    {
+      id: 'TC-005',
+      title: 'AIDA API returns 200 for valid payload',
+      type: 'API',
+      priority: 'High',
+      status: 'Pass',
+      steps: '1. POST a valid message payload to /api/aida/chat.\n2. Inspect response code and body.',
+      expected: 'HTTP 200 with a well-formed JSON response containing a reply field.'
+    },
+    {
+      id: 'TC-006',
+      title: 'AIDA API rejects malformed payload',
+      type: 'API',
+      priority: 'Medium',
+      status: 'Pending',
+      steps: '1. POST a payload missing required fields.\n2. Inspect response.',
+      expected: 'HTTP 400 with a descriptive error message, no server crash.'
+    },
+    {
+      id: 'TC-007',
+      title: 'AIDA response time under concurrent load',
+      type: 'Performance',
+      priority: 'Low',
+      status: 'Blocked',
+      steps: '1. Simulate 100 concurrent chat sessions.\n2. Measure average response latency.',
+      expected: 'Average response time stays below 3 seconds under load. (Blocked: load test env not ready.)'
+    },
+    {
+      id: 'TC-008',
+      title: 'Existing chat history is not lost after regression deploy',
+      type: 'Regression',
+      priority: 'High',
+      status: 'Pass',
+      steps: '1. Deploy latest AIDA build.\n2. Reopen a previous chat session.',
+      expected: 'Full chat history is preserved and displayed in the correct order.'
+    }
+  ];
+
+  let testCases = seedCases.slice();
+
+  function escapeHtml(str){
+    return String(str)
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;');
+  }
+
+  function badgeClass(status){
+    switch(status){
+      case 'Pass': return 'badge-pass';
+      case 'Fail': return 'badge-fail';
+      case 'Pending': return 'badge-pending';
+      case 'Blocked': return 'badge-blocked';
+      default: return 'badge-pending';
+    }
+  }
+
+  function priorityClass(priority){
+    switch(priority){
+      case 'High': return 'priority-high';
+      case 'Medium': return 'priority-medium';
+      default: return 'priority-low';
+    }
+  }
+
+  function updateStats(list){
+    document.getElementById('statTotal').textContent = list.length;
+    document.getElementById('statPass').textContent = list.filter(t => t.status === 'Pass').length;
+    document.getElementById('statFail').textContent = list.filter(t => t.status === 'Fail').length;
+    document.getElementById('statPending').textContent = list.filter(t => t.status === 'Pending' || t.status === 'Blocked').length;
+  }
+
+  function renderTable(){
+    const search = document.getElementById('searchInput').value.trim().toLowerCase();
+    const statusFilter = document.getElementById('filterStatus').value;
+    const priorityFilter = document.getElementById('filterPriority').value;
+    const typeFilter = document.getElementById('filterType').value;
+
+    const filtered = testCases.filter(tc => {
+      const matchesSearch = !search ||
+        tc.id.toLowerCase().includes(search) ||
+        tc.title.toLowerCase().includes(search) ||
+        tc.expected.toLowerCase().includes(search);
+      const matchesStatus = !statusFilter || tc.status === statusFilter;
+      const matchesPriority = !priorityFilter || tc.priority === priorityFilter;
+      const matchesType = !typeFilter || tc.type === typeFilter;
+      return matchesSearch && matchesStatus && matchesPriority && matchesType;
+    });
+
+    const tbody = document.getElementById('tableBody');
+    if (filtered.length === 0){
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--g3);padding:24px;">No test cases match your filters.</td></tr>';
+    } else {
+      tbody.innerHTML = filtered.map(tc => `
+        <tr onclick="showDetail('${tc.id}')" style="cursor:pointer;">
+          <td>${escapeHtml(tc.id)}</td>
+          <td>${escapeHtml(tc.title)}</td>
+          <td>${escapeHtml(tc.type)}</td>
+          <td class="${priorityClass(tc.priority)}">${escapeHtml(tc.priority)}</td>
+          <td><span class="badge ${badgeClass(tc.status)}">${escapeHtml(tc.status)}</span></td>
+          <td>${escapeHtml(tc.expected)}</td>
+        </tr>
+      `).join('');
+    }
+    updateStats(testCases);
+  }
+
+  function showDetail(id){
+    const tc = testCases.find(t => t.id === id);
+    if (!tc) return;
+    const card = document.getElementById('detailCard');
+    card.innerHTML = `
+      <h3 style="margin-top:0;">${escapeHtml(tc.id)} — ${escapeHtml(tc.title)}</h3>
+      <p><strong>Type:</strong> ${escapeHtml(tc.type)} &nbsp;|&nbsp; <strong>Priority:</strong> <span class="${priorityClass(tc.priority)}">${escapeHtml(tc.priority)}</span> &nbsp;|&nbsp; <strong>Status:</strong> <span class="badge ${badgeClass(tc.status)}">${escapeHtml(tc.status)}</span></p>
+      <p><strong>Steps:</strong></p>
+      <pre style="white-space:pre-wrap;font-family:inherit;background:var(--g5);padding:12px;border-radius:8px;">${escapeHtml(tc.steps)}</pre>
+      <p><strong>Expected Result:</strong></p>
+      <p>${escapeHtml(tc.expected)}</p>
+    `;
+    card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
+  function clearSearch(){
+    document.getElementById('searchInput').value = '';
+    renderTable();
+  }
+
+  function toggleAddForm(){
+    document.getElementById('addForm').classList.toggle('hidden');
+  }
+
+  function addTestCase(evt){
+    evt.preventDefault();
+    const nextNum = testCases.length + 1;
+    const newCase = {
+      id: 'TC-' + String(nextNum).padStart(3, '0'),
+      title: document.getElementById('tcTitle').value || 'Untitled test case',
+      type: document.getElementById('tcType').value,
+      priority: document.getElementById('tcPriority').value,
+      status: document.getElementById('tcStatus').value,
+      steps: document.getElementById('tcSteps').value,
+      expected: document.getElementById('tcExpected').value || 'No expected result provided.'
+    };
+    testCases.push(newCase);
+    renderTable();
+    toggleAddForm();
+    evt.target.reset();
+  }
+
+  document.getElementById('searchInput').addEventListener('input', renderTable);
+
+  renderTable();
+</script>
+
+</body>
+</html>
