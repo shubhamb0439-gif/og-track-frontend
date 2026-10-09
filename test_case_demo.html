@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Case Demo</title>
+<style>
+  :root{
+    --red:#C0392B;
+    --red2:#E74C3C;
+    --red-light:#fdecea;
+    --dark:#1A1A1A;
+    --g1:#2C2C2C;
+    --g2:#4A4A4A;
+    --g3:#7F7F7F;
+    --g4:#D0D0D0;
+    --g5:#F2F2F2;
+    --white:#fff;
+    --border:#D8D8D8;
+    --font:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:var(--font);
+    background:var(--g5);
+    color:var(--dark);
+  }
+  header{
+    background:var(--dark);
+    color:var(--white);
+    padding:22px 32px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    box-shadow:0 2px 6px rgba(0,0,0,0.25);
+  }
+  header h1{
+    margin:0;
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:0.3px;
+  }
+  header .badge{
+    background:var(--red);
+    color:var(--white);
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:12px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .container{
+    max-width:1100px;
+    margin:28px auto;
+    padding:0 20px 60px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:860px){
+    .container{grid-template-columns:1fr;}
+  }
+  .card{
+    background:var(--white);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:22px 24px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+  }
+  .card h2{
+    margin:0 0 16px;
+    font-size:17px;
+    color:var(--g1);
+    border-bottom:2px solid var(--red-light);
+    padding-bottom:10px;
+  }
+  .full-width{
+    grid-column:1 / -1;
+  }
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    color:var(--g2);
+    margin:12px 0 5px;
+  }
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=number], textarea, select{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--g4);
+    border-radius:6px;
+    font-family:var(--font);
+    font-size:14px;
+    color:var(--dark);
+    background:var(--g5);
+  }
+  input:focus, textarea:focus, select:focus{
+    outline:none;
+    border-color:var(--red2);
+    background:var(--white);
+  }
+  textarea{resize:vertical; min-height:60px;}
+  .row{
+    display:flex;
+    gap:14px;
+  }
+  .row > div{flex:1;}
+  button{
+    cursor:pointer;
+    border:none;
+    border-radius:6px;
+    font-family:var(--font);
+    font-weight:600;
+    font-size:14px;
+    padding:10px 18px;
+    transition:background .15s ease;
+  }
+  .btn-primary{
+    background:var(--red);
+    color:var(--white);
+  }
+  .btn-primary:hover{background:var(--red2);}
+  .btn-secondary{
+    background:var(--g5);
+    color:var(--g1);
+    border:1px solid var(--g4);
+  }
+  .btn-secondary:hover{background:var(--g4);}
+  .actions{
+    margin-top:18px;
+    display:flex;
+    gap:10px;
+  }
+  .hint{
+    font-size:12px;
+    color:var(--g3);
+    margin-top:6px;
+  }
+  .filter-bar{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .filter-bar select{width:auto; min-width:200px;}
+  .filter-bar .count{
+    font-size:13px;
+    color:var(--g3);
+    margin-left:auto;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13.5px;
+  }
+  th, td{
+    text-align:left;
+    padding:10px 10px;
+    border-bottom:1px solid var(--border);
+    vertical-align:top;
+  }
+  th{
+    background:var(--g5);
+    color:var(--g2);
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+  }
+  tr:hover td{background:var(--red-light);}
+  .pill{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:12px;
+    font-size:11.5px;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.3px;
+  }
+  .pill-project{background:#e8eef7; color:#33539E;}
+  .pill-priority-High{background:#fdecea; color:var(--red);}
+  .pill-priority-Medium{background:#fff4e0; color:#a56600;}
+  .pill-priority-Low{background:#e9f7ee; color:#1d8a4b;}
+  .pill-status-Draft{background:var(--g5); color:var(--g2);}
+  .pill-status-Ready{background:#e8eef7; color:#33539E;}
+  .pill-status-Passed{background:#e9f7ee; color:#1d8a4b;}
+  .pill-status-Failed{background:#fdecea; color:var(--red);}
+  .steps-list{
+    margin:0;
+    padding-left:18px;
+  }
+  .empty-state{
+    text-align:center;
+    color:var(--g3);
+    padding:30px 10px;
+    font-size:14px;
+  }
+  .remove-btn{
+    background:transparent;
+    border:none;
+    color:var(--red);
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+    padding:4px 6px;
+  }
+  .remove-btn:hover{text-decoration:underline;}
+  .tag-manage{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:12px;
+  }
+  .project-chip{
+    background:var(--g5);
+    border:1px solid var(--g4);
+    border-radius:16px;
+    padding:5px 12px;
+    font-size:12.5px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .project-chip button{
+    background:none;
+    border:none;
+    color:var(--g3);
+    font-size:13px;
+    padding:0;
+    line-height:1;
+    cursor:pointer;
+  }
+  .project-chip button:hover{color:var(--red);}
+  footer{
+    text-align:center;
+    color:var(--g3);
+    font-size:12px;
+    padding:20px 0 40px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Test Case Demo</h1>
+  <span class="badge">Standalone Preview</span>
+</header>
+
+<div class="container">
+
+  <!-- Project management -->
+  <div class="card">
+    <h2>Projects</h2>
+    <label for="projectName">New project name</label>
+    <input type="text" id="projectName" placeholder="e.g. Mobile App Revamp">
+    <div class="actions">
+      <button class="btn-primary" onclick="addProject()">Add Project</button>
+    </div>
+    <div class="hint">Projects added here become available in the "Associated Project" dropdown below.</div>
+    <div class="tag-manage" id="projectChips"></div>
+  </div>
+
+  <!-- Test case input -->
+  <div class="card">
+    <h2>New Test Case</h2>
+    <label for="tcTitle">Test case title</label>
+    <input type="text" id="tcTitle" placeholder="e.g. Verify login with valid credentials">
+
+    <label for="tcProject">Associated project</label>
+    <select id="tcProject">
+      <option value="">— Select a project —</option>
+    </select>
+
+    <div class="row">
+      <div>
+        <label for="tcPriority">Priority</label>
+        <select id="tcPriority">
+          <option>Low</option>
+          <option selected>Medium</option>
+          <option>High</option>
+        </select>
+      </div>
+      <div>
+        <label for="tcStatus">Status</label>
+        <select id="tcStatus">
+          <option selected>Draft</option>
+          <option>Ready</option>
+          <option>Passed</option>
+          <option>Failed</option>
+        </select>
+      </div>
+    </div>
+
+    <label for="tcPreconditions">Preconditions</label>
+    <textarea id="tcPreconditions" placeholder="e.g. User account exists and is active"></textarea>
+
+    <label for="tcSteps">Steps to reproduce (one per line)</label>
+    <textarea id="tcSteps" placeholder="1. Navigate to login page&#10;2. Enter valid username/password&#10;3. Click Sign In"></textarea>
+
+    <label for="tcExpected">Expected result</label>
+    <textarea id="tcExpected" placeholder="e.g. User is redirected to the dashboard"></textarea>
+
+    <div class="actions">
+      <button class="btn-primary" onclick="addTestCase()">Save Test Case</button>
+      <button class="btn-secondary" onclick="clearForm()">Clear</button>
+    </div>
+    <div class="hint" id="formHint"></div>
+  </div>
+
+  <!-- Test case list -->
+  <div class="card full-width">
+    <h2>Test Cases</h2>
+    <div class="filter-bar">
+      <label for="filterProject" style="margin:0;">Filter by project:</label>
+      <select id="filterProject" onchange="renderTestCases()">
+        <option value="">All projects</option>
+      </select>
+      <span class="count" id="tcCount"></span>
+    </div>
+    <table id="tcTable">
+      <thead>
+        <tr>
+          <th style="width:18%">Title</th>
+          <th style="width:14%">Project</th>
+          <th style="width:9%">Priority</th>
+          <th style="width:9%">Status</th>
+          <th style="width:30%">Steps</th>
+          <th style="width:16%">Expected Result</th>
+          <th style="width:4%"></th>
+        </tr>
+      </thead>
+      <tbody id="tcBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      No test cases yet. Add one using the form above.
+    </div>
+  </div>
+
+</div>
+
+<footer>Test Case Demo &mdash; standalone UI preview. Nothing on this page is saved to a server; data lives only in this browser tab.</footer>
+
+<script>
+  // In-memory (per-tab) state. No backend involved — this is a UI-only demo.
+  var projects = ["Website Redesign", "Mobile App", "Internal Tools"];
+  var testCases = [];
+  var nextProjectId = 1;
+  var nextTcId = 1;
+
+  function escapeHtml(str){
+    return String(str || "").replace(/[&<>"']/g, function(ch){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[ch];
+    });
+  }
+
+  function addProject(){
+    var input = document.getElementById('projectName');
+    var name = input.value.trim();
+    if(!name){
+      input.focus();
+      return;
+    }
+    if(projects.indexOf(name) !== -1){
+      alert('That project already exists.');
+      return;
+    }
+    projects.push(name);
+    input.value = '';
+    renderProjects();
+  }
+
+  function removeProject(name){
+    if(!confirm('Remove project "' + name + '"? Existing test cases will keep it as a label but it will no longer appear in the dropdown.')){
+      return;
+    }
+    projects = projects.filter(function(p){ return p !== name; });
+    renderProjects();
+  }
+
+  function renderProjects(){
+    var chips = document.getElementById('projectChips');
+    chips.innerHTML = projects.map(function(p){
+      return '<span class="project-chip">' + escapeHtml(p) +
+        ' <button onclick="removeProject(\'' + p.replace(/'/g, "\\'") + '\')" title="Remove">&times;</button></span>';
+    }).join('');
+
+    var tcSelect = document.getElementById('tcProject');
+    var currentTc = tcSelect.value;
+    tcSelect.innerHTML = '<option value="">— Select a project —</option>' +
+      projects.map(function(p){ return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>'; }).join('');
+    if(projects.indexOf(currentTc) !== -1){ tcSelect.value = currentTc; }
+
+    var filterSelect = document.getElementById('filterProject');
+    var currentFilter = filterSelect.value;
+    filterSelect.innerHTML = '<option value="">All projects</option>' +
+      projects.map(function(p){ return '<option value="' + escapeHtml(p) + '">' + escapeHtml(p) + '</option>'; }).join('');
+    if(projects.indexOf(currentFilter) !== -1){ filterSelect.value = currentFilter; }
+
+    renderTestCases();
+  }
+
+  function addTestCase(){
+    var title = document.getElementById('tcTitle').value.trim();
+    var project = document.getElementById('tcProject').value;
+    var priority = document.getElementById('tcPriority').value;
+    var status = document.getElementById('tcStatus').value;
+    var preconditions = document.getElementById('tcPreconditions').value.trim();
+    var stepsRaw = document.getElementById('tcSteps').value.trim();
+    var expected = document.getElementById('tcExpected').value.trim();
+    var hint = document.getElementById('formHint');
+
+    if(!title){
+      hint.textContent = 'Please enter a test case title.';
+      hint.style.color = 'var(--red)';
+      return;
+    }
+    if(!project){
+      hint.textContent = 'Please associate this test case with a project.';
+      hint.style.color = 'var(--red)';
+      return;
+    }
+
+    var steps = stepsRaw ? stepsRaw.split('\n').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+
+    testCases.push({
+      id: nextTcId++,
+      title: title,
+      project: project,
+      priority: priority,
+      status: status,
+      preconditions: preconditions,
+      steps: steps,
+      expected: expected
+    });
+
+    hint.textContent = 'Test case saved (stored locally in this browser tab only).';
+    hint.style.color = 'var(--g3)';
+
+    clearForm(false);
+    renderTestCases();
+  }
+
+  function clearForm(clearHint){
+    document.getElementById('tcTitle').value = '';
+    document.getElementById('tcPreconditions').value = '';
+    document.getElementById('tcSteps').value = '';
+    document.getElementById('tcExpected').value = '';
+    document.getElementById('tcPriority').value = 'Medium';
+    document.getElementById('tcStatus').value = 'Draft';
+    if(clearHint !== false){
+      document.getElementById('formHint').textContent = '';
+    }
+  }
+
+  function removeTestCase(id){
+    testCases = testCases.filter(function(tc){ return tc.id !== id; });
+    renderTestCases();
+  }
+
+  function renderTestCases(){
+    var filter = document.getElementById('filterProject').value;
+    var visible = testCases.filter(function(tc){ return !filter || tc.project === filter; });
+    var body = document.getElementById('tcBody');
+    var empty = document.getElementById('emptyState');
+    var table = document.getElementById('tcTable');
+
+    document.getElementById('tcCount').textContent = visible.length + ' of ' + testCases.length + ' test case(s) shown';
+
+    if(visible.length === 0){
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      body.innerHTML = '';
+      return;
+    }
+    table.style.display = '';
+    empty.style.display = 'none';
+
+    body.innerHTML = visible.map(function(tc){
+      var stepsHtml = tc.steps.length
+        ? '<ol class="steps-list">' + tc.steps.map(function(s){ return '<li>' + escapeHtml(s) + '</li>'; }).join('') + '</ol>'
+        : '<span style="color:var(--g3);">—</span>';
+      return '<tr>' +
+        '<td><strong>' + escapeHtml(tc.title) + '</strong>' +
+          (tc.preconditions ? '<div class="hint">Precondition: ' + escapeHtml(tc.preconditions) + '</div>' : '') +
+        '</td>' +
+        '<td><span class="pill pill-project">' + escapeHtml(tc.project) + '</span></td>' +
+        '<td><span class="pill pill-priority-' + tc.priority + '">' + tc.priority + '</span></td>' +
+        '<td><span class="pill pill-status-' + tc.status + '">' + tc.status + '</span></td>' +
+        '<td>' + stepsHtml + '</td>' +
+        '<td>' + (tc.expected ? escapeHtml(tc.expected) : '<span style="color:var(--g3);">—</span>') + '</td>' +
+        '<td><button class="remove-btn" onclick="removeTestCase(' + tc.id + ')">Remove</button></td>' +
+      '</tr>';
+    }).join('');
+  }
+
+  // seed a couple of example rows so the page isn't empty on first load
+  function seedExamples(){
+    testCases.push({
+      id: nextTcId++,
+      title: 'Verify login with valid credentials',
+      project: projects[0],
+      priority: 'High',
+      status: 'Ready',
+      preconditions: 'User account exists and is active',
+      steps: ['Navigate to the login page', 'Enter a valid username and password', 'Click "Sign In"'],
+      expected: 'User is redirected to the dashboard and sees their name in the header'
+    });
+    testCases.push({
+      id: nextTcId++,
+      title: 'Reject login with invalid password',
+      project: projects[1],
+      priority: 'Medium',
+      status: 'Draft',
+      preconditions: 'User account exists',
+      steps: ['Navigate to the login page', 'Enter a valid username with an incorrect password', 'Click "Sign In"'],
+      expected: 'An inline error message is shown and the user remains on the login page'
+    });
+  }
+
+  seedExamples();
+  renderProjects();
+</script>
+
+</body>
+</html>
