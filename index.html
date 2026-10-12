@@ -15194,6 +15194,47 @@ function setSitaraPoFilter(key,val){
     renderSitaraStocksBody();
   }
 }
+// Staff-triggered only — replaces an earlier automatic BigCommerce-recreation
+// approach that caused 53 duplicate live orders and was fully disabled. This
+// never touches BigCommerce: it just emails the customer their own order
+// confirmation on request. Keyed by order id so the button's loading state
+// doesn't depend on which row happens to be expanded.
+let sitaraOrderSendingEmail={};
+async function sendSitaraOrderConfirmationEmail(id){
+  sitaraOrderSendingEmail[id]=true;
+  if(currentView==='sitara_business_orders') renderSitaraOrders();
+  try{
+    const r=await fetch(`/api/sitara/orders/${id}/send-confirmation-email`,{method:'POST'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.error||'Could not send confirmation email');
+    showToast('Sent to '+(d.to||'customer'),'success');
+  }catch(e){ showToast(e.message,'error'); }
+  delete sitaraOrderSendingEmail[id];
+  if(currentView==='sitara_business_orders') renderSitaraOrders();
+}
+function sitaraSendConfirmationBtnHtml(o,small){
+  const sending=!!sitaraOrderSendingEmail[o.id];
+  return `<button class="${small?'btn-sm':'btn'} btn-primary" ${sending?'disabled':''} onclick="sendSitaraOrderConfirmationEmail('${o.id}')">${sending?'Sending…':'✉ Send Confirmation Email'}</button>`;
+}
+// All nullable — a cart-recovered or manually-entered order may genuinely
+// have no address/email on file yet, so this shows that plainly rather than
+// leaving blank space the staff member might mistake for a loading glitch.
+function sitaraOrderCustomerDetailHtml(o){
+  const addressLines=[o.customerAddressLine1,o.customerAddressLine2,[o.customerCity,o.customerState].filter(Boolean).join(', ')||null,o.customerPostalCode,o.customerCountry].filter(Boolean);
+  return `<div style="margin-bottom:12px">
+    <div style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase;margin-bottom:4px">Customer</div>
+    <div style="font-size:13px;font-weight:600">${esc(o.customerName||'—')}</div>
+    <div style="font-size:12px;color:var(--g3);margin-top:2px">${o.customerEmail?esc(o.customerEmail):'<span style="color:#C0392B">No email on file</span>'}${o.customerPhone?' · '+esc(o.customerPhone):''}</div>
+    <div style="font-size:12px;color:var(--g3);margin-top:4px">${addressLines.length?addressLines.map(l=>esc(l)).join('<br>'):'No address on file'}</div>
+  </div>`;
+}
+function sitaraOrderDetailHtml(o){
+  return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px">
+    ${sitaraOrderCustomerDetailHtml(o)}
+    ${sitaraSendConfirmationBtnHtml(o,false)}
+  </div>
+  ${sitaraLineItemsHtml(sitaraOrderDetailCache[o.id])}`;
+}
 function sitaraLineItemsHtml(detail){
   if(!detail) return '<div style="font-size:12px;color:var(--g3)">Loading items…</div>';
   const items=detail.items||[];
@@ -15366,9 +15407,9 @@ function sitaraOrdersTbodyHtml(list){
       </td>
       <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
       <td>${sitaraTimeInStatus(o.statusChangedAt||o.createdAt)}</td>
-      <td style="text-transform:capitalize">${esc(o.source||'manual')}</td>
+      <td style="text-transform:capitalize">${esc(o.source||'manual')}${o.status==='awaiting_fulfillment'?`<div style="margin-top:4px">${sitaraSendConfirmationBtnHtml(o,true)}</div>`:''}</td>
     </tr>`;
-    const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:14px">${sitaraLineItemsHtml(sitaraOrderDetailCache[o.id])}</td></tr>`:'';
+    const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:14px">${sitaraOrderDetailHtml(o)}</td></tr>`:'';
     return mainRow+detailRow;
   }).join(''):`<tr><td colspan="7" class="empty-state">${sitaraOrders.length?'No orders match your filters.':'No orders yet.'}</td></tr>`;
 }
