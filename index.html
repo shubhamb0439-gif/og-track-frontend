@@ -15229,11 +15229,20 @@ function sitaraOrderCustomerDetailHtml(o){
   </div>`;
 }
 function sitaraOrderDetailHtml(o){
+  // The list row (`o`, from GET /sitara/orders) isn't guaranteed to carry
+  // the full customer fields — the per-order fetch (GET /sitara/orders/:id,
+  // already cached here for the line-items table below) is the one
+  // confirmed to always have them, so it wins when both are present. This
+  // was the actual cause of a real "No email on file" showing for an order
+  // that genuinely had one on file: it was reading `o` directly instead of
+  // the fetched detail.
+  const detail=sitaraOrderDetailCache[o.id];
+  const full=detail?{...o,...detail}:o;
   return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px">
-    ${sitaraOrderCustomerDetailHtml(o)}
-    ${sitaraSendConfirmationBtnHtml(o,false)}
+    ${sitaraOrderCustomerDetailHtml(full)}
+    ${sitaraSendConfirmationBtnHtml(full,false)}
   </div>
-  ${sitaraLineItemsHtml(sitaraOrderDetailCache[o.id])}`;
+  ${sitaraLineItemsHtml(detail)}`;
 }
 function sitaraLineItemsHtml(detail){
   if(!detail) return '<div style="font-size:12px;color:var(--g3)">Loading items…</div>';
