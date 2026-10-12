@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Western Ladies Fashion Collection</title>
+<style>
+  :root{
+    --brand-primary:#8c2f48;
+    --brand-primary-dark:#6c2238;
+    --brand-gold:#c9a24b;
+    --brand-bg:#fdf8f5;
+    --brand-card:#ffffff;
+    --brand-text:#2e2027;
+    --brand-muted:#7a6a70;
+    --radius:12px;
+    --shadow:0 6px 20px rgba(44,20,30,0.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background:var(--brand-bg);
+    color:var(--brand-text);
+    line-height:1.6;
+  }
+  a{color:inherit;}
+
+  /* Header */
+  header.hero{
+    background:linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+    color:#fff;
+    padding:70px 20px 90px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute;
+    bottom:-40px; left:0; right:0;
+    height:80px;
+    background:var(--brand-bg);
+    border-top-left-radius:50% 60px;
+    border-top-right-radius:50% 60px;
+  }
+  header.hero h1{
+    font-size:2.6rem;
+    margin:0 0 10px;
+    letter-spacing:1px;
+    font-weight:700;
+  }
+  header.hero p{
+    font-size:1.1rem;
+    max-width:620px;
+    margin:0 auto;
+    color:#f3e4e9;
+  }
+  .tagline-badge{
+    display:inline-block;
+    margin-top:18px;
+    padding:8px 20px;
+    border:1px solid var(--brand-gold);
+    border-radius:30px;
+    color:var(--brand-gold);
+    font-size:0.85rem;
+    letter-spacing:2px;
+    text-transform:uppercase;
+  }
+
+  /* Nav */
+  nav.topnav{
+    position:sticky;
+    top:0;
+    z-index:50;
+    background:rgba(255,255,255,0.95);
+    backdrop-filter:blur(4px);
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+  }
+  nav.topnav .inner{
+    max-width:1100px;
+    margin:0 auto;
+    padding:14px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  nav.topnav .brand{
+    font-weight:700;
+    color:var(--brand-primary);
+    font-size:1.1rem;
+  }
+  nav.topnav ul{
+    list-style:none;
+    display:flex;
+    gap:22px;
+    margin:0;
+    padding:0;
+    flex-wrap:wrap;
+  }
+  nav.topnav a{
+    text-decoration:none;
+    color:var(--brand-text);
+    font-size:0.95rem;
+    font-weight:600;
+    transition:color .2s;
+  }
+  nav.topnav a:hover{
+    color:var(--brand-primary);
+  }
+
+  main{
+    max-width:1100px;
+    margin:0 auto;
+    padding:0 20px 60px;
+  }
+
+  section{
+    padding:60px 0 10px;
+  }
+  section h2{
+    text-align:center;
+    font-size:2rem;
+    margin-bottom:8px;
+    color:var(--brand-primary-dark);
+  }
+  section .section-sub{
+    text-align:center;
+    color:var(--brand-muted);
+    max-width:640px;
+    margin:0 auto 40px;
+  }
+
+  /* Collection grid */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(250px, 1fr));
+    gap:28px;
+  }
+  .card{
+    background:var(--brand-card);
+    border-radius:var(--radius);
+    overflow:hidden;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+    transition:transform .25s ease, box-shadow .25s ease;
+  }
+  .card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 14px 30px rgba(44,20,30,0.18);
+  }
+  .card .media{
+    height:220px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:4rem;
+    color:#fff;
+  }
+  .card .media.m1{background:linear-gradient(135deg,#b5495b,#8c2f48);}
+  .card .media.m2{background:linear-gradient(135deg,#c9a24b,#a67e2d);}
+  .card .media.m3{background:linear-gradient(135deg,#6c2238,#431422);}
+  .card .media.m4{background:linear-gradient(135deg,#d98098,#8c2f48);}
+  .card .media.m5{background:linear-gradient(135deg,#8c5e2f,#c9a24b);}
+  .card .media.m6{background:linear-gradient(135deg,#4e2a39,#8c2f48);}
+
+  .card .body{
+    padding:20px 22px 24px;
+    display:flex;
+    flex-direction:column;
+    flex:1;
+  }
+  .card h3{
+    margin:0 0 6px;
+    font-size:1.2rem;
+    color:var(--brand-text);
+  }
+  .card .price{
+    font-weight:700;
+    color:var(--brand-primary);
+    margin-bottom:10px;
+  }
+  .card p.desc{
+    color:var(--brand-muted);
+    font-size:0.92rem;
+    flex:1;
+  }
+  .card .tags{
+    margin-top:12px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .card .tags span{
+    background:#f6e9ec;
+    color:var(--brand-primary-dark);
+    font-size:0.72rem;
+    padding:4px 10px;
+    border-radius:20px;
+    font-weight:600;
+  }
+  .card .inquire-btn{
+    margin-top:16px;
+    border:none;
+    background:var(--brand-primary);
+    color:#fff;
+    padding:10px 16px;
+    border-radius:8px;
+    font-weight:600;
+    cursor:pointer;
+    font-size:0.9rem;
+    transition:background .2s;
+  }
+  .card .inquire-btn:hover{
+    background:var(--brand-primary-dark);
+  }
+
+  /* Features strip */
+  .features{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px,1fr));
+    gap:20px;
+    margin-top:10px;
+  }
+  .feature{
+    text-align:center;
+    padding:24px 16px;
+    background:var(--brand-card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+  }
+  .feature .icon{
+    font-size:2rem;
+    margin-bottom:10px;
+  }
+  .feature h4{
+    margin:0 0 6px;
+    color:var(--brand-primary-dark);
+  }
+  .feature p{
+    color:var(--brand-muted);
+    font-size:0.9rem;
+    margin:0;
+  }
+
+  /* Contact form */
+  .contact-wrap{
+    background:var(--brand-card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:40px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:40px;
+  }
+  .contact-info h3{
+    color:var(--brand-primary-dark);
+    margin-top:0;
+  }
+  .contact-info ul{
+    list-style:none;
+    padding:0;
+    margin:20px 0 0;
+  }
+  .contact-info li{
+    margin-bottom:14px;
+    color:var(--brand-muted);
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .contact-info li .ic{
+    color:var(--brand-primary);
+    font-weight:700;
+  }
+  form.inquiry-form{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  form.inquiry-form label{
+    font-size:0.85rem;
+    font-weight:600;
+    color:var(--brand-text);
+    margin-bottom:-10px;
+  }
+  form.inquiry-form input,
+  form.inquiry-form select,
+  form.inquiry-form textarea{
+    padding:11px 12px;
+    border:1px solid #e4d4d8;
+    border-radius:8px;
+    font-size:0.95rem;
+    font-family:inherit;
+    background:#fffdfc;
+  }
+  form.inquiry-form input:focus,
+  form.inquiry-form select:focus,
+  form.inquiry-form textarea:focus{
+    outline:none;
+    border-color:var(--brand-primary);
+  }
+  form.inquiry-form textarea{
+    resize:vertical;
+    min-height:100px;
+  }
+  form.inquiry-form button{
+    border:none;
+    background:var(--brand-primary);
+    color:#fff;
+    padding:13px 18px;
+    border-radius:8px;
+    font-size:1rem;
+    font-weight:700;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  form.inquiry-form button:hover{
+    background:var(--brand-primary-dark);
+  }
+  .form-success{
+    display:none;
+    background:#e8f6ec;
+    color:#2b7a44;
+    border:1px solid #bfe6cb;
+    padding:12px 14px;
+    border-radius:8px;
+    font-size:0.9rem;
+  }
+  .form-success.show{
+    display:block;
+  }
+
+  footer{
+    text-align:center;
+    padding:30px 20px;
+    color:var(--brand-muted);
+    font-size:0.85rem;
+    border-top:1px solid #eee2e5;
+    margin-top:40px;
+  }
+  footer .heart{
+    color:var(--brand-primary);
+  }
+
+  @media (max-width:720px){
+    header.hero h1{font-size:2rem;}
+    .contact-wrap{
+      grid-template-columns:1fr;
+      padding:26px;
+    }
+    nav.topnav ul{gap:14px;}
+    section{padding:44px 0 10px;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="inner">
+    <div class="brand">🌵 Western Ladies Fashion</div>
+    <ul>
+      <li><a href="#collection">Collection</a></li>
+      <li><a href="#features">Why Us</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <h1>Western Ladies Fashion Collection</h1>
+  <p>Bold silhouettes, fringe details and denim-luxe craftsmanship — curated western wear for the modern woman.</p>
+  <span class="tagline-badge">New Season Arrivals</span>
+</header>
+
+<main>
+
+  <section id="collection">
+    <h2>Our Collection</h2>
+    <p class="section-sub">Hand-picked pieces blending classic western heritage with contemporary tailoring.</p>
+
+    <div class="grid">
+
+      <div class="card">
+        <div class="media m1">🧥</div>
+        <div class="body">
+          <h3>Fringe Suede Jacket</h3>
+          <div class="price">$ 128.00</div>
+          <p class="desc">A buttery-soft suede jacket with hand-cut fringe detailing on the yoke and sleeves. Pairs beautifully with denim or a flowing midi skirt for an effortless western silhouette.</p>
+          <div class="tags"><span>Suede</span><span>Fringe</span><span>Statement</span></div>
+          <button class="inquire-btn" onclick="prefillInquiry('Fringe Suede Jacket')">Inquire About This Item</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="media m2">👢</div>
+        <div class="body">
+          <h3>Embroidered Cowgirl Boots</h3>
+          <div class="price">$ 149.00</div>
+          <p class="desc">Genuine leather ankle boots with hand-stitched floral embroidery and a stacked western heel. Built for all-day comfort without compromising on style.</p>
+          <div class="tags"><span>Leather</span><span>Embroidered</span><span>Boots</span></div>
+          <button class="inquire-btn" onclick="prefillInquiry('Embroidered Cowgirl Boots')">Inquire About This Item</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="media m3">👗</div>
+        <div class="body">
+          <h3>Prairie Midi Dress</h3>
+          <div class="price">$ 98.00</div>
+          <p class="desc">A flowing tiered midi dress in soft cotton-blend floral print, finished with puffed sleeves and a tie waist — romantic western charm for day or evening.</p>
+          <div class="tags"><span>Floral</span><span>Midi</span><span>Everyday</span></div>
+          <button class="inquire-btn" onclick="prefillInquiry('Prairie Midi Dress')">Inquire About This Item</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="media m4">🧢</div>
+        <div class="body">
+          <h3>Western Straw Hat</h3>
+          <div class="price">$ 45.00</div>
+          <p class="desc">A wide-brim woven straw hat with a braided leather band and turquoise-inspired concho. The finishing touch for any ranch-ready outfit.</p>
+          <div class="tags"><span>Straw</span><span>Accessory</span><span>Sun Hat</span></div>
+          <button class="inquire-btn" onclick="prefillInquiry('Western Straw Hat')">Inquire About This Item</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="media m5">👖</div>
+        <div class="body">
+          <h3>High-Waist Flare Denim</h3>
+          <div class="price">$ 76.00</div>
+          <p class="desc">Vintage-inspired high-rise flare jeans with contrast top-stitching and a figure-flattering fit — the perfect base for any western-inspired look.</p>
+          <div class="tags"><span>Denim</span><span>Flare</span><span>High-Rise</span></div>
+          <button class="inquire-btn" onclick="prefillInquiry('High-Waist Flare Denim')">Inquire About This Item</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="media m6">💍</div>
+        <div class="body">
+          <h3>Turquoise Statement Belt</h3>
+          <div class="price">$ 39.00</div>
+          <p class="desc">A genuine leather belt featuring a hand-set turquoise and silver-tone buckle. Cinches any dress or jacket for an instant western accent.</p>
+          <div class="tags"><span>Leather</span><span>Turquoise</span><span>Belt</span></div>
+          <button class="inquire-btn" onclick="prefillInquiry('Turquoise Statement Belt')">Inquire About This Item</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section id="features">
+    <h2>Why Shop With Us</h2>
+    <p class="section-sub">Quality craftsmanship, authentic western style, and service you can trust.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="icon">🪡</div>
+        <h4>Handcrafted Quality</h4>
+        <p>Each piece is finished with genuine leather, suede and hand-stitched embroidery.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">🚚</div>
+        <h4>Fast Shipping</h4>
+        <p>Orders are carefully packaged and shipped within 2–3 business days.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">↩️</div>
+        <h4>Easy Returns</h4>
+        <p>30-day hassle-free returns on all unworn items with original tags.</p>
+      </div>
+      <div class="feature">
+        <div class="icon">💬</div>
+        <h4>Personal Styling</h4>
+        <p>Reach out and our team will help you build the perfect western look.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <h2>Get In Touch</h2>
+    <p class="section-sub">Have a question about sizing, fabric or a custom order? Send us an inquiry below.</p>
+
+    <div class="contact-wrap">
+      <div class="contact-info">
+        <h3>Contact Details</h3>
+        <p>We'd love to help you find your perfect western piece. Reach out via the form or through any of the channels below.</p>
+        <ul>
+          <li><span class="ic">📍</span> 123 Ranch Road, Austin, TX, USA</li>
+          <li><span class="ic">📞</span> (555) 019-4820</li>
+          <li><span class="ic">✉️</span> hello@westernladiesfashion.example</li>
+          <li><span class="ic">🕒</span> Mon – Sat, 9:00 AM – 6:00 PM</li>
+        </ul>
+      </div>
+
+      <form class="inquiry-form" id="inquiryForm" onsubmit="return handleInquirySubmit(event)">
+        <label for="inqName">Full Name</label>
+        <input type="text" id="inqName" name="name" placeholder="Jane Doe" required>
+
+        <label for="inqEmail">Email Address</label>
+        <input type="email" id="inqEmail" name="email" placeholder="jane@example.com" required>
+
+        <label for="inqItem">Item of Interest</label>
+        <select id="inqItem" name="item">
+          <option value="">General Inquiry</option>
+          <option>Fringe Suede Jacket</option>
+          <option>Embroidered Cowgirl Boots</option>
+          <option>Prairie Midi Dress</option>
+          <option>Western Straw Hat</option>
+          <option>High-Waist Flare Denim</option>
+          <option>Turquoise Statement Belt</option>
+        </select>
+
+        <label for="inqMessage">Message</label>
+        <textarea id="inqMessage" name="message" placeholder="Tell us what you're looking for (size, color, quantity, etc.)" required></textarea>
+
+        <button type="submit">Send Inquiry</button>
+        <div class="form-success" id="formSuccess">Thank you! Your inquiry has been noted. This is a demo form and is not connected to a live backend — we'll reach out via email soon.</div>
+      </form>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Made with <span class="heart">♥</span> for Western Ladies Fashion Collection — All rights reserved.
+</footer>
+
+<script>
+  function prefillInquiry(itemName){
+    var select = document.getElementById('inqItem');
+    if(select){
+      for(var i=0;i<select.options.length;i++){
+        if(select.options[i].value === itemName){
+          select.selectedIndex = i;
+          break;
+        }
+      }
+    }
+    var messageBox = document.getElementById('inqMessage');
+    if(messageBox && !messageBox.value){
+      messageBox.value = "Hi, I'm interested in the " + itemName + ". Could you share more details?";
+    }
+    var contactSection = document.getElementById('contact');
+    if(contactSection){
+      contactSection.scrollIntoView({behavior:'smooth'});
+    }
+  }
+
+  function handleInquirySubmit(e){
+    e.preventDefault();
+    var successEl = document.getElementById('formSuccess');
+    if(successEl){
+      successEl.classList.add('show');
+    }
+    document.getElementById('inquiryForm').reset();
+    return false;
+  }
+</script>
+
+</body>
+</html>
