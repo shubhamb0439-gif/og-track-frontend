@@ -4219,6 +4219,7 @@ function buildSidebar(){
       hr:               [['hr_dashboard','HR Dashboard','#C0392B'],['hr_jobs','Job Openings','#8E44AD'],['hr_candidates','Candidates','#2980B9'],['hr_interviews','Interviews','#F39C12'],['hr_reports','Reports','#27AE60'],['attendance','Attendance','#16A085'],['messages','Messages','#E74C3C']],
     };
     navItems=items[role]||[];
+    if(role==='tester') navItems=[...navItems, ['bug_management','Bug Management','#C0392B']];
     // Respect company-level module restrictions (tenant white-label)
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules&&role!=='masteradmin'){
       const allowed=window.COMPANY_CONTEXT.modules;
@@ -4620,6 +4621,116 @@ function showToast(msg,type='success'){
   document.getElementById('toasts').appendChild(t);setTimeout(()=>t.remove(),4000);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// BUG MANAGEMENT MODULE  (Tester-only — see src/routes/bug_management.js)
+// Lets a Tester re-order bug priority (relative rank across all bugs) and
+// assign a developer to a bug, without needing full bug-editor access.
+// Wired to /api/bug_management (rewritten by the adapter at the top of this
+// file to /api/<slug>/bug_management).
+// ═══════════════════════════════════════════════════════════════════════════════
+let bugManagementBugs = [];
+let bugManagementDevs = [];
+let _bugManagementLoaded = false;
+
+async function loadBugManagementData(){
+  try{
+    const [br,dr]=await Promise.all([
+      fetch('/api/bug_management').then(r=>r.json()),
+      fetch('/api/bug_management/developers').then(r=>r.json()),
+    ]);
+    bugManagementBugs=Array.isArray(br)?br:[];
+    bugManagementDevs=Array.isArray(dr)?dr:[];
+  }catch(e){
+    console.error('[loadBugManagementData] error:', e);
+    bugManagementBugs=[];bugManagementDevs=[];
+  }
+  _bugManagementLoaded=true;
+}
+
+function refreshBugManagement(){ _bugManagementLoaded=false; renderView(); }
+
+async function renderBugManagement(){
+  const ca=document.getElementById('content-area');
+  if(!ca)return;
+  const titleEl=document.getElementById('view-title');
+  if(titleEl) titleEl.textContent='Bug Management';
+  if(currentUser.role!=='tester'){
+    ca.innerHTML='<div class="empty-state"><p>Bug Management is only available to the Tester role.</p></div>';
+    return;
+  }
+  if(!_bugManagementLoaded){
+    ca.innerHTML='<div class="empty-state"><p>Loading bug management…</p></div>';
+    await loadBugManagementData();
+  }
+  if(currentView!=='bug_management')return; // navigated away while the fetch was in flight
+  const list=[...bugManagementBugs]; // already priority-sorted by the backend
+  ca.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div><h2 style="margin:0;font-size:18px">Bug Management</h2><div style="font-size:13px;color:var(--g3)">Re-order bug priority and assign developers. Visible to Testers only.</div></div>
+      <button class="btn-sm btn-edit" onclick="refreshBugManagement()">⟳ Refresh</button>
+    </div>
+    ${!list.length?'<div class="empty-state"><p>No bugs found.</p></div>':`
+    <div class="table-wrap"><div class="table-scroll"><table>
+      <thead><tr><th style="width:60px">Priority</th><th style="width:90px">ID</th><th>Title</th><th>Project</th><th style="width:110px">Status</th><th style="width:220px">Assigned Developer</th><th style="width:90px">Reorder</th></tr></thead>
+      <tbody>
+        ${list.map((b,i)=>`
+          <tr>
+            <td style="text-align:center;font-weight:700;color:var(--g3)">${b.priorityRank!=null?b.priorityRank:'—'}</td>
+            <td style="color:var(--g3);font-size:11px;white-space:nowrap">${b.id}</td>
+            <td style="white-space:normal;word-break:break-word">${b.title}</td>
+            <td style="font-size:12px;color:var(--g3)">${b.projectName||'—'}</td>
+            <td><span class="${badgeClass('status',b.status)}">${b.status}</span></td>
+            <td>
+              <select onchange="assignBugDeveloper('${b.id}', this.value)" style="width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--white)">
+                <option value="">— Unassigned —</option>
+                ${bugManagementDevs.map(d=>`<option value="${d.id}" ${b.assignedDeveloperId===d.id?'selected':''}>${d.name}</option>`).join('')}
+              </select>
+            </td>
+            <td style="white-space:nowrap;text-align:center">
+              <button class="btn-sm btn-edit" title="Move up" ${i===0?'disabled':''} onclick="moveBugPriority('${b.id}',-1)">▲</button>
+              <button class="btn-sm btn-edit" title="Move down" ${i===list.length-1?'disabled':''} onclick="moveBugPriority('${b.id}',1)">▼</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div></div>`}
+  `;
+}
+
+async function moveBugPriority(bugId, direction){
+  const list=[...bugManagementBugs];
+  const idx=list.findIndex(b=>b.id===bugId);
+  if(idx<0)return;
+  const swapIdx=idx+direction;
+  if(swapIdx<0||swapIdx>=list.length)return;
+  [list[idx],list[swapIdx]]=[list[swapIdx],list[idx]];
+  const orderedIds=list.map(b=>b.id);
+  try{
+    const r=await fetch('/api/bug_management/reorder',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderedIds})});
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Could not reorder bugs.');
+    await loadBugManagementData();
+    if(currentView==='bug_management') renderView();
+    showToast('Priority updated','success');
+  }catch(e){
+    showToast(e.message||'Could not reorder bugs.','error');
+  }
+}
+
+async function assignBugDeveloper(bugId, developerId){
+  const dev=bugManagementDevs.find(d=>d.id===developerId);
+  try{
+    const r=await fetch(`/api/bug_management/${bugId}/assign`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({developerId:developerId||null,developerName:dev?dev.name:null})});
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error||'Could not assign developer.');
+    const idx=bugManagementBugs.findIndex(b=>b.id===bugId);
+    if(idx>=0) bugManagementBugs[idx]=data;
+    showToast(developerId?`Assigned to ${dev?dev.name:'developer'}`:'Unassigned','success');
+  }catch(e){
+    showToast(e.message||'Could not assign developer.','error');
+  }
+}
+
+
 // ── Birthday / work-anniversary celebrations ────────────────────────────────
 // Purely a fun surface of date_of_birth/joining_date already on file —
 // never gates anything. Fires at most once per user per day (tracked in
@@ -4785,6 +4896,7 @@ function renderView(){
   if(currentView==='sitara_business_razorpay') return renderSitaraRazorpay();
   if(currentView==='sitara_business_expenses') return renderSitaraExpenses();
   if(currentView==='zoho_books') return renderZohoBooks();
+  if(currentView==='bug_management') return renderBugManagement();
   renderBugTable();
 }
 
