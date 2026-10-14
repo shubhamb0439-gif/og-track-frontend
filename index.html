@@ -14740,7 +14740,7 @@ let sitaraPeopleSearch={weavers:'',vendors:'',customers:''};
 let sitaraCustomerSourceFilter='';
 let sitaraProductSearch='';
 let sitaraPoFilters={search:'',status:'',weaverId:''};
-let sitaraOrderFilters={status:'',source:'',search:''};
+let sitaraOrderFilters={status:'',source:'',search:'',sort:'latest',staleOnly:false};
 let sitaraExpandedPoId=null;
 let sitaraExpandedOrderId=null;
 let sitaraPoDetailCache={};
@@ -15379,15 +15379,22 @@ function sitaraTimeInStatus(iso){
 }
 function sitaraOrdersFilteredList(){
   const oq=sitaraOrderFilters.search.trim().toLowerCase();
-  return sitaraOrders.filter(o=>
+  const list=sitaraOrders.filter(o=>
     (!sitaraOrderFilters.status||o.status===sitaraOrderFilters.status) &&
     (!sitaraOrderFilters.source||o.source===sitaraOrderFilters.source) &&
-    (!oq||(o.orderNumber||'').toLowerCase().includes(oq)||(o.customerName||'').toLowerCase().includes(oq))
+    (!sitaraOrderFilters.staleOnly||o.isStale) &&
+    (!oq||(o.orderNumber||'').toLowerCase().includes(oq)||(o.customerName||'').toLowerCase().includes(oq)||(o.customerEmail||'').toLowerCase().includes(oq))
   );
+  const dateVal=o=>new Date(o.createdAt||0).getTime();
+  list.sort((a,b)=>sitaraOrderFilters.sort==='oldest'?dateVal(a)-dateVal(b):dateVal(b)-dateVal(a));
+  return list;
 }
+// The "stale" count used to sit next to the order count at the top of the
+// page as plain text — moved into the filters row as an actual filter (see
+// renderSitaraOrders' "Stale only" checkbox) instead, so this line is just
+// the plain count again.
 function sitaraOrdersCountHtml(list){
-  const staleCount=sitaraOrders.filter(o=>o.isStale).length;
-  return `${list.length} of ${sitaraOrders.length} order${sitaraOrders.length===1?'':'s'}${staleCount?` · <span style="color:#C0392B;font-weight:600">⚠ ${staleCount} stale</span>`:''}`;
+  return `${list.length} of ${sitaraOrders.length} order${sitaraOrders.length===1?'':'s'}`;
 }
 function sitaraOrdersTbodyHtml(list){
   return list.length?list.map(o=>{
@@ -15430,13 +15437,14 @@ function renderSitaraOrders(){
     return;
   }
   const list=sitaraOrdersFilteredList();
+  const staleCount=sitaraOrders.filter(o=>o.isStale).length;
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div style="font-size:13px;color:var(--g3)" id="sitara-orders-count">${sitaraOrdersCountHtml(list)}</div>
       <button class="btn btn-primary" onclick="openSitaraOrderModal()">+ Add Order</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <input type="text" placeholder="Search order # or customer…" value="${esc(sitaraOrderFilters.search)}" oninput="setSitaraOrderFilter('search',this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:200px">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <input type="text" placeholder="Search order #, customer, or email…" value="${esc(sitaraOrderFilters.search)}" oninput="setSitaraOrderFilter('search',this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:220px">
       <select onchange="setSitaraOrderFilter('status',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
         <option value="">All Statuses</option>
         ${SITARA_ORDER_STATUSES.map(s=>`<option value="${s}" ${sitaraOrderFilters.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
@@ -15446,6 +15454,14 @@ function renderSitaraOrders(){
         <option value="manual" ${sitaraOrderFilters.source==='manual'?'selected':''}>Manual</option>
         <option value="bigcommerce" ${sitaraOrderFilters.source==='bigcommerce'?'selected':''}>BigCommerce</option>
       </select>
+      <select onchange="setSitaraOrderFilter('sort',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
+        <option value="latest" ${sitaraOrderFilters.sort==='latest'?'selected':''}>Latest first</option>
+        <option value="oldest" ${sitaraOrderFilters.sort==='oldest'?'selected':''}>Oldest first</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid ${sitaraOrderFilters.staleOnly?'#C0392B':'var(--border)'};border-radius:6px;font-size:12.5px;color:#C0392B;cursor:pointer;background:${sitaraOrderFilters.staleOnly?'#C0392B15':'none'}">
+        <input type="checkbox" ${sitaraOrderFilters.staleOnly?'checked':''} onchange="setSitaraOrderFilter('staleOnly',this.checked)">
+        ⚠ Stale only (${staleCount})
+      </label>
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th></th><th>Order</th><th>Customer</th><th>Status</th><th>Total</th><th>Time in Status</th><th>Source</th></tr></thead>
