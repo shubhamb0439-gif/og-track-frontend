@@ -1116,23 +1116,18 @@ tr:hover .badge { transform: scale(1.08); }
     background:var(--bg); color:var(--text);
   }
 
-#aida-overlay #hexBgSvg {
-    position:fixed; inset:0;
+/* Hint lines step aside while the particle face is up (AidaFaceFlow). */
+#aida-overlay.aida-face-on .hint { opacity:0 !important; transition:opacity .5s ease; }
+
+/* Particle network behind the hub (AidaParticles). Decorative: no pointer
+   events, and every later child of the overlay paints above it. */
+#aida-overlay .aida-particles {
+    position:absolute; inset:0;
+    width:100%; height:100%;
     z-index:0;
     display:block;
     pointer-events:none;
-    -webkit-mask-image:radial-gradient(circle at 50% 46%, transparent 0%, transparent 24%, black 55%, black 100%);
-    mask-image:radial-gradient(circle at 50% 46%, transparent 0%, transparent 24%, black 55%, black 100%);
   }
-
-#aida-overlay .bg-hex {
-    fill:none;
-    stroke-width:1.2;
-    stroke-opacity:0.045;
-    transition:stroke-opacity .55s ease;
-  }
-
-#aida-overlay .bg-hex.lit { stroke-opacity:0.55; }
 
 #aida-overlay .stage {
     position:relative;
@@ -1475,12 +1470,11 @@ tr:hover .badge { transform: scale(1.08); }
   }
 
 #aida-overlay .logo-btn .middle-layer {
-    fill:#AFAA9C; opacity:1;
+    fill:#ffffff; opacity:1;
     transition:fill .9s ease, opacity .45s ease, transform .6s ease;
     transform-box:view-box; transform-origin:84.7197px 84.287px;
   }
 
-#aida-overlay .logo-btn.is-connected .middle-layer { fill:var(--red); }
 
 #aida-overlay .logo-btn.is-listening .middle-layer { transform:rotate(-93.2deg); }
 
@@ -1921,6 +1915,202 @@ tr:hover .badge { transform: scale(1.08); }
 #aida-overlay .menu-item, #aida-overlay .logo-btn, #aida-overlay .status-pill .dot, #aida-overlay .msg-modal.whoosh-in, #aida-overlay .msg-modal.whoosh-out, #aida-overlay .msg-modal-header, #aida-overlay .msg-modal-body, #aida-overlay .floating-modal.whoosh-in, #aida-overlay .floating-modal.whoosh-out, #aida-overlay .toast.show, #aida-overlay .toast.hide { transition:none !important; animation:none !important; }
 #aida-overlay .page-enter-fade { display:none; }
 }
+/* ── FloatingCard — glass cards for AIDA's replies (see FloatingCard and
+   FCARD_LAYOUT in the AIDA script section). The layer is a
+   pointer-transparent fixed sheet; only the cards themselves take input.
+   z-index 65: above the hub's modals (50/60), below its toast (70) and
+   top-right buttons (80).
+   Every card sits at left/top 0 and is placed purely by
+   transform: translate() scale() (origin: centre), plus --fc-op/--fc-filter,
+   all written by the layout manager — so every layout change is a
+   transform/opacity transition. Timing variables are set on the layer from
+   FCARD_LAYOUT, so the numbers live in one place. ── */
+.fcard-layer{position:fixed;inset:0;z-index:65;pointer-events:none;}
+.fcard, .fcard-pill{
+  --fcard-bg:rgba(255,255,255,.28);
+  --fcard-bg-solid:rgba(255,255,255,.9);
+  --fcard-border:rgba(255,255,255,.55);
+  --fcard-divider:rgba(255,255,255,.5);
+  --fcard-text:#262626;
+  --fcard-label:#3f3f3f;
+  --fcard-accent:#b0222c;
+  --fcard-dot:#8a8a8a;
+  --fcard-close-bg:rgba(255,255,255,.38);
+  --fcard-close-bg-hover:rgba(255,255,255,.65);
+  --fcard-close-border:rgba(255,255,255,.6);
+  --fcard-backdrop:blur(18px) saturate(170%);
+}
+.fcard{
+  position:absolute;left:0;top:0;
+  width:min(420px, calc(100vw - 24px));
+  max-height:min(60vh, 520px);
+  display:flex;flex-direction:column;
+  background:var(--fcard-bg);
+  -webkit-backdrop-filter:var(--fcard-backdrop);
+  backdrop-filter:var(--fcard-backdrop);
+  border:1px solid var(--fcard-border);
+  border-radius:16px;
+  box-shadow:0 8px 32px rgba(31,38,60,.18), inset 0 1px 0 rgba(255,255,255,.6);
+  color:var(--fcard-text);
+  font-family:var(--font);
+  pointer-events:auto;
+  overflow:hidden;
+  transform-origin:50% 50%;
+  will-change:transform, opacity;
+  opacity:var(--fc-op,1);
+  filter:var(--fc-filter,none);
+  transition:transform var(--fc-ms,500ms) var(--fc-ease,ease), opacity var(--fc-ms,500ms) var(--fc-ease,ease),
+             filter var(--fc-ms,500ms) var(--fc-ease,ease), visibility 0s;
+}
+/* Pushed past the deck's visible depth: faded out, then hidden once the
+   fade has finished; un-hiding is immediate so it can fade back in. */
+.fcard.is-hidden{
+  visibility:hidden;pointer-events:none;
+  transition:transform var(--fc-ms,500ms) var(--fc-ease,ease), opacity var(--fc-ms,500ms) var(--fc-ease,ease),
+             filter var(--fc-ms,500ms) var(--fc-ease,ease), visibility 0s linear var(--fc-ms,500ms);
+}
+.fcard.is-closing{pointer-events:none;transition-duration:var(--fc-close-ms,250ms);}
+/* Dragging follows the pointer 1:1 — no easing lag. In deck mode the whole
+   layer is marked, since every card in the deck moves together. */
+.fcard.is-dragging, .fcard-layer.is-dragging .fcard{transition:none;}
+/* The AIDA hub always paints a white page behind the card, even in dark
+   theme — so a 35%-dark glass on its own would leave light text on light
+   grey. brightness(.55) darkens whatever is behind the glass first, which
+   keeps the dark card readable (~5.5:1) without making it opaque. */
+[data-theme="dark"] .fcard, [data-theme="dark"] .fcard-pill{
+  --fcard-bg:rgba(40,40,44,.35);
+  --fcard-bg-solid:rgba(40,40,44,.92);
+  --fcard-border:rgba(255,255,255,.14);
+  --fcard-divider:rgba(255,255,255,.14);
+  --fcard-text:#F2F2F2;
+  --fcard-label:#E6E6E6;
+  --fcard-accent:#E04550;
+  --fcard-close-bg:rgba(255,255,255,.1);
+  --fcard-close-bg-hover:rgba(255,255,255,.2);
+  --fcard-close-border:rgba(255,255,255,.18);
+  --fcard-backdrop:blur(18px) saturate(170%) brightness(.55);
+  --fcard-pill-bg-hover:rgba(40,40,44,.55);
+}
+[data-theme="dark"] .fcard, [data-theme="dark"] .fcard-pill{
+  box-shadow:0 8px 32px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12);
+}
+/* No backdrop-filter → no blur to separate text from what's behind it, so
+   fall back to a near-opaque surface. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .fcard, .fcard-pill{background:var(--fcard-bg-solid);}
+}
+.fcard-header{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 10px 10px 14px;
+  border-bottom:1px solid var(--fcard-divider);
+  cursor:grab;
+  touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  flex-shrink:0;
+}
+.fcard.is-dragging .fcard-header, .fcard-layer.is-dragging .fcard-header{cursor:grabbing;}
+.fcard-dot{width:8px;height:8px;border-radius:50%;background:var(--fcard-dot);flex-shrink:0;box-shadow:0 0 0 3px rgba(138,138,138,.18);}
+.fcard-label{flex:1;font-size:12.5px;font-weight:600;letter-spacing:.08em;color:var(--fcard-label);}
+.fcard-close{
+  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--fcard-close-bg);
+  border:1px solid var(--fcard-close-border);
+  color:var(--fcard-label);
+  font-size:16px;line-height:1;cursor:pointer;padding:0;
+  transition:background .15s ease, color .15s ease, transform .12s ease;
+}
+.fcard-close:hover{background:var(--fcard-close-bg-hover);color:var(--fcard-accent);}
+.fcard-close:active{transform:scale(.9);}
+.fcard-close:focus-visible{outline:2px solid var(--fcard-accent);outline-offset:2px;}
+.fcard-body{
+  padding:12px 16px 16px;
+  overflow-y:auto;overscroll-behavior:contain;
+  font-size:14px;line-height:1.55;
+  white-space:pre-wrap;overflow-wrap:break-word;
+  -webkit-user-select:text;user-select:text;
+  cursor:text;
+}
+.fcard-body::selection{background:rgba(176,34,44,.22);}
+/* Depth deck: older cards aren't draggable — a click brings them forward.
+   Hover lifts opacity and drops the blur as the hint. */
+.fcard-layer.mode-deck .fcard.is-older, .fcard-layer.mode-deck .fcard.is-older .fcard-header,
+.fcard-layer.mode-deck .fcard.is-older .fcard-body{cursor:pointer;}
+.fcard-layer.mode-deck .fcard.is-older:hover{
+  opacity:min(1, calc(var(--fc-op,1) + var(--fc-hover-lift,.2)));
+  filter:none;
+}
+/* Drifting: a slow bob on the separate `translate` property, so it stacks
+   with (never fights) the layout transform. Per-card delay via --fc-float-delay. */
+.fcard-layer.mode-drift .fcard{
+  animation:fcardFloat var(--fc-float-ms,4s) ease-in-out var(--fc-float-delay,0s) infinite;
+}
+.fcard-layer.mode-drift .fcard:hover, .fcard-layer.mode-drift .fcard.is-dragging{animation-play-state:paused;}
+@keyframes fcardFloat{
+  0%,100%{translate:0 0;}
+  50%{translate:0 calc(var(--fc-float-px,10px) * -1);}
+}
+/* Phones are always in deck mode; narrower cards leave room for the three
+   older cards' 20px steps (FCARD_LAYOUT.deck.mobileDx) without leaving the screen. */
+@media (max-width:767px){
+  .fcard{width:calc(100vw - 16px - 60px);}
+}
+@media (prefers-reduced-motion: reduce){
+  .fcard, .fcard.is-hidden, .fcard.is-closing{transition:none !important;animation:none !important;}
+  .fcard-close{transition:none;}
+}
+/* ── "Clear all" button + "Responses cleared · Undo" toast. Both sit in one
+   dock at the bottom centre (JS centres it between the "Press space" hint
+   and the footer), stacked in the same grid cell so they share the spot. ── */
+.fcard-dock{
+  position:absolute;left:50%;bottom:44px;transform:translateX(-50%);
+  display:grid;justify-items:center;align-items:center;
+  pointer-events:none;z-index:100000;
+}
+.fcard-dock > *{grid-area:1/1;}
+.fcard-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  min-height:38px;padding:0 16px;border-radius:999px;
+  background:var(--fcard-bg);
+  -webkit-backdrop-filter:var(--fcard-backdrop);
+  backdrop-filter:var(--fcard-backdrop);
+  border:1px solid var(--fcard-border);
+  box-shadow:0 8px 32px rgba(31,38,60,.18), inset 0 1px 0 rgba(255,255,255,.6);
+  color:var(--fcard-text);font-family:var(--font);font-size:13px;font-weight:500;white-space:nowrap;
+  opacity:0;transform:translateY(10px);visibility:hidden;pointer-events:none;
+  transition:opacity .25s ease, transform .25s ease, background .15s ease, visibility 0s linear .25s;
+}
+.fcard-pill.is-shown{opacity:1;transform:none;visibility:visible;pointer-events:auto;transition-delay:0s;}
+.fcard-pill svg{width:15px;height:15px;flex-shrink:0;}
+button.fcard-pill{cursor:pointer;}
+button.fcard-pill:hover{background:var(--fcard-pill-bg-hover,rgba(255,255,255,.55));}
+button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var(--fcard-accent);outline-offset:2px;}
+.fcard-toast{padding-right:6px;}
+.fcard-undo{
+  border:none;background:none;cursor:pointer;font:inherit;font-weight:600;
+  color:var(--fcard-accent);padding:6px 10px;border-radius:999px;
+}
+.fcard-undo:hover{background:var(--fcard-close-bg-hover);}
+[data-theme="dark"] .fcard-undo{color:#FFB0B6;}
+@media (max-width:767px){
+  .fcard-pill{min-height:44px;}
+  .fcard-toast{padding-top:0;padding-bottom:0;}
+  .fcard-undo{min-height:44px;}
+}
+@media (prefers-reduced-motion: reduce){ .fcard-pill{transition:none !important;} }
+/* Layout toggle — sits left of the hub's own close (✕) button, same look. */
+#aida-overlay .aida-layout-btn{
+  position:absolute;top:16px;right:64px;width:36px;height:36px;border-radius:50%;
+  border:1px solid #E4E2DE;background:#fff;color:#424242;cursor:pointer;z-index:80;
+  box-shadow:0 1px 4px rgba(0,0,0,.08);
+  display:flex;align-items:center;justify-content:center;padding:0;
+}
+#aida-overlay .aida-layout-btn:hover{border-color:#c9c6c1;}
+#aida-overlay .aida-layout-btn:focus-visible{outline:2px solid var(--red);outline-offset:2px;}
+#aida-overlay .aida-layout-btn svg{width:18px;height:18px;}
+/* Same rule as the close button: Messages' own header owns that corner. */
+#aida-overlay .msg-modal.open ~ .aida-layout-btn{display:none;}
+@media (max-width:767px){ #aida-overlay .aida-layout-btn{display:none;} }
 /* Scanner modal */
 .qr-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:900;flex-direction:column;}
 .qr-modal-bg.open{display:flex;}
@@ -2034,6 +2224,9 @@ tr:hover .badge { transform: scale(1.08); }
 #hex-canvas{position:absolute;inset:0;z-index:0;display:block;}
 #loading-screen > *:not(#hex-canvas){position:relative;z-index:1;}
 #bg-hex-canvas{position:fixed;inset:0;z-index:9996;pointer-events:none;opacity:0.07;}
+/* The AIDA screen has its own particle background — the app-wide hex
+   texture (drawn above everything) is hidden while it's open. */
+.aida-open #bg-hex-canvas{display:none;}
 
 /* ── FONT PICKER ─────────────────────────────────────────────────────────── */
 .font-picker-panel {
@@ -15836,22 +16029,22 @@ let aidaSelectedModel=null;
 function logoMarkup() {
   return `<button class="logo-btn" id="logoBtn" aria-label="Hold to open menu" aria-haspopup="true" aria-expanded="false">
       <svg viewBox="0 0 179 173" xmlns="http://www.w3.org/2000/svg">
-        <path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#424242"/>
+        <path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#2b2b2b"/>
         <path class="middle-layer" id="middleLayer" d="M84.7197 25.3936C117.725 25.3936 144.481 51.7607 144.481 84.2861C144.481 116.812 117.725 143.18 84.7197 143.18C73.4569 143.18 62.9223 140.108 53.9297 134.771L54.8389 135.703L22.8389 142.867L32.5322 113.006C27.7074 104.51 24.958 94.7142 24.958 84.2861C24.9583 51.7607 51.7142 25.3936 84.7197 25.3936Z"/>
         <path class="middle-layer-alt" id="middleLayerAlt" transform="translate(24.958,25.394)" d="M59.7617 0C26.7562 2.0319e-06 0.000248955 26.3671 0 58.8926C0 91.4182 26.756 117.786 59.7617 117.786C71.0246 117.786 81.5591 114.715 90.5518 109.377L89.6426 110.31L121.643 117.474L111.949 87.6123C116.774 79.1163 119.523 69.3206 119.523 58.8926C119.523 26.3671 92.7673 0 59.7617 0Z"/>
         <g class="icon-x" id="iconX">
-          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="white" transform="rotate(45 84 84)"/>
-          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="white" transform="rotate(-45 84 84)"/>
+          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="#111111" transform="rotate(45 84 84)"/>
+          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="#111111" transform="rotate(-45 84 84)"/>
         </g>
         <g class="icon-plus" id="iconPlus">
-          <path d="M91.3214 46.4093C94.0828 46.4094 96.3214 48.648 96.3214 51.4093V71.8029H116.715C119.476 71.8029 121.715 74.0416 121.715 76.8029V92.1964C121.715 94.9579 119.476 97.1964 116.715 97.1964H96.3214V116.715C96.3214 119.476 94.0828 121.715 91.3214 121.715H75.9279C73.1665 121.715 70.9279 119.476 70.9279 116.715V97.1964H51.4093C48.6479 97.1964 46.4093 94.9579 46.4093 92.1964V76.8029C46.4095 74.0416 48.648 71.8029 51.4093 71.8029H70.9279V51.4093C70.9279 48.6479 73.1665 46.4093 75.9279 46.4093H91.3214Z" fill="white"/>
+          <path d="M91.3214 46.4093C94.0828 46.4094 96.3214 48.648 96.3214 51.4093V71.8029H116.715C119.476 71.8029 121.715 74.0416 121.715 76.8029V92.1964C121.715 94.9579 119.476 97.1964 116.715 97.1964H96.3214V116.715C96.3214 119.476 94.0828 121.715 91.3214 121.715H75.9279C73.1665 121.715 70.9279 119.476 70.9279 116.715V97.1964H51.4093C48.6479 97.1964 46.4093 94.9579 46.4093 92.1964V76.8029C46.4095 74.0416 48.648 71.8029 51.4093 71.8029H70.9279V51.4093C70.9279 48.6479 73.1665 46.4093 75.9279 46.4093H91.3214Z" fill="#111111"/>
         </g>
         <g class="icon-wave" id="iconWave">
-          <rect class="wave-bar" x="52" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="66" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="80" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="94" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="108" y="59" width="8" height="50" rx="4" fill="white"/>
+          <rect class="wave-bar" x="52" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="66" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="80" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="94" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="108" y="59" width="8" height="50" rx="4" fill="#111111"/>
         </g>
         <circle class="icon-hit" id="iconHit" cx="84" cy="84" r="45" fill="transparent" style="pointer-events:auto;"></circle>
       </svg>
@@ -15861,6 +16054,1174 @@ function renderLogo(container) {
   container.insertAdjacentHTML('afterbegin', logoMarkup());
   return document.getElementById('logoBtn');
 }
+
+//// ── FloatingCard — glass reply cards + their layout manager (styles: .fcard*) ─
+// Every number the two layouts use lives here.
+var FCARD_LAYOUT={
+  animMs:500,                         // layout changes (move/scale/fade/blur)
+  ease:'cubic-bezier(0.2, 0.8, 0.2, 1)',
+  closeMs:250,                        // close fade/scale-out
+  enterScale:.92,                     // a new card grows in from this × its target scale
+  // …or, given opts.origin (AIDA's lips), from that point:
+  originScale:.05, originMoveMs:900, originEase:'cubic-bezier(0.22, 1, 0.36, 1)', originFadeMs:500,
+  closeScale:.9,
+  margin:8,                           // minimum gap to the viewport edge
+  mobileMaxWidth:767,                 // at or below: always depth deck, toggle hidden
+  storageKey:'aidaCardLayout',
+  clearAll:{
+    minCards:3,                       // "Clear all" shows at this many open cards or more
+    staggerMs:40,                     // cards disappear oldest → newest, this far apart…
+    maxTotalMs:600,                   // …squeezed so the whole clear (incl. closeMs) stays under this
+    undoMs:5000,                      // how long "Responses cleared · Undo" stays up
+    belowId:'voiceHintText',          // the dock is centred between this…
+    aboveSelector:'#aida-overlay .footer', // …and this, when there's room (else 44px off the bottom)
+    reserveSlot:4,                    // drift.slots index (bottom-centre) kept free while the button shows
+    dockGap:8                         // space kept between the button and any card
+  },
+  deck:{
+    dx:45, dy:38,                     // each older card's top-left sits this far left/up of the card in front
+    mobileDx:20, mobileDy:20,
+    scaleStep:.16,                    // scale = 1 - k*scaleStep
+    opacityStep:.25,                  // opacity = 1 - k*opacityStep
+    blurStepPx:1.5,                   // blur = k*blurStepPx
+    maxVisible:4,                     // newest + 3 older; the rest fade out but stay in the manager
+    hoverOpacityLift:.2
+  },
+  drift:{
+    newestScale:.95,
+    olderScale:.85, olderScaleStep:.08, minScale:.5,   // older: max(minScale, olderScale - k*olderScaleStep)
+    olderOpacity:.85,
+    floatPx:10, floatMs:4000, floatDelayStepMs:1300,
+    // Preferred card centres as fractions of the viewport, in fill order:
+    // top-right, bottom-left, bottom-right, top-left, bottom-centre, top-centre.
+    slots:[[.8,.24],[.2,.76],[.8,.76],[.2,.24],[.5,.86],[.5,.14]],
+    avoidIds:['orbitWrap','connPill','hintText','voiceHintText'], // the logo + its hint lines
+    avoidPad:12,
+    gridStep:24,                      // spacing of the fallback positions tried around each slot
+    avoidWeight:8, overlapWeight:4    // how hard to steer away from those vs. from other cards
+  }
+};
+
+// Reusable: FloatingCard.open({text, label, container, anchorEl}) returns a
+// handle { el, setText, appendText, close }. setText/appendText update the
+// body live, so a streamed reply can be pushed in piece by piece.
+//
+// The manager owns where every card is drawn. Cards are kept oldest → newest;
+// a card's age k is 0 for the newest. layout() turns (mode, k) into a centre
+// point, scale, opacity, blur and z-index per card and writes them as one
+// transform plus two CSS variables, so CSS transitions do all the animating.
+// Bringing a card forward = moving it to the end of the list; closing = removing
+// it; either way layout() runs again and everything else shifts one step.
+//
+// Clear all (button at minCards+, or Shift+Escape) empties the manager at
+// once, fades the cards out oldest → newest, and keeps a snapshot (text,
+// order, slots/spots, deck position) for 5s behind an Undo toast. Undo
+// rebuilds the cards from that snapshot. onClear(fn) lets the page react
+// (AIDA stops speaking).
+//
+// FloatingCard.isInteracting() tells keyboard shortcuts (AIDA's Space
+// push-to-talk) to stand down while the user is dragging, has text selected
+// in a card, or has focus on a card's controls (or Clear all / Undo).
+var FloatingCard=(function(){
+  var C=FCARD_LAYOUT;
+  var cards=[];        // oldest first; the last entry is the newest (k = 0)
+  var layer=null;
+  var anchorEl=null;   // what the deck's first position is placed next to (the AIDA logo)
+  var deckPos=null;    // deck mode: the front card's top-left; null until a card needs it
+  var mode=readMode(); // the user's choice; activeMode() forces deck on phones
+  var dragging=false;
+  var nextId=0;
+  var globalBound=false;
+  var modeListeners=[];
+  var clearListeners=[];
+  var dock=null, clearBtn=null, clearText=null, toast=null;
+  var undoSnapshot=null, undoTimer=null;
+  var CLEAR_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l1 12.5h9l1-12.5"/><path d="M10 11v5M14 11v5"/></svg>';
+
+  function readMode(){
+    try{ return localStorage.getItem(C.storageKey)==='drift'?'drift':'deck'; }catch(e){ return 'deck'; }
+  }
+  function saveMode(){ try{ localStorage.setItem(C.storageKey,mode); }catch(e){} }
+  function reducedMotion(){
+    return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function isMobile(){ return window.innerWidth<=C.mobileMaxWidth; }
+  function activeMode(){ return isMobile()?'deck':mode; }
+  function ageOf(card){ return cards.length-1-cards.indexOf(card); }
+
+  function getLayer(container){
+    container=container||document.body;
+    var l=container.querySelector(':scope > .fcard-layer');
+    if(!l){
+      l=document.createElement('div');
+      l.className='fcard-layer';
+      container.appendChild(l);
+    }
+    l.style.setProperty('--fc-ms',C.animMs+'ms');
+    l.style.setProperty('--fc-ease',C.ease);
+    l.style.setProperty('--fc-close-ms',C.closeMs+'ms');
+    l.style.setProperty('--fc-hover-lift',String(C.deck.hoverOpacityLift));
+    l.style.setProperty('--fc-float-px',C.drift.floatPx+'px');
+    l.style.setProperty('--fc-float-ms',C.drift.floatMs+'ms');
+    if(!dock) buildDock(l);
+    return l;
+  }
+
+  // ── Clear all button + Undo toast ──
+  function buildDock(l){
+    dock=document.createElement('div');
+    dock.className='fcard-dock';
+    dock.innerHTML=
+      '<button type="button" class="fcard-pill fcard-clear" aria-label="Clear all responses">'+CLEAR_ICON+'<span class="fcard-clear-text"></span></button>'+
+      '<div class="fcard-pill fcard-toast" role="status"><span>Responses cleared</span><button type="button" class="fcard-undo">Undo</button></div>';
+    clearBtn=dock.querySelector('.fcard-clear');
+    clearText=dock.querySelector('.fcard-clear-text');
+    toast=dock.querySelector('.fcard-toast');
+    // blur() first: the button hides right after, and focus left on a
+    // hidden control would keep isInteracting() — and so Space — blocked.
+    clearBtn.addEventListener('click',function(){ clearBtn.blur(); clearAll(); });
+    toast.querySelector('.fcard-undo').addEventListener('click',function(e){ e.currentTarget.blur(); undo(); });
+    l.appendChild(dock);
+  }
+  function dockReserved(){ return cards.length>=C.clearAll.minCards; }
+  // Centre the dock in the gap between the "Press space" hint and the
+  // footer when it fits; otherwise the CSS default (44px off the bottom).
+  function placeDock(){
+    var below=document.getElementById(C.clearAll.belowId);
+    var above=document.querySelector(C.clearAll.aboveSelector);
+    var rb=below&&below.getBoundingClientRect(), ra=above&&above.getBoundingClientRect();
+    var h=dock.offsetHeight||44;
+    if(rb&&ra&&rb.height&&ra.height&&ra.top-rb.bottom>=h+2*C.clearAll.dockGap){
+      dock.style.top=(rb.bottom+(ra.top-rb.bottom-h)/2)+'px';
+      dock.style.bottom='auto';
+    }else{
+      dock.style.top='';
+      dock.style.bottom='';
+    }
+  }
+  function dockRect(){
+    var r=dock.getBoundingClientRect(), g=C.clearAll.dockGap;
+    return {l:r.left-g,t:r.top-g,r:r.right+g,b:r.bottom+g};
+  }
+  function updateDock(){
+    if(!dock) return;
+    placeDock();
+    clearText.textContent='Clear all ('+cards.length+')';
+    clearBtn.classList.toggle('is-shown',dockReserved()&&!undoSnapshot);
+  }
+  function blurIfInside(el){
+    var ae=document.activeElement;
+    if(ae&&el.contains(ae)) ae.blur();
+  }
+  function dismissUndo(){
+    clearTimeout(undoTimer);
+    undoSnapshot=null;
+    if(toast){ blurIfInside(toast); toast.classList.remove('is-shown'); }
+  }
+
+  function clearAll(){
+    if(!cards.length) return;
+    var gone=cards.slice(); // oldest → newest
+    undoSnapshot={
+      deckPos:deckPos,
+      cards:gone.map(function(c){ return { text:c.body.textContent, label:c.label, slot:c.slot, spot:c.spot }; })
+    };
+    // Empty the manager now, so the next reply opens fresh (main position
+    // / first slot) even while the old cards are still fading out.
+    cards=[];
+    deckPos=null;
+    clearListeners.forEach(function(fn){ try{ fn(); }catch(e){} });
+    var rm=reducedMotion();
+    var n=gone.length;
+    var step=n>1?Math.min(C.clearAll.staggerMs,Math.max(0,(C.clearAll.maxTotalMs-C.closeMs)/(n-1))):0;
+    gone.forEach(function(c,i){
+      c.closed=true;
+      if(rm){ c.remove(); return; }
+      c.el.style.pointerEvents='none';
+      setTimeout(c.fadeOut,i*step);
+    });
+    layout();
+    clearTimeout(undoTimer);
+    toast.classList.add('is-shown');
+    undoTimer=setTimeout(dismissUndo,C.clearAll.undoMs);
+  }
+  function undo(){
+    var snap=undoSnapshot;
+    if(!snap) return;
+    dismissUndo();
+    var restored=snap.cards.map(function(s){
+      var c=createCard({ text:s.text, label:s.label });
+      c.slot=s.slot; c.spot=s.spot;
+      return c;
+    });
+    cards=restored.concat(cards);
+    deckPos=snap.deckPos;
+    layout();
+  }
+  function clamp(v,lo,hi){ return hi<lo?(lo+hi)/2:Math.min(Math.max(v,lo),hi); }
+  // Keep a card's visual box (its size × scale, around its centre) on screen.
+  function clampCentre(x,y,w,h){
+    var M=C.margin;
+    return { x:clamp(x,M+w/2,window.innerWidth-M-w/2), y:clamp(y,M+h/2,window.innerHeight-M-h/2) };
+  }
+
+  // ── Depth deck ──
+  function deckSteps(){
+    return isMobile()?{dx:C.deck.mobileDx,dy:C.deck.mobileDy}:{dx:C.deck.dx,dy:C.deck.dy};
+  }
+  function deckStart(front){
+    var w=front.el.offsetWidth, h=front.el.offsetHeight;
+    var r=anchorEl&&anchorEl.getBoundingClientRect();
+    if(r&&r.width&&r.height) return { x:r.right+8, y:r.top+r.height/2-h/2 };
+    return { x:window.innerWidth/2-w/2+40, y:window.innerHeight/2-h/2 };
+  }
+  function deckTargets(){
+    var st=deckSteps(), M=C.margin, W=window.innerWidth, H=window.innerHeight;
+    if(!deckPos) deckPos=deckStart(cards[cards.length-1]);
+    // Bounding box of the visible deck relative to deckPos, then shift the
+    // whole deck to fit. The far edges are applied last so that, if the deck
+    // can't fit at all, the front card is the one that stays fully visible.
+    var vis=Math.min(cards.length,C.deck.maxVisible);
+    var minX=0, minY=0, maxX=0, maxY=0;
+    for(var k=0;k<vis;k++){
+      var el=cards[cards.length-1-k].el, s=1-k*C.deck.scaleStep;
+      minX=Math.min(minX,-k*st.dx); minY=Math.min(minY,-k*st.dy);
+      maxX=Math.max(maxX,-k*st.dx+el.offsetWidth*s); maxY=Math.max(maxY,-k*st.dy+el.offsetHeight*s);
+    }
+    var x=deckPos.x, y=deckPos.y;
+    if(x+minX<M) x=M-minX;
+    if(x+maxX>W-M) x=W-M-maxX;
+    if(y+minY<M) y=M-minY;
+    if(y+maxY>H-M) y=H-M-maxY;
+    // While "Clear all" shows, lift the deck clear of it if they'd meet
+    // (only matters on narrow screens, where the deck spans the centre).
+    if(dock&&dockReserved()){
+      var d=dockRect();
+      if(x+minX<d.r&&x+maxX>d.l&&y+maxY>d.t) y=Math.max(d.t-maxY,M-minY);
+    }
+    deckPos={x:x,y:y};
+    return cards.map(function(card,i){
+      var age=cards.length-1-i;
+      var hidden=age>=C.deck.maxVisible;
+      var kk=Math.min(age,C.deck.maxVisible); // hidden cards wait one step behind the last visible one
+      var s=Math.max(.05,1-kk*C.deck.scaleStep);
+      var w=card.el.offsetWidth, h=card.el.offsetHeight;
+      return {
+        k:age, hidden:hidden, s:s, z:i+1,
+        cx:x-kk*st.dx+w*s/2, cy:y-kk*st.dy+h*s/2,
+        op:hidden?0:Math.max(0,1-age*C.deck.opacityStep),
+        blur:hidden?0:age*C.deck.blurStepPx
+      };
+    });
+  }
+
+  // ── Drifting ──
+  function driftScale(k){
+    return k===0?C.drift.newestScale:Math.max(C.drift.minScale,C.drift.olderScale-k*C.drift.olderScaleStep);
+  }
+  function rectAround(x,y,w,h){ return {l:x-w/2,t:y-h/2,r:x+w/2,b:y+h/2}; }
+  function overlap(a,b){
+    var w=Math.min(a.r,b.r)-Math.max(a.l,b.l), h=Math.min(a.b,b.b)-Math.max(a.t,b.t);
+    return w>0&&h>0?w*h:0;
+  }
+  function avoidRects(){
+    var pad=C.drift.avoidPad, out=[];
+    C.drift.avoidIds.forEach(function(id){
+      var el=document.getElementById(id);
+      var r=el&&el.getBoundingClientRect();
+      if(r&&r.width&&r.height) out.push({l:r.left-pad,t:r.top-pad,r:r.right+pad,b:r.bottom+pad});
+    });
+    return out;
+  }
+  // A card's spot is the centre it floats around. Prefer its slot's point;
+  // otherwise the nearby point that covers the least of the logo/hints and
+  // of the other cards, scored over a grid of fully-on-screen positions.
+  function assignSpot(card,k){
+    var W=window.innerWidth, H=window.innerHeight, M=C.margin;
+    var s=driftScale(k), w=card.el.offsetWidth*s, h=card.el.offsetHeight*s;
+    var used={};
+    cards.forEach(function(c){ if(c!==card&&c.slot!=null) used[c.slot]=true; });
+    var reserved=dock&&dockReserved();
+    if(reserved) used[C.clearAll.reserveSlot]=true; // bottom-centre belongs to "Clear all" right now
+    var slot=-1;
+    for(var i=0;i<C.drift.slots.length;i++){ if(!used[i]){ slot=i; break; } }
+    if(slot<0){ // every slot is taken — reuse the oldest card's
+      for(var j=0;j<cards.length;j++){ if(cards[j]!==card&&cards[j].slot!=null){ slot=cards[j].slot; break; } }
+      if(slot<0) slot=0;
+    }
+    card.slot=slot;
+    var pref=clampCentre(C.drift.slots[slot][0]*W,C.drift.slots[slot][1]*H,w,h);
+    var avoid=avoidRects();
+    if(reserved) avoid.push(dockRect());
+    var others=cards.filter(function(c){ return c!==card&&c.spot; }).map(function(c){
+      var cs=driftScale(ageOf(c));
+      return rectAround(c.spot.x,c.spot.y,c.el.offsetWidth*cs,c.el.offsetHeight*cs);
+    });
+    var area=w*h, diag=Math.hypot(W,H);
+    function score(p){
+      var r=rectAround(p.x,p.y,w,h), a=0, o=0;
+      avoid.forEach(function(q){ a+=overlap(r,q); });
+      others.forEach(function(q){ o+=overlap(r,q); });
+      return Math.hypot(p.x-pref.x,p.y-pref.y)/diag + C.drift.avoidWeight*a/area + C.drift.overlapWeight*o/area;
+    }
+    var best=pref, bestScore=score(pref), step=C.drift.gridStep;
+    var x0=M+w/2, x1=W-M-w/2, y0=M+h/2, y1=H-M-h/2;
+    if(x1<x0){ x0=x1=W/2; }
+    if(y1<y0){ y0=y1=H/2; }
+    for(var x=x0;x<=x1+.5;x+=step){
+      for(var y=y0;y<=y1+.5;y+=step){
+        var p={x:x,y:y}, sc=score(p);
+        if(sc<bestScore){ best=p; bestScore=sc; }
+      }
+    }
+    card.spot={x:best.x,y:best.y};
+  }
+  function driftTargets(){
+    // Newest first, so the newest card gets first pick of the free slots.
+    for(var i=cards.length-1;i>=0;i--){ if(!cards[i].spot) assignSpot(cards[i],cards.length-1-i); }
+    return cards.map(function(card,i){
+      var age=cards.length-1-i, s=driftScale(age);
+      var p=clampCentre(card.spot.x,card.spot.y,card.el.offsetWidth*s,card.el.offsetHeight*s);
+      return { k:age, hidden:false, s:s, z:i+1, cx:p.x, cy:p.y, op:age===0?1:C.drift.olderOpacity, blur:0 };
+    });
+  }
+
+  // ── Rendering ──
+  function apply(card,t){
+    var el=card.el;
+    el.style.transform='translate('+(t.cx-el.offsetWidth/2)+'px,'+(t.cy-el.offsetHeight/2)+'px) scale('+t.s+')';
+    el.style.setProperty('--fc-op',String(t.op));
+    el.style.setProperty('--fc-filter',t.blur>0?'blur('+t.blur+'px)':'none');
+  }
+  function layout(){
+    if(!layer) return;
+    var am=activeMode();
+    layer.classList.toggle('mode-deck',am==='deck');
+    layer.classList.toggle('mode-drift',am==='drift');
+    updateDock(); // first: both layouts read where the button sits
+    if(!cards.length){ deckPos=null; return; }
+    var targets=am==='deck'?deckTargets():driftTargets();
+    cards.forEach(function(card,i){
+      var t=targets[i], el=card.el;
+      el.style.zIndex=String(t.z);
+      el.classList.toggle('is-older',t.k>0);
+      el.classList.toggle('is-hidden',t.hidden);
+      if(t.hidden) el.setAttribute('aria-hidden','true'); else el.removeAttribute('aria-hidden');
+      if(card.entering){
+        // Start invisible and slightly small at its own spot — or tiny at
+        // its origin point — then let the transition carry it into place.
+        card.entering=false;
+        el.style.transition='none';
+        if(card.origin&&!reducedMotion()){
+          apply(card,{cx:card.origin.x,cy:card.origin.y,s:C.originScale,op:0,blur:0});
+          void el.offsetWidth;
+          el.style.transition='transform '+C.originMoveMs+'ms '+C.originEase+', opacity '+C.originFadeMs+'ms ease, filter '+C.animMs+'ms '+C.ease;
+          var tok=card.enterTok={};
+          setTimeout(function(){ if(card.enterTok===tok) el.style.transition=''; },C.originMoveMs);
+        }else{
+          apply(card,{cx:t.cx,cy:t.cy,s:t.s*C.enterScale,op:0,blur:t.blur});
+          void el.offsetWidth;
+          el.style.transition='';
+        }
+        card.origin=null;
+      }
+      apply(card,t);
+      card.cx=t.cx; card.cy=t.cy; card.s=t.s;
+    });
+  }
+
+  function promote(card){
+    var i=cards.indexOf(card);
+    if(i<0||i===cards.length-1) return;
+    cards.splice(i,1);
+    cards.push(card);
+    layout();
+  }
+
+  function bindGlobal(){
+    if(globalBound) return;
+    globalBound=true;
+    // Capture phase on window so a card's Escape is handled before the AIDA
+    // hub's own document-level Escape handlers (which would otherwise close
+    // the Messages modal or the whole overlay underneath it). Closes the
+    // newest card — the one most recently opened or clicked.
+    // Shift+Escape clears every card instead (same as the button).
+    window.addEventListener('keydown',function(e){
+      if(e.key!=='Escape') return;
+      var target=cards[cards.length-1];
+      if(!target||!target.el.getClientRects().length) return; // none open, or its layer is hidden
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if(e.shiftKey) clearAll();
+      else target.close();
+    },true);
+    var resizeRaf=0;
+    window.addEventListener('resize',function(){
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf=requestAnimationFrame(layout);
+    });
+  }
+
+  function open(opts){
+    opts=opts||{};
+    bindGlobal();
+    layer=getLayer(opts.container);
+    if(opts.anchorEl) anchorEl=opts.anchorEl;
+    dismissUndo(); // a new reply ends the chance to undo the last clear
+    var card=createCard(opts);
+    cards.push(card);
+    layout();
+    return card;
+  }
+
+  // Builds a card's element and behaviour; the caller adds it to `cards`
+  // and runs layout(). Used by open() and by undo().
+  function createCard(opts){
+    var el=document.createElement('div');
+    el.className='fcard';
+    el.setAttribute('role','dialog');
+    el.setAttribute('aria-modal','false');
+    el.setAttribute('aria-label',(opts.label||'AIDA')+' response');
+    el.innerHTML=
+      '<div class="fcard-header">'+
+        '<span class="fcard-dot" aria-hidden="true"></span>'+
+        '<span class="fcard-label"></span>'+
+        '<button type="button" class="fcard-close" aria-label="Close">&times;</button>'+
+      '</div>'+
+      '<div class="fcard-body" aria-live="polite"></div>';
+    var header=el.querySelector('.fcard-header');
+    var body=el.querySelector('.fcard-body');
+    var closeBtn=el.querySelector('.fcard-close');
+    el.querySelector('.fcard-label').textContent=opts.label||'AIDA';
+    body.textContent=opts.text||'';
+    var id=nextId++;
+    el.style.setProperty('--fc-float-delay',(-(id*C.drift.floatDelayStepMs)%C.drift.floatMs)+'ms');
+
+    var card={ el:el, body:body, label:opts.label||'AIDA', id:id, closed:false, entering:true, origin:opts.origin||null, slot:null, spot:null, cx:0, cy:0, s:1 };
+    layer.insertBefore(el,dock);
+
+    function nearBottom(){ return body.scrollHeight-body.scrollTop-body.clientHeight<24; }
+    card.setText=function(text){
+      var stick=nearBottom();
+      body.textContent=text==null?'':String(text);
+      if(stick) body.scrollTop=body.scrollHeight;
+      layout(); // its height changed — keep it (and the deck) inside the viewport
+    };
+    card.appendText=function(chunk){ card.setText(body.textContent+(chunk==null?'':String(chunk))); };
+    card.close=function(){
+      if(card.closed) return;
+      card.closed=true;
+      var i=cards.indexOf(card);
+      if(i>=0) cards.splice(i,1);
+      if(reducedMotion()) card.remove();
+      else card.fadeOut();
+      layout(); // everything behind it moves up one step
+    };
+    card.remove=function(){ if(el.parentNode) el.parentNode.removeChild(el); };
+    // The close animation on its own (no list/layout changes) — clearAll()
+    // staggers these.
+    card.fadeOut=function(){
+      el.classList.add('is-closing');
+      apply(card,{cx:card.cx,cy:card.cy,s:card.s*C.closeScale,op:0,blur:0});
+      setTimeout(card.remove,C.closeMs);
+    };
+
+    // Any press on an older card brings it to the front (not its close
+    // button — that should just close it).
+    el.addEventListener('pointerdown',function(e){
+      if(e.target.closest('.fcard-close')) return;
+      promote(card);
+    });
+    closeBtn.addEventListener('click',function(e){ e.stopPropagation(); card.close(); });
+
+    // Drag by the header — pointer events cover mouse, touch and pen alike.
+    // Deck: only the front card drags, and it carries the whole deck.
+    // Drifting: any card drags; where it's dropped becomes its spot.
+    var start=null;
+    header.addEventListener('pointerdown',function(e){
+      if(e.target.closest('.fcard-close')) return;
+      if(e.pointerType==='mouse'&&e.button!==0) return;
+      var deck=activeMode()==='deck';
+      if(deck&&ageOf(card)!==0) return; // an older deck card: the click just brings it forward
+      e.preventDefault(); // no text selection / native touch scroll while dragging
+      start=deck
+        ? { id:e.pointerId, deck:true, ox:e.clientX-deckPos.x, oy:e.clientY-deckPos.y, sx:e.clientX, sy:e.clientY, moved:false }
+        : { id:e.pointerId, deck:false, ox:e.clientX-card.cx, oy:e.clientY-card.cy, sx:e.clientX, sy:e.clientY, moved:false };
+      dragging=true;
+      try{ header.setPointerCapture(e.pointerId); }catch(err){}
+    });
+    header.addEventListener('pointermove',function(e){
+      if(!start||e.pointerId!==start.id) return;
+      if(!start.moved){
+        // Only switch to 1:1 following once it's really a drag, so a plain
+        // click still animates the card forward.
+        if(Math.abs(e.clientX-start.sx)+Math.abs(e.clientY-start.sy)<4) return;
+        start.moved=true;
+        card.enterTok=null; el.style.transition='';
+        (start.deck?layer:el).classList.add('is-dragging');
+        el.classList.add('is-dragging');
+      }
+      if(start.deck) deckPos={ x:e.clientX-start.ox, y:e.clientY-start.oy };
+      else card.spot={ x:e.clientX-start.ox, y:e.clientY-start.oy };
+      layout();
+    });
+    function endDrag(e){
+      if(!start||e.pointerId!==start.id) return;
+      if(start.moved&&!start.deck){
+        // Dropped: the (on-screen) drop point is its new spot, and its old
+        // slot is free for the next card.
+        card.spot={ x:card.cx, y:card.cy };
+        card.slot=null;
+      }
+      start=null;
+      dragging=false;
+      layer.classList.remove('is-dragging');
+      el.classList.remove('is-dragging');
+      try{ header.releasePointerCapture(e.pointerId); }catch(err){}
+    }
+    header.addEventListener('pointerup',endDrag);
+    header.addEventListener('pointercancel',endDrag);
+    header.addEventListener('lostpointercapture',endDrag);
+
+    return card;
+  }
+
+  function setMode(m){
+    m=m==='drift'?'drift':'deck';
+    if(m===mode) return;
+    mode=m;
+    saveMode();
+    // Fresh spots every time Drifting is entered, laid out around the
+    // cards' current ages; the deck keeps its last position.
+    if(m==='drift') cards.forEach(function(c){ c.spot=null; c.slot=null; });
+    layout();
+    modeListeners.forEach(function(fn){ try{ fn(mode); }catch(e){} });
+  }
+
+  function isInteracting(){
+    if(dragging) return true;
+    var ae=document.activeElement;
+    if(ae&&ae.closest&&ae.closest('.fcard, .fcard-dock')) return true;
+    var sel=window.getSelection&&window.getSelection();
+    if(sel&&!sel.isCollapsed&&sel.anchorNode){
+      var n=sel.anchorNode.nodeType===1?sel.anchorNode:sel.anchorNode.parentElement;
+      if(n&&n.closest&&n.closest('.fcard')) return true;
+    }
+    return false;
+  }
+  // Logout path: close everything with no Undo offered.
+  function closeAll(){ dismissUndo(); cards.slice().forEach(function(c){ c.close(); }); }
+
+  return {
+    open:open, isInteracting:isInteracting, closeAll:closeAll,
+    clearAll:clearAll, undo:undo,
+    onClear:function(fn){ clearListeners.push(fn); },
+    getMode:function(){ return mode; },
+    setMode:setMode,
+    toggleMode:function(){ setMode(mode==='deck'?'drift':'deck'); },
+    onModeChange:function(fn){ modeListeners.push(fn); }
+  };
+})();
+
+// AIDA's replies → FloatingCard, mounted inside the hub overlay so cards hide
+// and reappear with it. Returns the card handle (setText/appendText) so a
+// streamed reply could update it live.
+// opts.fromLips: the card grows out of the particle face's lips (if it's up).
+function showAidaResponseCard(text,opts){
+  var ov=document.getElementById('aida-overlay');
+  if(!ov) return null;
+  var origin=opts&&opts.fromLips?AidaFaceFlow.lipsPoint():null;
+  // Anchored to orbitWrap, not logoBtn: the logo itself is scaled 3.2x while
+  // the Messages modal is open, which would throw its bounding box far off.
+  return FloatingCard.open({ text:text, label:'AIDA', container:ov, anchorEl:document.getElementById('orbitWrap'), origin:origin });
+}
+
+// The hub's top-right layout toggle: shows the CURRENT layout's icon and
+// offers the other one in its label.
+var AIDA_LAYOUT_ICONS={
+  deck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="11" rx="2"/><path d="M6 16.5V8a2 2 0 0 1 2-2h9.5"/><path d="M3 13V5a2 2 0 0 1 2-2h9" opacity=".55"/></svg>',
+  drift:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="8" height="6" rx="1.5"/><rect x="14" y="2.5" width="7.5" height="6.5" rx="1.5"/><rect x="3.5" y="14" width="7.5" height="6.5" rx="1.5"/><rect x="14.5" y="13" width="7" height="7.5" rx="1.5"/></svg>'
+};
+function syncAidaLayoutToggle(){
+  var btn=document.getElementById('aidaLayoutToggle');
+  if(!btn) return;
+  var m=FloatingCard.getMode();
+  var label=m==='deck'?'Switch to spread out layout':'Switch to stacked layout';
+  btn.innerHTML=AIDA_LAYOUT_ICONS[m];
+  btn.title=label;
+  btn.setAttribute('aria-label',label);
+}
+FloatingCard.onModeChange(syncAidaLayoutToggle);
+FloatingCard.onClear(function(){ stopAidaSpeechLocally(); });
+
+// ── AIDA particle background + particle face ────────────────────────────────
+// One <canvas> behind the hub. Idle: a particles.js-style network (drifting
+// dots, distance-faded links, dots drawn towards the mouse). While AIDA
+// answers, those same particles fly into a wireframe portrait traced in
+// /aida-face.json (one particle per traced point), her lips follow AIDA's
+// voice, and afterwards the face dissolves back into the background.
+// Formation, curved paths, easing, line fade-in, lips and dissolve follow
+// aida-face-demo.html. Hand-written rather than tsParticles: its slim bundle
+// can't cap devicePixelRatio, has no reduced-motion handling and can't drive
+// individual particles along paths. Every number lives here.
+var AIDA_PARTICLES={
+  colorLight:'#6e6e6e',
+  colorDark:'#c8c8c8',
+  // Screen area per visible idle particle → ~75 on 1920×1080, scaling with
+  // the window. (1 per 5,500px² would be ~377 at 1080p, far from the 70–80
+  // asked for originally, so the count target wins.)
+  areaPerParticle:27600,
+  mobileMaxWidth:767,
+  mobileCount:35,
+  sizeMin:1.5, sizeMax:3.3,          // radius, px
+  opacity:.6,
+  linkDistance:120,                  // px; links fade from linkOpacity to 0 at this distance
+  linkOpacity:.5,
+  linkWidth:1,
+  speed:1,                           // px per frame at 60fps, random direction, bounces off edges
+  attractDistance:180,               // px around the cursor
+  attractSpeed:1,                    // px per frame of pull towards the cursor
+  attractEase:30,                    // pull fades out inside this radius, so dots settle instead of jittering
+  maxDpr:2,
+  fps:60,
+  batches:8,                         // opacity groups per batched Path2D draw
+  face:{
+    url:'/aida-face.json',
+    layout:'fitScreen',              // 'fitScreen' (face centred on the logo) | 'aboveLogo' (lips just above the logo)
+    anchorId:'orbitWrap',            // its centre is the logo's centre (the logo itself gets scaled by the Messages zoom)
+    logoId:'logoBtn',
+    fitWidth:520,                    // scale ≤ viewportWidth / fitWidth
+    fitMargin:8, fitTop:12,          // fitScreen: scale ≤ (viewportHeight/2 - fitMargin) / (faceCenterY - fitTop)
+    aboveLogoGap:8,                  // aboveLogo: px between the lips and the logo's top edge
+    // Formation
+    visibleDelayMaxMs:300,           // floaters the user can see leave first…
+    hiddenDelayMinMs:250, hiddenDelayMaxMs:1550,   // …then the rest stream out of them
+    nearestJitter:4000,              // px² of randomness when picking the floater a hidden particle streams from
+    hiddenStartJitter:3,             // px
+    curve:.3,                        // Bezier control point: ± this × travel distance, sideways
+    durMinMs:1500, durMaxMs:2200,    // per particle, easeInOutCubic
+    lineStart:.72,                   // a line shows once both ends are this far along, full at 1
+    idleLinkFadeMs:1400,
+    // Look
+    lineOpacity:.6, lineWidthMin:.8, lineWidthScale:.7,
+    dotRadius:2.2, dotScaleFactor:.8, dotOpacity:.9,   // node dots: dotRadius × max(1, scale × dotScaleFactor)
+    pointRadius:.8,
+    breathAmp:.004, breathPeriodMs:1700,
+    // Lips
+    mouthMax:8,                      // source px a weight-1 point drops at full open
+    talkSmoothing:.15,               // per 60fps frame
+    rmsFloor:.01, rmsFull:.15,       // voice RMS mapped to 0…mouthMax
+    rmsSmoothing:.35,                // per 60fps frame
+    // Dissolve
+    dissolveSpeedMin:.6, dissolveSpeedMax:1.5, dissolveJitter:.4,   // px per frame, outward from the logo
+    dissolveDamping:.995,            // per frame, until back at normal floating speed
+    dissolveFadeMs:1000,
+    reducedFadeMs:250,               // prefers-reduced-motion: quick fade, no flight
+    // Request flow (AidaFaceFlow)
+    afterSpeechMs:1400,              // lips closed → this long → dissolve
+    mutedHoldMs:2000,                // reply with no voice: text on screen + this → dissolve
+    speechWaitMs:5000,               // reply that will be spoken: wait this long for the audio to start
+    hintsBackMs:1000                 // hint lines fade back in once the dissolve has run this long
+  }
+};
+
+var AidaParticles=(function(){
+  var P=AIDA_PARTICLES, F=P.face, NB=P.batches;
+  var canvas=null, ctx=null, W=0, H=0;
+  var running=false, raf=0, last=0, hiddenAt=0;
+  var mouse=null, listening=false;
+  var reduceMq=window.matchMedia?window.matchMedia('(prefers-reduced-motion: reduce)'):null;
+
+  // Particle i ↔ face point i. Typed arrays, sized once the face data loads
+  // (until then just the visible idle particles).
+  var TOTAL=0;
+  var PX,PY,VX,VY,RR,SX,SY,QX,QY,DLY,DUR,PR,P0,HX,HY,BX,BY;
+  var IDLE;               // 1 = one of the floaters the user sees while idle
+  var VI=[];              // indices of those floaters
+  var face=null;          // {X,Y,WT,ISD,ED,anchors} in source pixels, once loaded
+  var faceLoading=false, pendingForm=false;
+  var S=1, LCX=0, LCY=0;  // face scale; logo centre (breathing pivot)
+  var OX=0, OY=0, ORX=0, ORY=0;  // screen point (OX,OY) that source point (ORX,ORY) maps to
+  var mode='idle', t0=0, amt=0, amt0=0, talk=0, talkTarget=0, hasHome=false;
+  var mouthSource=null, mouthLevel=0;
+
+  function reduced(){ return !!(reduceMq&&reduceMq.matches); }
+  function color(){ return document.documentElement.getAttribute('data-theme')==='dark'?P.colorDark:P.colorLight; }
+  function rgb(hex){ var n=parseInt(hex.slice(1),16); return ((n>>16)&255)+','+((n>>8)&255)+','+(n&255); }
+  function targetCount(){ return W<=P.mobileMaxWidth?P.mobileCount:Math.max(1,Math.round(W*H/P.areaPerParticle)); }
+  function ease(u){ return u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2; }
+  function sm(a,b,x){ var t=Math.min(1,Math.max(0,(x-a)/(b-a))); return t*t*(3-2*t); }
+  function randomVelocity(i){ var a=Math.random()*Math.PI*2; VX[i]=Math.cos(a)*P.speed; VY[i]=Math.sin(a)*P.speed; }
+  function placeRandom(i){
+    var r=RR[i];
+    PX[i]=r+Math.random()*Math.max(0,W-2*r); PY[i]=r+Math.random()*Math.max(0,H-2*r);
+    randomVelocity(i);
+  }
+
+  // (Re)allocate for `total` particles. `keep` = indices from the old arrays
+  // to carry over as visible floaters, each landing on a random new index so
+  // the floaters later fly to points spread across the whole face.
+  function alloc(total,keep){
+    var old={PX:PX,PY:PY,VX:VX,VY:VY,RR:RR};
+    TOTAL=total;
+    PX=new Float32Array(total); PY=new Float32Array(total); VX=new Float32Array(total); VY=new Float32Array(total);
+    RR=new Float32Array(total); SX=new Float32Array(total); SY=new Float32Array(total); QX=new Float32Array(total); QY=new Float32Array(total);
+    DLY=new Float32Array(total); DUR=new Float32Array(total); PR=new Float32Array(total); P0=new Float32Array(total);
+    HX=new Float32Array(total); HY=new Float32Array(total); BX=new Float32Array(total); BY=new Float32Array(total);
+    IDLE=new Uint8Array(total);
+    for(var i=0;i<total;i++){ RR[i]=P.sizeMin+Math.random()*(P.sizeMax-P.sizeMin); }
+    var order=[];
+    for(i=0;i<total;i++) order.push(i);
+    for(i=total-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=order[i]; order[i]=order[j]; order[j]=t; }
+    VI=[];
+    (keep||[]).forEach(function(k,n){
+      var i=order[n];
+      PX[i]=old.PX[k]; PY[i]=old.PY[k]; VX[i]=old.VX[k]; VY[i]=old.VY[k]; RR[i]=old.RR[k];
+      IDLE[i]=1; VI.push(i);
+    });
+  }
+  // Match the number of visible floaters to the screen (only while fully idle).
+  function refreshIdle(){
+    var n=Math.min(TOTAL,targetCount()), i;
+    if(VI.length<n){
+      var pool=[];
+      for(i=0;i<TOTAL;i++) if(!IDLE[i]) pool.push(i);
+      while(VI.length<n&&pool.length){
+        var k=pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+        IDLE[k]=1; VI.push(k); placeRandom(k);
+      }
+    }else{
+      while(VI.length>n){ i=VI.splice(Math.floor(Math.random()*VI.length),1)[0]; IDLE[i]=0; }
+    }
+  }
+
+  function loadFace(){
+    if(face||faceLoading) return;
+    faceLoading=true;
+    fetch(F.url).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).then(function(d){
+      var n=d.points.length/2;
+      var X=new Float32Array(n), Y=new Float32Array(n), WT=new Float32Array(n), ISD=new Uint8Array(n);
+      for(var i=0;i<n;i++){ X[i]=d.points[2*i]; Y[i]=d.points[2*i+1]; WT[i]=d.mouthWeights[i]||0; }
+      d.dots.forEach(function(i){ ISD[i]=1; });
+      face={ X:X, Y:Y, WT:WT, ISD:ISD, ED:Uint16Array.from(d.edges), A:d.anchors };
+      alloc(n,VI.slice());
+      geometry();
+      if(pendingForm){ pendingForm=false; api.formFace(); }
+    }).catch(function(e){
+      console.warn('[AIDA face] could not load '+F.url+' — the background stays a plain particle network:',e);
+    }).then(function(){ faceLoading=false; });
+  }
+
+  // Where the face sits: anchors.faceCenter on the logo's centre (fitScreen),
+  // or anchors.lips just above the logo's top edge (aboveLogo).
+  function geometry(){
+    var anchor=document.getElementById(F.anchorId), logo=document.getElementById(F.logoId);
+    var r=anchor&&anchor.getBoundingClientRect();
+    LCX=r&&r.width?r.left+r.width/2:W/2;
+    LCY=r&&r.height?r.top+r.height/2:H/2;
+    if(!face) return;
+    var A=face.A;
+    if(F.layout==='aboveLogo'){
+      var logoTop=LCY-((logo&&logo.offsetHeight)||0)/2;
+      OX=LCX; OY=logoTop-F.aboveLogoGap; ORX=A.lips[0]; ORY=A.lips[1];
+      S=Math.max(.05,Math.min((OY-F.fitMargin)/(A.lips[1]-A.crownY),W/F.fitWidth));
+    }else{
+      OX=LCX; OY=LCY; ORX=A.faceCenter[0]; ORY=A.faceCenter[1];
+      S=Math.max(.05,Math.min((H/2-F.fitMargin)/(A.faceCenter[1]-F.fitTop),W/F.fitWidth));
+    }
+    for(var i=0;i<TOTAL;i++){ BX[i]=OX+(face.X[i]-ORX)*S; BY[i]=OY+(face.Y[i]-ORY)*S; }
+  }
+
+  function resize(){
+    if(!canvas) return;
+    W=canvas.clientWidth; H=canvas.clientHeight;
+    if(!W||!H) return;
+    var dpr=Math.min(P.maxDpr,window.devicePixelRatio||1);
+    canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(!TOTAL) alloc(400,[]); // idle-only until the face data arrives (room for big screens)
+    if(mode==='idle'&&amt===0) refreshIdle();
+    for(var a=0;a<VI.length;a++){ var i=VI[a]; PX[i]=Math.min(Math.max(RR[i],PX[i]),W-RR[i]); PY[i]=Math.min(Math.max(RR[i],PY[i]),H-RR[i]); }
+    geometry();
+    if(mode==='face'&&reduced()) update(performance.now(),0);
+    draw(performance.now());
+  }
+
+  // Face mode: start each particle on a gentle curve from where it is now
+  // (or, for one not on screen yet, from the nearest floater) to its point.
+  // Particles already in or leaving the face keep going from where they are,
+  // so a second request re-forms smoothly.
+  function prep(now){
+    var inFace=mode==='face', fading=!inFace&&amt>0.01, i;
+    if(!inFace&&!fading){ hasHome=true; for(i=0;i<TOTAL;i++){ HX[i]=PX[i]; HY[i]=PY[i]; } }
+    var c=F.curve*2;
+    for(i=0;i<TOTAL;i++){
+      var shown=IDLE[i]||(inFace&&PR[i]>0)||fading, sx, sy;
+      P0[i]=inFace?(shown?PR[i]:0):(fading?amt:0);
+      if(shown){ sx=PX[i]; sy=PY[i]; DLY[i]=P0[i]>0?0:Math.random()*F.visibleDelayMaxMs; }
+      else{
+        var best=-1, bd=1e12;
+        for(var a=0;a<VI.length;a++){
+          var j=VI[a], d=(PX[j]-BX[i])*(PX[j]-BX[i])+(PY[j]-BY[i])*(PY[j]-BY[i])+Math.random()*F.nearestJitter;
+          if(d<bd){ bd=d; best=j; }
+        }
+        sx=(best>=0?PX[best]:BX[i])+(Math.random()-.5)*F.hiddenStartJitter;
+        sy=(best>=0?PY[best]:BY[i])+(Math.random()-.5)*F.hiddenStartJitter;
+        DLY[i]=F.hiddenDelayMinMs+Math.random()*(F.hiddenDelayMaxMs-F.hiddenDelayMinMs);
+      }
+      SX[i]=sx; SY[i]=sy;
+      DUR[i]=(F.durMinMs+Math.random()*(F.durMaxMs-F.durMinMs))*(1-P0[i]);
+      if(DUR[i]<1) DUR[i]=1;
+      var mx=(sx+BX[i])/2, my=(sy+BY[i])/2, dx=BX[i]-sx, dy=BY[i]-sy, k=(Math.random()-.5)*c;
+      QX[i]=mx-dy*k; QY[i]=my+dx*k;
+      PR[i]=P0[i];
+    }
+    amt0=inFace?1:amt;
+    t0=now;
+  }
+
+  function mouthShape(now){
+    if(mouthSource){
+      var lvl=mouthSource();
+      if(lvl!=null) return lvl;
+    }
+    return (.5+.5*Math.sin(now/95))*(.45+.55*Math.abs(Math.sin(now/240)));
+  }
+
+  function update(now,dt){
+    var rm=reduced(), i, a;
+    if(mode==='face'){
+      amt=amt0+(1-amt0)*sm(0,F.idleLinkFadeMs,now-t0);
+      if(rm) amt=1;
+    }else if(amt>0){
+      amt=Math.max(0,amt-dt*16.667/(rm?F.reducedFadeMs:F.dissolveFadeMs));
+      if(amt===0) refreshIdle();
+    }
+    talk+=(talkTarget-talk)*(1-Math.pow(1-F.talkSmoothing,dt));
+    if(talk<.001&&talkTarget===0) talk=0;
+    var target=talk>0?mouthShape(now):0;
+    mouthLevel+=(target-mouthLevel)*(1-Math.pow(1-F.rmsSmoothing,dt));
+    var mo=rm?0:talk*mouthLevel*F.mouthMax;
+    var br=rm?1:1+Math.sin(now/F.breathPeriodMs)*F.breathAmp;
+    if(mode==='face'){
+      var el=now-t0, WT=face.WT;
+      for(i=0;i<TOTAL;i++){
+        var u=rm?1:Math.min(1,Math.max(0,(el-DLY[i])/DUR[i]));
+        PR[i]=P0[i]+(1-P0[i])*u;
+        var e=ease(u), f=1-e;
+        var tx=LCX+(BX[i]-LCX)*br, ty=LCY+(BY[i]-LCY)*br+mo*WT[i]*S;
+        PX[i]=f*f*SX[i]+2*f*e*QX[i]+e*e*tx;
+        PY[i]=f*f*SY[i]+2*f*e*QY[i]+e*e*ty;
+      }
+      return;
+    }
+    if(rm||!dt) return;
+    // Idle (and dissolving): drift, bounce, settle back to floating speed.
+    var all=amt>0, n=all?TOTAL:VI.length;
+    for(a=0;a<n;a++){
+      i=all?a:VI[a];
+      if(IDLE[i]&&mouse){
+        var dx=mouse.x-PX[i], dy=mouse.y-PY[i], d=Math.sqrt(dx*dx+dy*dy);
+        if(d<P.attractDistance&&d>.5){
+          var pull=P.attractSpeed*Math.min(1,d/P.attractEase)*dt;
+          PX[i]+=dx/d*pull; PY[i]+=dy/d*pull;
+        }
+      }
+      var vx=VX[i], vy=VY[i], s=Math.sqrt(vx*vx+vy*vy);
+      if(s>P.speed+1e-3){ var k=Math.max(P.speed/s,Math.pow(F.dissolveDamping,dt)); VX[i]*=k; VY[i]*=k; }
+      else if(s<P.speed-1e-3){
+        if(s<1e-3) randomVelocity(i);
+        else{ var ns=s+(P.speed-s)*(1-Math.pow(.98,dt)); VX[i]*=ns/s; VY[i]*=ns/s; }
+      }
+      PX[i]+=VX[i]*dt; PY[i]+=VY[i]*dt;
+      var r=RR[i];
+      if(PX[i]<r){ PX[i]=r; VX[i]=Math.abs(VX[i]); } else if(PX[i]>W-r){ PX[i]=W-r; VX[i]=-Math.abs(VX[i]); }
+      if(PY[i]<r){ PY[i]=r; VY[i]=Math.abs(VY[i]); } else if(PY[i]>H-r){ PY[i]=H-r; VY[i]=-Math.abs(VY[i]); }
+    }
+  }
+
+  // Everything is drawn as a handful of batched paths, one per opacity group.
+  function draw(){
+    if(!ctx||!W) return;
+    var c=rgb(color()), L=P.linkDistance, L2=L*L, il=1-amt, i, j, a, b, q;
+    ctx.clearRect(0,0,W,H);
+    ctx.lineCap='butt';
+    // Idle links between floaters (fade out while the face forms).
+    if(il>.03){
+      var LB=[];
+      for(q=0;q<NB;q++) LB.push(null);
+      for(a=0;a<VI.length;a++){
+        i=VI[a];
+        for(b=a+1;b<VI.length;b++){
+          j=VI[b];
+          var dx=PX[i]-PX[j], dy=PY[i]-PY[j], d2=dx*dx+dy*dy;
+          if(d2>=L2) continue;
+          q=Math.min(NB-1,Math.floor((1-Math.sqrt(d2)/L)*NB));
+          (LB[q]||(LB[q]=new Path2D())).moveTo(PX[i],PY[i]);
+          LB[q].lineTo(PX[j],PY[j]);
+        }
+      }
+      ctx.lineWidth=P.linkWidth;
+      for(q=0;q<NB;q++) if(LB[q]){ ctx.strokeStyle='rgba('+c+','+(P.linkOpacity*(q+.5)/NB*il).toFixed(3)+')'; ctx.stroke(LB[q]); }
+    }
+    // Face lines.
+    if(face&&(mode==='face'||amt>.01)){
+      var ED=face.ED;
+      ctx.lineWidth=Math.max(F.lineWidthMin,S*F.lineWidthScale);
+      ctx.lineCap='round';
+      if(mode==='face'){
+        var EB=[];
+        for(q=0;q<NB;q++) EB.push(null);
+        for(var k=0;k<ED.length;k+=2){
+          a=ED[k]; b=ED[k+1];
+          var pq=Math.min(PR[a],PR[b]);
+          if(pq<F.lineStart) continue;
+          q=Math.min(NB-1,Math.floor(sm(F.lineStart,1,pq)*NB));
+          (EB[q]||(EB[q]=new Path2D())).moveTo(PX[a],PY[a]);
+          EB[q].lineTo(PX[b],PY[b]);
+        }
+        for(q=0;q<NB;q++) if(EB[q]){ ctx.strokeStyle='rgba('+c+','+(F.lineOpacity*(q+1)/NB).toFixed(3)+')'; ctx.stroke(EB[q]); }
+      }else{
+        var path=new Path2D();
+        for(k=0;k<ED.length;k+=2){ a=ED[k]; b=ED[k+1]; path.moveTo(PX[a],PY[a]); path.lineTo(PX[b],PY[b]); }
+        ctx.strokeStyle='rgba('+c+','+(F.lineOpacity*amt).toFixed(3)+')';
+        ctx.stroke(path);
+      }
+    }
+    // Dots. Idle floaters at their normal opacity go in one exact-opacity
+    // path; everything in transition is grouped by opacity.
+    var base=new Path2D(), DB=[], DRF=F.dotRadius*Math.max(1,S*F.dotScaleFactor), ISD=face?face.ISD:null;
+    for(q=0;q<NB;q++) DB.push(null);
+    var n=(mode==='face'||amt>.01)?TOTAL:0;
+    function dot(p,x,y,r){ if(r<1.3) p.rect(x-r,y-r,2*r,2*r); else{ p.moveTo(x+r,y); p.arc(x,y,r,0,6.2832); } }
+    if(!n){
+      for(a=0;a<VI.length;a++){ i=VI[a]; dot(base,PX[i],PY[i],RR[i]); }
+    }else{
+      for(i=0;i<TOTAL;i++){
+        var r, al, nd=ISD&&ISD[i];
+        if(mode==='face'){
+          var u=PR[i];
+          if(!IDLE[i]&&u<=0) continue;
+          var e=ease(u);
+          if(nd){ r=(IDLE[i]?RR[i]:.9)*(1-e)+DRF*e; al=IDLE[i]?P.opacity+(F.dotOpacity-P.opacity)*e:F.dotOpacity*Math.min(1,u*3); }
+          else{ r=(IDLE[i]?RR[i]:1)*(1-e)+F.pointRadius*e; al=(IDLE[i]?P.opacity:.55*Math.min(1,u*3))*(1-.8*sm(.8,1,u)); }
+        }else if(IDLE[i]){ r=RR[i]*il+(nd?DRF:F.pointRadius)*amt; al=P.opacity; }
+        else{ r=nd?DRF*amt:F.pointRadius; al=(nd?F.dotOpacity:.3)*amt; }
+        if(al<.02||r<.3) continue;
+        if(Math.abs(al-P.opacity)<.005){ dot(base,PX[i],PY[i],r); continue; }
+        q=Math.min(NB-1,Math.floor(al*NB/.95));
+        dot(DB[q]||(DB[q]=new Path2D()),PX[i],PY[i],r);
+      }
+    }
+    ctx.fillStyle='rgba('+c+','+P.opacity+')';
+    ctx.fill(base);
+    for(q=0;q<NB;q++) if(DB[q]){ ctx.fillStyle='rgba('+c+','+Math.min(1,.95*(q+1)/NB).toFixed(3)+')'; ctx.fill(DB[q]); }
+  }
+
+  function frame(now){
+    raf=requestAnimationFrame(frame);
+    var el=now-last;
+    if(el<1000/P.fps-2) return; // high-refresh screens: hold to ~60fps
+    last=now;
+    update(now,Math.min(50,el)/16.667);
+    draw(now);
+    if(!wantsLoop()) sync();
+  }
+  // Under reduced motion only the quick dissolve fade animates; the face
+  // and the idle network are still frames.
+  function wantsLoop(){
+    if(!running||document.hidden) return false;
+    return !reduced()||(mode!=='face'&&amt>0);
+  }
+  function sync(){
+    var animate=wantsLoop();
+    if(animate&&!raf){ last=performance.now(); raf=requestAnimationFrame(frame); }
+    else if(!animate&&raf){ cancelAnimationFrame(raf); raf=0; }
+    var track=running&&!document.hidden&&!reduced();
+    if(track&&!listening){
+      window.addEventListener('pointermove',onPointerMove,{passive:true});
+      document.documentElement.addEventListener('mouseleave',onLeave);
+      window.addEventListener('blur',onLeave);
+      listening=true;
+    }else if(!track&&listening){
+      window.removeEventListener('pointermove',onPointerMove);
+      document.documentElement.removeEventListener('mouseleave',onLeave);
+      window.removeEventListener('blur',onLeave);
+      listening=false;
+      mouse=null;
+    }
+  }
+  function onPointerMove(e){
+    if(e.pointerType==='touch') return; // hover only — a finger dragging a card shouldn't pull dots
+    mouse={ x:e.clientX, y:e.clientY };
+  }
+  function onLeave(){ mouse=null; }
+
+  var resizeRaf=0;
+  function init(){
+    canvas=document.getElementById('aidaParticles');
+    if(!canvas||!canvas.getContext) return false;
+    ctx=canvas.getContext('2d');
+    window.addEventListener('resize',function(){
+      if(!running) return;
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf=requestAnimationFrame(resize);
+    });
+    document.addEventListener('visibilitychange',function(){
+      // Hidden: stop. Visible again: shift the formation clock by the time
+      // away and restart the frame timer, so nothing jumps.
+      var now=performance.now();
+      if(document.hidden) hiddenAt=now;
+      else if(hiddenAt){ if(mode==='face') t0+=now-hiddenAt; hiddenAt=0; }
+      sync();
+    });
+    if(reduceMq){
+      var onMq=function(){ sync(); if(mode==='face') update(performance.now(),0); draw(); };
+      if(reduceMq.addEventListener) reduceMq.addEventListener('change',onMq); else if(reduceMq.addListener) reduceMq.addListener(onMq);
+    }
+    // Light/dark switch: recolour (matters for still frames).
+    new MutationObserver(function(){ if(running) draw(); })
+      .observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+    return true;
+  }
+
+  var api={
+    start:function(){
+      if(!ctx&&!init()) return;
+      running=true;
+      resize();
+      loadFace();
+      sync();
+    },
+    stop:function(){
+      running=false;
+      sync();
+    },
+    // Fly the particles into the face (again, smoothly, if it's already up).
+    formFace:function(){
+      if(!ctx) return;
+      if(!face){ pendingForm=true; loadFace(); return; }
+      var now=performance.now();
+      geometry();
+      prep(now);
+      mode='face';
+      if(reduced()){ update(now,0); draw(); }
+      sync();
+    },
+    // Let the face go: everything drifts outward from the logo and settles
+    // back to floating; lines, node dots and extra particles fade out.
+    dissolveFace:function(){
+      pendingForm=false;
+      if(mode!=='face') return;
+      mode='idle';
+      talkTarget=0;
+      if(reduced()){
+        if(hasHome) for(var a=0;a<VI.length;a++){ var h=VI[a]; PX[h]=HX[h]; PY[h]=HY[h]; }
+      }else{
+        for(var i=0;i<TOTAL;i++){
+          var dx=PX[i]-LCX, dy=PY[i]-LCY, d=Math.sqrt(dx*dx+dy*dy)||1, sp=F.dissolveSpeedMin+Math.random()*(F.dissolveSpeedMax-F.dissolveSpeedMin);
+          VX[i]=dx/d*sp+(Math.random()-.5)*F.dissolveJitter;
+          VY[i]=dy/d*sp+(Math.random()-.5)*F.dissolveJitter;
+        }
+      }
+      sync();
+    },
+    // Straight back to idle with no animation (AIDA screen closed / logout).
+    resetFace:function(){
+      pendingForm=false;
+      if(mode==='face'||amt>0){
+        if(hasHome) for(var a=0;a<VI.length;a++){ var h=VI[a]; PX[h]=HX[h]; PY[h]=HY[h]; randomVelocity(h); }
+      }
+      mode='idle'; amt=0; talk=0; talkTarget=0; mouthLevel=0;
+      if(W) refreshIdle();
+      draw();
+    },
+    setTalking:function(on){ talkTarget=on&&!reduced()?1:0; },
+    // fn() → 0…1 mouth opening from the live voice, or null to use the built-in rhythm.
+    setMouthSource:function(fn){ mouthSource=fn; },
+    // Screen position of her lips, for cards to come out of (null if there's no face).
+    lipsPoint:function(){
+      if(!face||!W) return null;
+      geometry();
+      var A=face.A;
+      return { x:OX+(A.lips[0]-ORX)*S, y:OY+(A.lips[1]-ORY)*S };
+    },
+    count:function(){ return VI.length; },
+    // Read-only snapshot (used by the tests).
+    state:function(){ return { mode:mode, amt:amt, talk:talk, mouth:talk*mouthLevel*F.mouthMax, total:TOTAL, visible:VI.length, scale:S, logo:[LCX,LCY], loaded:!!face }; }
+  };
+  return api;
+})();
+
+// Connects the face to AIDA's request → reply → voice flow.
+//   requestStarted  — a message/recording was sent: form the face.
+//   responseArrived — the reply card is up; wait for her voice (or, if this
+//                     reply won't be spoken, hold mutedHoldMs and dissolve).
+//   failed          — no reply: dissolve right away.
+//   speechStarted / speechEnded — driven by aidaSpeaking (_aidaSetSpeaking):
+//                     lips move while she talks; lipsClosed + afterSpeechMs → dissolve.
+var AidaFaceFlow=(function(){
+  var F=AIDA_PARTICLES.face;
+  var state='idle';      // idle | thinking | replied | speaking | closing
+  var talking=false, timer=0, hintTimer=0;
+  function clear(){ clearTimeout(timer); timer=0; }
+  function hints(hidden){
+    var ov=document.getElementById('aida-overlay');
+    if(ov) ov.classList.toggle('aida-face-on',hidden);
+  }
+  function dissolve(){
+    clear();
+    state='idle';
+    AidaParticles.dissolveFace();
+    clearTimeout(hintTimer);
+    hintTimer=setTimeout(function(){ hints(false); },F.hintsBackMs);
+  }
+  // Lips follow her real voice: smoothed RMS of what's playing, 0…1.
+  AidaParticles.setMouthSource(function(){
+    var rms=_aidaVoiceLevel();
+    if(rms==null) return null;
+    return Math.min(1,Math.max(0,(rms-F.rmsFloor)/(F.rmsFull-F.rmsFloor)));
+  });
+  return {
+    requestStarted:function(){
+      clear();
+      clearTimeout(hintTimer);
+      state='thinking';
+      hints(true);
+      AidaParticles.formFace();
+      AidaParticles.setTalking(talking);
+    },
+    responseArrived:function(willSpeak){
+      if(state==='idle') return;
+      clear();
+      if(talking){ state='speaking'; return; }
+      state='replied';
+      timer=setTimeout(dissolve,willSpeak?F.speechWaitMs:F.mutedHoldMs);
+    },
+    failed:function(){ if(state!=='idle') dissolve(); },
+    speechStarted:function(){
+      talking=true;
+      if(state==='idle') return;
+      AidaParticles.setTalking(true);
+      if(state==='replied'||state==='closing'){ clear(); state='speaking'; }
+    },
+    speechEnded:function(){
+      talking=false;
+      AidaParticles.setTalking(false);
+      if(state==='speaking'){ clear(); state='closing'; timer=setTimeout(dissolve,F.afterSpeechMs); }
+    },
+    // Where a reply card should come out of (null when there's no face up).
+    lipsPoint:function(){ return state==='idle'?null:AidaParticles.lipsPoint(); },
+    reset:function(){
+      clear();
+      clearTimeout(hintTimer);
+      state='idle';
+      hints(false);
+      AidaParticles.resetFace();
+    },
+    state:function(){ return state; }
+  };
+})();
 
 // ── AIDA hub — ported from the user's exact dashboard.js, wired to real data
 // and real mic/voice/logout instead of the reference's static placeholders.
@@ -15916,7 +17277,7 @@ function renderLogo(container) {
       orbitWrap.classList.add('open');
       backdrop.classList.add('open');
       logoBtn.setAttribute('aria-expanded','true');
-      hintText.style.opacity='0';
+      if(hintText) hintText.style.opacity='0'; // the hint line may be absent from the markup
       connPill.style.opacity='0';
       menuItems.forEach(function(el,i){ el.tabIndex=0; el.style.transitionDelay=(i*25)+'ms'; });
     }
@@ -15926,7 +17287,7 @@ function renderLogo(container) {
       orbitWrap.classList.remove('open');
       backdrop.classList.remove('open');
       logoBtn.setAttribute('aria-expanded','false');
-      hintText.style.opacity='1';
+      if(hintText) hintText.style.opacity='1';
       connPill.style.opacity='1';
       menuItems.forEach(function(el){ el.tabIndex=-1; });
     }
@@ -15979,6 +17340,7 @@ function renderLogo(container) {
       msgSendBtn.disabled=true;
       aidaMessages.push({role:'user',content:text});
       renderAidaMsgRows();
+      AidaFaceFlow.requestStarted();
       try{
         var body={message:text,pageContext:buildAidaPageContext()};
         if(aidaSelectedProvider&&aidaSelectedModel){ body.provider=aidaSelectedProvider; body.model=aidaSelectedModel; }
@@ -15988,17 +17350,21 @@ function renderLogo(container) {
           // A bad provider/model selection is a problem with the dropdown,
           // not with the message itself — surface it right there instead of
           // as a generic assistant reply in the chat.
-          if(r.status===400){ showAidaModelError(data.error||'Invalid model selection.'); return; }
+          if(r.status===400){ AidaFaceFlow.failed(); showAidaModelError(data.error||'Invalid model selection.'); return; }
           var fallback=r.status===503?"AIDA isn't set up for this workspace yet.":'AIDA could not respond right now.';
           throw new Error(data.error||fallback);
         }
         clearAidaModelError();
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
         renderAidaMsgRows();
+        showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
+        AidaFaceFlow.responseArrived(!!data.turnId); // a turnId means the reply is being voiced
       }catch(e){
         aidaMessages.push({role:'assistant',content:e.message||'Something went wrong — please try again.'});
         renderAidaMsgRows();
+        AidaFaceFlow.failed();
+        showAidaResponseCard(e.message||'Something went wrong — please try again.');
       }finally{
         msgSending=false;
         msgSendBtn.disabled=false;
@@ -16097,7 +17463,8 @@ function renderLogo(container) {
     async function sendAidaVoiceInput(blob){
       if(!blob||!blob.size) return;
       _aidaVoiceCurrentTurnId=null;
-      aidaSpeaking=false;
+      _aidaSetSpeaking(false);
+      AidaFaceFlow.requestStarted();
       try{
         var form=new FormData();
         form.append('audio',blob,'voice-input.webm');
@@ -16106,19 +17473,21 @@ function renderLogo(container) {
         var r=await fetch('/api/aida/voice-input',{method:'POST',body:form});
         var data=await r.json();
         if(!r.ok){
-          if(r.status===400){ showAidaModelError(data.error||'Invalid model selection.'); return; }
+          if(r.status===400){ AidaFaceFlow.failed(); showAidaModelError(data.error||'Invalid model selection.'); return; }
           var fallback=r.status===503?"AIDA isn't set up for this workspace yet.":'AIDA could not respond right now.';
           throw new Error(data.error||fallback);
         }
         clearAidaModelError();
         aidaMessages.push({role:'user',content:data.transcript||'(unrecognized)'});
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
-        // No toast for the reply itself here — in voice mode the spoken
-        // reply IS the answer; flashing the transcript on screen too was
-        // redundant. Errors below still surface as a toast since there's
-        // no other feedback channel when the request fails outright.
+        // The spoken reply also lands in a floating card, so it can be
+        // re-read or copied. Errors below still surface as a toast since
+        // there's no reply to show when the request fails outright.
+        showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
+        AidaFaceFlow.responseArrived(!!data.turnId);
       }catch(e){
+        AidaFaceFlow.failed();
         showAidaToast(e.message||'Something went wrong — please try again.');
       }
     }
@@ -16149,6 +17518,9 @@ function renderLogo(container) {
       var ae=document.activeElement;
       var tag=(ae&&ae.tagName)||'';
       if(tag==='INPUT'||tag==='TEXTAREA'||(ae&&ae.isContentEditable)) return;
+      // Dragging a response card, text selected in one, or focus on its
+      // close button — Space belongs to the card, not push-to-talk.
+      if(FloatingCard.isInteracting()) return;
       e.preventDefault();
       // Interrupt: if AIDA is currently speaking (or has chunks/filler still
       // arriving for the turn that's in flight), cut local playback right
@@ -16313,71 +17685,6 @@ function renderLogo(container) {
     var logoutCopy=document.getElementById('logoutCopy');
     if(logoutCopy) logoutCopy.textContent='Are you sure you want to log out, '+name+'?';
 
-    // ── Hex background — mouse-proximity lighting, verbatim from the reference ──
-    (function(){
-      var svg=document.getElementById('hexBgSvg');
-      var hexes=[];
-      var R=24;
-      var LIGHT_RADIUS=130;
-      var LIGHT_RADIUS_SQ=LIGHT_RADIUS*LIGHT_RADIUS;
-      var mouseX=-9999, mouseY=-9999;
-      var rafPending=false;
-
-      function hexPoints(cx,cy,r){
-        var a=r*0.8660254, h=r*0.5;
-        return [[cx,cy-r],[cx+a,cy-h],[cx+a,cy+h],[cx,cy+r],[cx-a,cy+h],[cx-a,cy-h]]
-          .map(function(p){ return p[0].toFixed(2)+','+p[1].toFixed(2); }).join(' ');
-      }
-      function buildGrid(){
-        svg.innerHTML='';
-        hexes=[];
-        var w=window.innerWidth, h=window.innerHeight;
-        svg.setAttribute('width',w); svg.setAttribute('height',h);
-        svg.setAttribute('viewBox','0 0 '+w+' '+h);
-        var hexW=R*1.7320508, rowSpacing=R*1.5;
-        var rows=Math.ceil(h/rowSpacing)+3, cols=Math.ceil(w/hexW)+3;
-        var frag=document.createDocumentFragment();
-        for(var r=-1;r<=rows;r++){
-          var y=r*rowSpacing;
-          var xOffset=(r%2!==0)?hexW/2:0;
-          for(var c=-1;c<=cols;c++){
-            var x=c*hexW+xOffset;
-            var isRed=(Math.abs(r+c)%2===0);
-            var poly=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-            poly.setAttribute('points',hexPoints(x,y,R));
-            poly.setAttribute('stroke',isRed?'#B7252D':'#424242');
-            poly.setAttribute('class','bg-hex');
-            frag.appendChild(poly);
-            hexes.push({x:x,y:y,el:poly,lit:false});
-          }
-        }
-        svg.appendChild(frag);
-      }
-      function updateLighting(){
-        rafPending=false;
-        for(var i=0;i<hexes.length;i++){
-          var hx=hexes[i];
-          var dx=hx.x-mouseX, dy=hx.y-mouseY;
-          var near=(dx*dx+dy*dy)<=LIGHT_RADIUS_SQ;
-          if(near!==hx.lit){ hx.lit=near; if(near) hx.el.classList.add('lit'); else hx.el.classList.remove('lit'); }
-        }
-      }
-      function onMouseMove(e){
-        mouseX=e.clientX; mouseY=e.clientY;
-        if(!rafPending){ rafPending=true; requestAnimationFrame(updateLighting); }
-      }
-      function onMouseLeave(){
-        mouseX=-9999; mouseY=-9999;
-        if(!rafPending){ rafPending=true; requestAnimationFrame(updateLighting); }
-      }
-      var resizeTimer=null;
-      function onResize(){ clearTimeout(resizeTimer); resizeTimer=setTimeout(buildGrid,200); }
-      buildGrid();
-      document.addEventListener('mousemove',onMouseMove);
-      document.addEventListener('mouseleave',onMouseLeave);
-      window.addEventListener('resize',onResize);
-    })();
-
     window._aidaHubOnClose=function(){
       if(isOpen) closeMenu();
       closeMessageModal();
@@ -16387,6 +17694,7 @@ function renderLogo(container) {
       if(isListening){ stopListening(); }
     };
     window._aidaHubOnLogout=function(){
+      FloatingCard.closeAll();
       connectionState='disconnected';
       if(mediaStream){ mediaStream.getTracks().forEach(function(t){ t.stop(); }); mediaStream=null; }
     };
@@ -16406,7 +17714,7 @@ function _aidaHubRelTime(iso){
 // once per page load, the same "create on first use, no-op after" pattern
 // already used for the QR scanner FAB elsewhere in launchApp().
 // Builds the AIDA hub markup once — a straight port of the user's reference
-// index.html body (page-enter-fade, hex bg, backdrop, modal-backdrop, all
+// index.html body (page-enter-fade, backdrop, modal-backdrop, all
 // four modals, toast, stage/app-header/orbit-wrap/menu-items/conn-pill/
 // hints/footer) — and wires it up via _aidaHubInit(). Idempotent, same
 // "create on first use, no-op after" pattern already used for the QR
@@ -16415,7 +17723,7 @@ function ensureAidaOverlay(){
   if(!document.getElementById('aida-launcher-btn')){
     const btn=document.createElement('button');
     btn.id='aida-launcher-btn';btn.className='aida-launcher-btn';btn.title='Ask AIDA';
-    btn.innerHTML='<img class="aida-launcher-orb" src="/images/aida-logo.png" alt="AIDA">';
+    btn.innerHTML='<img class="aida-launcher-orb" src="/images/aida-logo.svg" alt="AIDA">';
     btn.onclick=()=>openAidaOverlay();
     document.body.appendChild(btn);
   }
@@ -16423,8 +17731,8 @@ function ensureAidaOverlay(){
     const ov=document.createElement('div');
     ov.id='aida-overlay';ov.className='aida-overlay';
     ov.innerHTML=`
+      <canvas class="aida-particles" id="aidaParticles" aria-hidden="true"></canvas>
       <div class="page-enter-fade"></div>
-      <svg id="hexBgSvg" xmlns="http://www.w3.org/2000/svg"></svg>
       <div class="backdrop" id="backdrop"></div>
       <div class="modal-backdrop" id="modalBackdrop"></div>
 
@@ -16533,6 +17841,7 @@ function ensureAidaOverlay(){
 
       <button class="aida-close-btn" onclick="closeAidaOverlay()" title="Close"
         style="position:absolute;top:16px;right:20px;width:36px;height:36px;border-radius:50%;border:1px solid #E4E2DE;background:#fff;color:#424242;font-size:15px;cursor:pointer;z-index:80;box-shadow:0 1px 4px rgba(0,0,0,.08)">✕</button>
+      <button type="button" class="aida-layout-btn" id="aidaLayoutToggle" onclick="FloatingCard.toggleMode()"></button>
 
       <div class="stage">
         <div class="app-header">
@@ -16570,11 +17879,11 @@ function ensureAidaOverlay(){
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/></svg>
         </button>
 
-        <div class="hint" id="hintText">Hold the icon for menu</div>
-        <div class="hint" id="voiceHintText">Press space to talk to Aida</div>
+        
         <div class="footer">&copy; OGPlus Services Pvt Limited</div>
       </div>`;
     document.body.appendChild(ov);
+    syncAidaLayoutToggle();
     window._aidaHubInit();
   }
   document.getElementById('aida-launcher-btn').style.display='flex';
@@ -16605,6 +17914,8 @@ function openAidaOverlay(opts={}){
     if(location.pathname!==target) history.pushState({aidaOverlay:true},'',target);
   }
   document.getElementById('aida-overlay').classList.add('open');
+  document.documentElement.classList.add('aida-open');
+  AidaParticles.start();
   if(!_aidaEscBound){document.addEventListener('keydown',_aidaEscHandler);_aidaEscBound=true;}
   // Kept for backend context continuity even though there's no visible
   // history panel in this design — fire-and-forget.
@@ -16656,6 +17967,9 @@ function closeAidaOverlay(opts={}){
   if(!aidaOverlayOpen) return;
   aidaOverlayOpen=false;
   document.getElementById('aida-overlay')?.classList.remove('open');
+  document.documentElement.classList.remove('aida-open');
+  AidaFaceFlow.reset();
+  AidaParticles.stop();
   if(window._aidaHubOnClose) window._aidaHubOnClose();
   if(!opts.skipPush){
     const back=(_aidaPrevPath&&_aidaPrevPath!==location.pathname)?_aidaPrevPath:('/'+(window.OGTRACK_SLUG||''));
@@ -16837,10 +18151,38 @@ function _aidaBase64ToArrayBuffer(b64){
   return bytes.buffer;
 }
 
+// Every change to aidaSpeaking goes through here so the particle face's lips
+// start and stop with her voice.
+function _aidaSetSpeaking(on){
+  if(aidaSpeaking===on) return;
+  aidaSpeaking=on;
+  if(on) AidaFaceFlow.speechStarted(); else AidaFaceFlow.speechEnded();
+}
+// All voice audio plays through one AnalyserNode so the face can follow its
+// volume (lips). _aidaVoiceLevel() → current RMS 0…1, or null before any audio.
+let _aidaVoiceAnalyser=null, _aidaVoiceLevelBuf=null;
+function _aidaVoiceOutput(ctx){
+  if(!_aidaVoiceAnalyser||_aidaVoiceAnalyser.context!==ctx){
+    _aidaVoiceAnalyser=ctx.createAnalyser();
+    _aidaVoiceAnalyser.fftSize=1024;
+    _aidaVoiceAnalyser.connect(ctx.destination);
+    _aidaVoiceLevelBuf=new Float32Array(_aidaVoiceAnalyser.fftSize);
+  }
+  return _aidaVoiceAnalyser;
+}
+function _aidaVoiceLevel(){
+  if(!_aidaVoiceAnalyser) return null;
+  _aidaVoiceAnalyser.getFloatTimeDomainData(_aidaVoiceLevelBuf);
+  let sum=0;
+  for(let i=0;i<_aidaVoiceLevelBuf.length;i++) sum+=_aidaVoiceLevelBuf[i]*_aidaVoiceLevelBuf[i];
+  return Math.sqrt(sum/_aidaVoiceLevelBuf.length);
+}
+
 async function handleAidaVoiceChunk(chunk){
   const {turnId,seq,isFinal,audioBase64,filler}=chunk||{};
   console.log('[AIDA voice] chunk received',{turnId,seq,isFinal,hasAudio:!!audioBase64,currentTurn:_aidaVoiceCurrentTurnId});
   if(turnId==null||seq==null||!audioBase64) return;
+  if(_aidaLocallyStoppedTurns.has(turnId)) return; // silenced by "Clear all" — see stopAidaSpeechLocally()
   if(_aidaVoiceCurrentTurnId==null){
     // No turn is being tracked yet — the backend streams audio while the
     // reply is still generating, so a chunk (including the filler, seq:-1)
@@ -16889,14 +18231,14 @@ async function _aidaPlayVoiceChunk(turnId,audioBase64){
     const audioBuf=await ctx.decodeAudioData(_aidaBase64ToArrayBuffer(audioBase64));
     const src=ctx.createBufferSource();
     src.buffer=audioBuf;
-    src.connect(ctx.destination);
+    src.connect(_aidaVoiceOutput(ctx));
     const startAt=Math.max(ctx.currentTime,_aidaVoiceNextPlayTime);
     src.start(startAt);
     _aidaVoiceNextPlayTime=startAt+audioBuf.duration;
     _aidaActiveVoiceSources.push(src);
     src.onended=function(){ const i=_aidaActiveVoiceSources.indexOf(src); if(i>=0) _aidaActiveVoiceSources.splice(i,1); };
     console.log('[AIDA voice] playing chunk',{turnId,audioContextState:ctx.state,startAt,duration:audioBuf.duration});
-    if(!aidaSpeaking&&turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=true; }
+    if(!aidaSpeaking&&turnId===_aidaVoiceCurrentTurnId){ _aidaSetSpeaking(true); }
   }catch(e){ console.warn('[AIDA voice] chunk failed to decode/play:',e); /* one bad chunk shouldn't sink the rest of the turn */ }
 }
 
@@ -16904,7 +18246,7 @@ function _aidaScheduleSpeakingEnd(turnId){
   const ctx=_aidaGetVoiceCtx();
   const msLeft=Math.max(0,(_aidaVoiceNextPlayTime-ctx.currentTime)*1000);
   setTimeout(()=>{
-    if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; }
+    if(turnId===_aidaVoiceCurrentTurnId){ _aidaSetSpeaking(false); }
     delete _aidaVoiceBuffers[turnId];
   },msLeft+30);
 }
@@ -16921,8 +18263,20 @@ function _aidaStopVoicePlayback(){
   const interruptedTurnId=_aidaVoiceCurrentTurnId;
   delete _aidaVoiceBuffers[interruptedTurnId];
   _aidaVoiceCurrentTurnId=null;
-  aidaSpeaking=false;
+  _aidaSetSpeaking(false);
   return interruptedTurnId;
+}
+
+// "Clear all" stops AIDA talking — locally only, since clearing must never
+// call the backend (so no /voice-cancel here). Without that call the server
+// may still send the rest of the turn's chunks, which handleAidaVoiceChunk()
+// would otherwise adopt as a fresh turn — so the stopped turn is remembered
+// and its late chunks are dropped.
+const _aidaLocallyStoppedTurns=new Set();
+function stopAidaSpeechLocally(){
+  const turnId=_aidaStopVoicePlayback();
+  if(turnId!=null) _aidaLocallyStoppedTurns.add(turnId);
+  _aidaThinkingFillers.forEach(function(f){ try{ f.audio.pause(); }catch(e){} });
 }
 
 function _aidaCancelVoiceTurn(turnId){
@@ -16950,7 +18304,7 @@ function _aidaWatchForSilence(turnId){
 // it never hides or retracts the text.
 function handleAidaVoiceError({turnId,message}){
   console.warn('[AIDA voice] backend reported a voice error:',message,'for turnId',turnId);
-  if(turnId===_aidaVoiceCurrentTurnId){ aidaSpeaking=false; }
+  if(turnId===_aidaVoiceCurrentTurnId){ _aidaSetSpeaking(false); }
   delete _aidaVoiceBuffers[turnId];
 }
 

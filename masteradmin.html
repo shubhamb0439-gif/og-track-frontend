@@ -613,12 +613,11 @@
   }
 
 #aida-overlay .logo-btn .middle-layer {
-    fill:#AFAA9C; opacity:1;
+    fill:#ffffff; opacity:1;
     transition:fill .9s ease, opacity .45s ease, transform .6s ease;
     transform-box:view-box; transform-origin:84.7197px 84.287px;
   }
 
-#aida-overlay .logo-btn.is-connected .middle-layer { fill:var(--red); }
 
 #aida-overlay .logo-btn.is-listening .middle-layer { transform:rotate(-93.2deg); }
 
@@ -2116,22 +2115,22 @@ let aidaSelectedModel=null;
 function logoMarkup() {
   return `<button class="logo-btn" id="logoBtn" aria-label="Hold to open menu" aria-haspopup="true" aria-expanded="false">
       <svg viewBox="0 0 179 173" xmlns="http://www.w3.org/2000/svg">
-        <path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#424242"/>
+        <path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#2b2b2b"/>
         <path class="middle-layer" id="middleLayer" d="M84.7197 25.3936C117.725 25.3936 144.481 51.7607 144.481 84.2861C144.481 116.812 117.725 143.18 84.7197 143.18C73.4569 143.18 62.9223 140.108 53.9297 134.771L54.8389 135.703L22.8389 142.867L32.5322 113.006C27.7074 104.51 24.958 94.7142 24.958 84.2861C24.9583 51.7607 51.7142 25.3936 84.7197 25.3936Z"/>
         <path class="middle-layer-alt" id="middleLayerAlt" transform="translate(24.958,25.394)" d="M59.7617 0C26.7562 2.0319e-06 0.000248955 26.3671 0 58.8926C0 91.4182 26.756 117.786 59.7617 117.786C71.0246 117.786 81.5591 114.715 90.5518 109.377L89.6426 110.31L121.643 117.474L111.949 87.6123C116.774 79.1163 119.523 69.3206 119.523 58.8926C119.523 26.3671 92.7673 0 59.7617 0Z"/>
         <g class="icon-x" id="iconX">
-          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="white" transform="rotate(45 84 84)"/>
-          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="white" transform="rotate(-45 84 84)"/>
+          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="#111111" transform="rotate(45 84 84)"/>
+          <rect x="46" y="71.5" width="76" height="25" rx="8" fill="#111111" transform="rotate(-45 84 84)"/>
         </g>
         <g class="icon-plus" id="iconPlus">
-          <path d="M91.3214 46.4093C94.0828 46.4094 96.3214 48.648 96.3214 51.4093V71.8029H116.715C119.476 71.8029 121.715 74.0416 121.715 76.8029V92.1964C121.715 94.9579 119.476 97.1964 116.715 97.1964H96.3214V116.715C96.3214 119.476 94.0828 121.715 91.3214 121.715H75.9279C73.1665 121.715 70.9279 119.476 70.9279 116.715V97.1964H51.4093C48.6479 97.1964 46.4093 94.9579 46.4093 92.1964V76.8029C46.4095 74.0416 48.648 71.8029 51.4093 71.8029H70.9279V51.4093C70.9279 48.6479 73.1665 46.4093 75.9279 46.4093H91.3214Z" fill="white"/>
+          <path d="M91.3214 46.4093C94.0828 46.4094 96.3214 48.648 96.3214 51.4093V71.8029H116.715C119.476 71.8029 121.715 74.0416 121.715 76.8029V92.1964C121.715 94.9579 119.476 97.1964 116.715 97.1964H96.3214V116.715C96.3214 119.476 94.0828 121.715 91.3214 121.715H75.9279C73.1665 121.715 70.9279 119.476 70.9279 116.715V97.1964H51.4093C48.6479 97.1964 46.4093 94.9579 46.4093 92.1964V76.8029C46.4095 74.0416 48.648 71.8029 51.4093 71.8029H70.9279V51.4093C70.9279 48.6479 73.1665 46.4093 75.9279 46.4093H91.3214Z" fill="#111111"/>
         </g>
         <g class="icon-wave" id="iconWave">
-          <rect class="wave-bar" x="52" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="66" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="80" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="94" y="59" width="8" height="50" rx="4" fill="white"/>
-          <rect class="wave-bar" x="108" y="59" width="8" height="50" rx="4" fill="white"/>
+          <rect class="wave-bar" x="52" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="66" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="80" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="94" y="59" width="8" height="50" rx="4" fill="#111111"/>
+          <rect class="wave-bar" x="108" y="59" width="8" height="50" rx="4" fill="#111111"/>
         </g>
         <circle class="icon-hit" id="iconHit" cx="84" cy="84" r="45" fill="transparent" style="pointer-events:auto;"></circle>
       </svg>
@@ -3022,7 +3021,7 @@ function ensureAidaOverlay(){
   if(!document.getElementById('aida-launcher-btn')){
     const btn=document.createElement('button');
     btn.id='aida-launcher-btn';btn.className='aida-launcher-btn';btn.title='Ask AIDA';
-    btn.innerHTML='<img class="aida-launcher-orb" src="/images/aida-logo.png" alt="AIDA">';
+    btn.innerHTML='<img class="aida-launcher-orb" src="/images/aida-logo.svg" alt="AIDA">';
     btn.onclick=()=>openAidaOverlay();
     document.body.appendChild(btn);
   }
