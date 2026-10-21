@@ -17416,8 +17416,21 @@ var AidaFaceFlow=(function(){
     // ── Small expandable preview of a URL AIDA's reply mentions. Most sites
     // refuse to be framed at all (X-Frame-Options/CSP) — nothing fixes that
     // from here, so "Open in a new tab" is always offered alongside it. ──
-    const AIDA_URL_RE=/https?:\/\/[^\s<>"')]+/;
-    function aidaExtractUrl(text){ const m=(text||'').match(AIDA_URL_RE); return m?m[0]:null; }
+    // Markdown-link-aware: a reply formatted as [label](url) used to make
+    // the plain regex below swallow the "](" plus the label/duplicate URL in
+    // between, producing a garbled combined string that then 404'd when
+    // used as the iframe src. Try the markdown shape first (url is whatever
+    // sits inside the parens), then fall back to a bare URL — either way,
+    // trailing prose punctuation right after the link (a period, a comma)
+    // gets trimmed off too.
+    const AIDA_MD_LINK_RE=/\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/;
+    const AIDA_URL_RE=/https?:\/\/[^\s<>"'()\[\]]+/;
+    function aidaExtractUrl(text){
+      text=text||'';
+      const md=text.match(AIDA_MD_LINK_RE);
+      const raw=md?md[1]:(text.match(AIDA_URL_RE)||[])[0];
+      return raw?raw.replace(/[.,;:!?]+$/,''):null;
+    }
     function appendAidaUrlPreview(cardHandle,url){
       if(!cardHandle||!cardHandle.el) return;
       const body=cardHandle.el.querySelector('.fcard-body');
