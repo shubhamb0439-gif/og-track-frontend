@@ -184,12 +184,11 @@
 
   /* ── AIDA launcher (floating, every logged-in screen) + overlay ─────────────── */
   .aida-launcher-btn{display:none;position:fixed;bottom:24px;right:24px;width:58px;height:58px;border-radius:50%;
-    border:none;cursor:pointer;background:#151519;box-shadow:0 4px 16px rgba(142,68,173,.45);
-    z-index:850;align-items:center;justify-content:center;transition:transform .2s,box-shadow .2s}
-  .aida-launcher-btn:hover{transform:scale(1.07);box-shadow:0 6px 24px rgba(142,68,173,.6)}
+    border:none;cursor:pointer;background:none;box-shadow:none;
+    z-index:850;align-items:center;justify-content:center;transition:transform .2s}
+  .aida-launcher-btn:hover{transform:scale(1.07)}
   .aida-launcher-btn:active{transform:scale(.95)}
-  /* Placeholder icon — swap the inner markup for the real logo <img> once the asset lands. */
-  .aida-launcher-orb{width:44px;height:44px;object-fit:contain;display:block}
+  .aida-launcher-orb{width:56px;height:56px;object-fit:contain;display:block}
 
   .aida-overlay{display:none;position:fixed;inset:0;z-index:900;overflow:hidden;}
   .aida-overlay.open{display:flex;}
@@ -526,7 +525,12 @@
    Options/CSP) — nothing fixes that from here, so the caption always
    offers "open in a new tab" as the fallback. ── */
 .aida-url-preview{ margin-top:10px; border:1px solid var(--fcard-border,var(--line)); border-radius:10px; overflow:hidden; }
-.aida-url-preview-frame{ height:160px; background:#fff; }
+.aida-url-preview-frame{ height:360px; background:#fff; }
+/* A card holding a preview needs more room than a plain text reply to
+   actually show something like a dashboard, not just its top-left corner —
+   widened via this modifier (added in appendAidaUrlPreview()) rather than
+   changing every card's default size. */
+.fcard.has-url-preview{ width:min(640px, calc(100vw - 24px)); max-height:min(75vh, 680px); }
 .aida-url-preview-frame iframe{ width:100%; height:100%; border:none; display:block; }
 .aida-url-preview-bar{
     display:flex; align-items:center; gap:8px; padding:6px 10px;
@@ -3744,11 +3748,18 @@ var AidaFaceFlow=(function(){
       if(!cardHandle||!cardHandle.el) return;
       const body=cardHandle.el.querySelector('.fcard-body');
       if(!body) return;
+      cardHandle.el.classList.add('has-url-preview');
       const wrap=document.createElement('div');
       wrap.className='aida-url-preview';
       wrap.innerHTML='<div class="aida-url-preview-frame"><iframe src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>'+
         '<div class="aida-url-preview-bar"><span title="'+esc(url)+'">'+esc(url)+'</span><button type="button" onclick="expandAidaUrlPreview(\''+url.replace(/'/g,"\\'")+'\')">⤢ Expand</button></div>';
       body.appendChild(wrap);
+      // FloatingCard doesn't expose its own layout() directly, and
+      // card.setText()/appendText() would wipe out the HTML just appended
+      // (it replaces the body with a single text node) — a synthetic resize
+      // event reaches the SAME relayout path (bindGlobal()'s own resize
+      // listener) without touching body content at all.
+      window.dispatchEvent(new Event('resize'));
     }
     window.expandAidaUrlPreview=function(url){
       let modal=document.getElementById('aidaUrlPreviewModal');
