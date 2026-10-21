@@ -1362,16 +1362,99 @@ tr:hover .badge { transform: scale(1.08); }
 #aida-overlay .msg-send-btn:hover{ background:#9c1f26; }
 #aida-overlay .msg-send-btn:disabled{ opacity:.5; cursor:default; }
 #aida-overlay .msg-send-btn svg{ width:17px; height:17px; }
+
+/* ── "+" attach button, its popup menu, and the attached-file chip ── */
+#aida-overlay .aida-attach-wrap{ position:relative; flex-shrink:0; }
+#aida-overlay .aida-attach-btn{
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--line); flex-shrink:0;
+    background:var(--panel); color:var(--text); cursor:pointer; font-size:20px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
+#aida-overlay .aida-attach-btn:hover{ background:var(--readbadge); }
+#aida-overlay .aida-attach-menu{
+    position:absolute; bottom:46px; left:0; min-width:170px;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 4px 16px rgba(0,0,0,.12); padding:6px; z-index:10;
+    display:none; flex-direction:column; gap:2px;
+  }
+#aida-overlay .aida-attach-menu.open{ display:flex; }
+#aida-overlay .aida-attach-menu button{
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    padding:8px 10px; border:none; background:none; border-radius:7px;
+    font-size:13px; color:var(--text); cursor:pointer;
+  }
+#aida-overlay .aida-attach-menu button:hover{ background:var(--readbadge); }
+#aida-overlay .aida-attach-menu button[disabled]{ color:var(--text-dim); cursor:default; }
+#aida-overlay .aida-attach-menu button[disabled]:hover{ background:none; }
+#aida-overlay .aida-attached-chip{
+    display:none; align-items:center; gap:8px;
+    margin:0 16px; padding:6px 10px; font-size:12px; color:var(--text);
+    background:var(--readbadge); border-radius:8px;
+  }
+#aida-overlay .aida-attached-chip.show{ display:flex; margin-top:8px; }
+#aida-overlay .aida-attached-chip button{
+    background:none; border:none; cursor:pointer; color:var(--text-dim); font-size:12px; font-weight:600;
+  }
+
+/* ── URL preview — a small inline iframe inside a reply card, expandable
+   to a full overlay. Many sites refuse to be framed at all (X-Frame-
+   Options/CSP) — nothing fixes that from here, so the caption always
+   offers "open in a new tab" as the fallback. ── */
+.aida-url-preview{ margin-top:10px; border:1px solid var(--fcard-border,var(--line)); border-radius:10px; overflow:hidden; }
+.aida-url-preview-frame{ height:160px; background:#fff; }
+.aida-url-preview-frame iframe{ width:100%; height:100%; border:none; display:block; }
+.aida-url-preview-bar{
+    display:flex; align-items:center; gap:8px; padding:6px 10px;
+    background:rgba(0,0,0,.04); font-size:11px;
+  }
+.aida-url-preview-bar span{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.75; }
+.aida-url-preview-bar button{
+    flex-shrink:0; border:none; background:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--fcard-accent,#b0222c);
+  }
+.aida-url-preview-modal{
+    display:none; position:fixed; inset:5vh 6vw; z-index:950;
+    background:#fff; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35);
+    flex-direction:column; overflow:hidden;
+  }
+.aida-url-preview-modal.open{ display:flex; }
+.aida-url-preview-modal-bar{
+    display:flex; align-items:center; gap:14px; padding:12px 16px;
+    border-bottom:1px solid var(--line); flex-shrink:0;
+  }
+.aida-url-preview-modal-bar span{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; color:var(--text-dim); }
+.aida-url-preview-modal-bar a{ font-size:13px; font-weight:600; color:var(--red); text-decoration:none; }
+.aida-url-preview-modal-bar button{ border:none; background:none; cursor:pointer; font-size:18px; color:var(--text); }
+.aida-url-preview-modal iframe{ flex:1; width:100%; border:none; }
+
+/* ── Connectors panel ── */
+.connector-row{
+    display:flex; align-items:center; gap:12px; padding:12px 0;
+    border-bottom:1px solid var(--line);
+  }
+.connector-row:last-child{ border-bottom:none; }
+.connector-row .connector-icon{
+    width:36px; height:36px; border-radius:9px; background:var(--readbadge);
+    display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0;
+  }
+.connector-row .connector-info{ flex:1; min-width:0; }
+.connector-row .connector-name{ font-size:13.5px; font-weight:600; color:var(--text); }
+.connector-row .connector-status{ font-size:12px; color:var(--text-dim); margin-top:1px; }
+.connector-row button{
+    flex-shrink:0; padding:7px 14px; border-radius:16px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+.connector-row button.is-connected{ border-color:var(--red); color:var(--red); }
+
 #aida-overlay .chat-msg{
     max-width:78%; margin:6px 22px; padding:10px 14px;
     border-radius:14px; font-size:13.5px; line-height:1.45;
     overflow-wrap:break-word; white-space:pre-wrap;
   }
 #aida-overlay .chat-msg-user{
-    margin-left:auto; background:var(--red); color:#fff; border-bottom-right-radius:4px;
+    margin-left:auto; background:#fff; color:#1a1a1a; border:1px solid var(--line); border-bottom-right-radius:4px;
   }
 #aida-overlay .chat-msg-assistant{
-    margin-right:auto; background:var(--readbadge); color:var(--text); border-bottom-left-radius:4px;
+    margin-right:auto; background:#1a1a1a; color:#fff; border-bottom-left-radius:4px;
   }
 
 
@@ -2111,6 +2194,7 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
 /* Same rule as the close button: Messages' own header owns that corner. */
 #aida-overlay .msg-modal.open ~ .aida-layout-btn{display:none;}
 @media (max-width:767px){ #aida-overlay .aida-layout-btn{display:none;} }
+
 /* Scanner modal */
 .qr-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:900;flex-direction:column;}
 .qr-modal-bg.open{display:flex;}
@@ -17160,66 +17244,25 @@ var AidaParticles=(function(){
 //   failed          — no reply: dissolve right away.
 //   speechStarted / speechEnded — driven by aidaSpeaking (_aidaSetSpeaking):
 //                     lips move while she talks; lipsClosed + afterSpeechMs → dissolve.
+// Finalized 2026-10-21 — after comparing the 3 demo variants, "logo centred
+// with the idle particle network behind it, no face transformation" is the
+// only version kept. AidaParticles' face-forming machinery (formFace/
+// dissolveFace/geometry/mouth source) is left in place rather than torn out
+// of that file's tightly-interwoven particle/face arrays, but is
+// deliberately never called again — every method here is an intentional
+// no-op, not dead code left by accident. lipsPoint() always returning null
+// just means showAidaResponseCard()'s cards use their normal entrance
+// animation instead of growing out of a (nonexistent) mouth.
 var AidaFaceFlow=(function(){
-  var F=AIDA_PARTICLES.face;
-  var state='idle';      // idle | thinking | replied | speaking | closing
-  var talking=false, timer=0, hintTimer=0;
-  function clear(){ clearTimeout(timer); timer=0; }
-  function hints(hidden){
-    var ov=document.getElementById('aida-overlay');
-    if(ov) ov.classList.toggle('aida-face-on',hidden);
-  }
-  function dissolve(){
-    clear();
-    state='idle';
-    AidaParticles.dissolveFace();
-    clearTimeout(hintTimer);
-    hintTimer=setTimeout(function(){ hints(false); },F.hintsBackMs);
-  }
-  // Lips follow her real voice: smoothed RMS of what's playing, 0…1.
-  AidaParticles.setMouthSource(function(){
-    var rms=_aidaVoiceLevel();
-    if(rms==null) return null;
-    return Math.min(1,Math.max(0,(rms-F.rmsFloor)/(F.rmsFull-F.rmsFloor)));
-  });
   return {
-    requestStarted:function(){
-      clear();
-      clearTimeout(hintTimer);
-      state='thinking';
-      hints(true);
-      AidaParticles.formFace();
-      AidaParticles.setTalking(talking);
-    },
-    responseArrived:function(willSpeak){
-      if(state==='idle') return;
-      clear();
-      if(talking){ state='speaking'; return; }
-      state='replied';
-      timer=setTimeout(dissolve,willSpeak?F.speechWaitMs:F.mutedHoldMs);
-    },
-    failed:function(){ if(state!=='idle') dissolve(); },
-    speechStarted:function(){
-      talking=true;
-      if(state==='idle') return;
-      AidaParticles.setTalking(true);
-      if(state==='replied'||state==='closing'){ clear(); state='speaking'; }
-    },
-    speechEnded:function(){
-      talking=false;
-      AidaParticles.setTalking(false);
-      if(state==='speaking'){ clear(); state='closing'; timer=setTimeout(dissolve,F.afterSpeechMs); }
-    },
-    // Where a reply card should come out of (null when there's no face up).
-    lipsPoint:function(){ return state==='idle'?null:AidaParticles.lipsPoint(); },
-    reset:function(){
-      clear();
-      clearTimeout(hintTimer);
-      state='idle';
-      hints(false);
-      AidaParticles.resetFace();
-    },
-    state:function(){ return state; }
+    requestStarted:function(){},
+    responseArrived:function(){},
+    failed:function(){},
+    speechStarted:function(){},
+    speechEnded:function(){},
+    lipsPoint:function(){ return null; },
+    reset:function(){ AidaParticles.resetFace(); },
+    state:function(){ return 'idle'; }
   };
 })();
 
@@ -17238,7 +17281,8 @@ var AidaFaceFlow=(function(){
   var logoBtn, orbitWrap, backdrop, hintText, iconHit, connPill, connText, mobileMicBtn,
       modalBackdrop, msgModal, msgModalClose, msgInput, msgSendBtn, profileModal, profileModalClose,
       helpModal, helpModalClose, logoutToast, drNameBtn, logoutModal,
-      logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems;
+      logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems,
+      connectorsModal, connectorsModalClose;
   var msgSending=false;
 
   window._aidaHubInit=function(){
@@ -17263,6 +17307,8 @@ var AidaFaceFlow=(function(){
     profileModalClose=document.getElementById('profileModalClose');
     helpModal=document.getElementById('helpModal');
     helpModalClose=document.getElementById('helpModalClose');
+    connectorsModal=document.getElementById('connectorsModal');
+    connectorsModalClose=document.getElementById('connectorsModalClose');
     logoutToast=document.getElementById('logoutToast');
     drNameBtn=document.getElementById('drNameBtn');
     logoutModal=document.getElementById('logoutModal');
@@ -17329,22 +17375,156 @@ var AidaFaceFlow=(function(){
       },460));
     }
 
+    // ── "+" attach menu — file/image upload, Connectors entry ──────────────
+    let aidaAttachedFile=null;
+    // Exposed on window (not plain closure functions) — these are called
+    // from inline onclick="" attributes, which only ever resolve against
+    // the global scope, never this IIFE's own locals.
+    window.toggleAidaAttachMenu=function(force){
+      const menu=document.getElementById('aidaAttachMenu');
+      if(!menu) return;
+      menu.classList.toggle('open',force!=null?force:!menu.classList.contains('open'));
+    };
+    window.pickAidaFile=function(kind){
+      toggleAidaAttachMenu(false);
+      const input=document.getElementById(kind==='image'?'aidaImageInput':'aidaFileInput');
+      input.value='';
+      input.click();
+    };
+    window.handleAidaFileChosen=function(input){
+      const f=input.files&&input.files[0];
+      if(!f) return;
+      aidaAttachedFile=f;
+      renderAidaAttachedChip();
+    };
+    window.clearAidaAttachedFile=function(){
+      aidaAttachedFile=null;
+      renderAidaAttachedChip();
+    };
+    function renderAidaAttachedChip(){
+      const el=document.getElementById('aidaAttachedChip');
+      if(!el) return;
+      if(!aidaAttachedFile){ el.classList.remove('show'); el.innerHTML=''; return; }
+      el.classList.add('show');
+      el.innerHTML='📎 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(aidaAttachedFile.name)+'</span><button type="button" onclick="clearAidaAttachedFile()">Remove</button>';
+    }
+    document.addEventListener('click',function(e){
+      const wrap=document.getElementById('aidaAttachWrap');
+      if(wrap&&!wrap.contains(e.target)) toggleAidaAttachMenu(false);
+    });
+
+    // ── Small expandable preview of a URL AIDA's reply mentions. Most sites
+    // refuse to be framed at all (X-Frame-Options/CSP) — nothing fixes that
+    // from here, so "Open in a new tab" is always offered alongside it. ──
+    const AIDA_URL_RE=/https?:\/\/[^\s<>"')]+/;
+    function aidaExtractUrl(text){ const m=(text||'').match(AIDA_URL_RE); return m?m[0]:null; }
+    function appendAidaUrlPreview(cardHandle,url){
+      if(!cardHandle||!cardHandle.el) return;
+      const body=cardHandle.el.querySelector('.fcard-body');
+      if(!body) return;
+      const wrap=document.createElement('div');
+      wrap.className='aida-url-preview';
+      wrap.innerHTML='<div class="aida-url-preview-frame"><iframe src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>'+
+        '<div class="aida-url-preview-bar"><span title="'+esc(url)+'">'+esc(url)+'</span><button type="button" onclick="expandAidaUrlPreview(\''+url.replace(/'/g,"\\'")+'\')">⤢ Expand</button></div>';
+      body.appendChild(wrap);
+    }
+    window.expandAidaUrlPreview=function(url){
+      let modal=document.getElementById('aidaUrlPreviewModal');
+      if(!modal){
+        modal=document.createElement('div');
+        modal.id='aidaUrlPreviewModal';
+        modal.className='aida-url-preview-modal';
+        modal.innerHTML='<div class="aida-url-preview-modal-bar"><span id="aidaUrlPreviewModalLink"></span><a id="aidaUrlPreviewModalOpen" target="_blank" rel="noopener">Open in new tab ↗</a><button type="button" onclick="document.getElementById(\'aidaUrlPreviewModal\').classList.remove(\'open\')">✕</button></div><iframe id="aidaUrlPreviewModalFrame" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>';
+        document.body.appendChild(modal);
+      }
+      document.getElementById('aidaUrlPreviewModalFrame').src=url;
+      document.getElementById('aidaUrlPreviewModalLink').textContent=url;
+      document.getElementById('aidaUrlPreviewModalOpen').href=url;
+      modal.classList.add('open');
+    };
+
+    // ── Connectors — built against an assumed backend contract (see the
+    // backend spec handed back alongside this change). Every call below
+    // degrades to a clear toast if the endpoint doesn't exist yet, rather
+    // than a silent failure. ──
+    const AIDA_CONNECTOR_CATALOG=[
+      {provider:'google_drive',label:'Google Drive',icon:'📁'},
+      {provider:'github',label:'GitHub',icon:'🐙'},
+      {provider:'notion',label:'Notion',icon:'📝'},
+      {provider:'slack',label:'Slack',icon:'💬'},
+    ];
+    window.openAidaConnectorsPanel=function(){
+      openFloatingModal(connectorsModal,document.getElementById('aidaAttachBtn'));
+      loadAidaConnectors();
+    };
+    async function loadAidaConnectors(){
+      const body=document.getElementById('connectorsModalBody');
+      body.innerHTML='<div style="padding:16px 0;color:var(--text-dim);font-size:13px">Loading…</div>';
+      const statuses={};
+      try{
+        const r=await fetch('/api/aida/connectors');
+        if(r.ok){ const data=await r.json(); (data.connectors||[]).forEach(function(c){ statuses[c.provider]=c; }); }
+      }catch(e){ /* backend not built yet — render the catalog as not-connected */ }
+      body.innerHTML=AIDA_CONNECTOR_CATALOG.map(function(c){
+        const live=statuses[c.provider], connected=!!(live&&live.connected);
+        return '<div class="connector-row">'+
+          '<div class="connector-icon">'+c.icon+'</div>'+
+          '<div class="connector-info"><div class="connector-name">'+esc(c.label)+'</div>'+
+          '<div class="connector-status">'+(connected?('Connected'+(live.connectedEmail?' · '+esc(live.connectedEmail):'')):'Not connected')+'</div></div>'+
+          '<button type="button" class="'+(connected?'is-connected':'')+'" onclick="toggleAidaConnector(\''+c.provider+'\','+(connected?'true':'false')+')">'+(connected?'Disconnect':'Connect')+'</button>'+
+        '</div>';
+      }).join('');
+    }
+    window.toggleAidaConnector=async function(provider,isConnected){
+      try{
+        if(isConnected){
+          const r=await fetch('/api/aida/connectors/'+provider+'/disconnect',{method:'POST'});
+          if(!r.ok) throw new Error();
+          showAidaToast('Disconnected');
+        }else{
+          const r=await fetch('/api/aida/connectors/'+provider+'/connect',{method:'POST'});
+          if(!r.ok) throw new Error();
+          const data=await r.json();
+          if(data.authUrl) window.open(data.authUrl,'_blank');
+          else throw new Error();
+        }
+      }catch(e){
+        showAidaToast("Connectors aren't wired up on the backend yet.");
+      }
+      loadAidaConnectors();
+    };
+
     // Typed alternative to sendAidaVoiceInput() below — same turn history,
     // same turnId hookup so a typed message still gets a spoken reply
     // through the existing ElevenLabs voice-chunk stream.
     async function sendAidaTextMessage(){
       var text=(msgInput.value||'').trim();
-      if(!text||msgSending) return;
+      if((!text&&!aidaAttachedFile)||msgSending) return;
+      var file=aidaAttachedFile;
       msgInput.value='';
+      clearAidaAttachedFile();
       msgSending=true;
       msgSendBtn.disabled=true;
-      aidaMessages.push({role:'user',content:text});
+      aidaMessages.push({role:'user',content:text||('📎 '+(file?file.name:'attachment'))});
       renderAidaMsgRows();
       AidaFaceFlow.requestStarted();
       try{
-        var body={message:text,pageContext:buildAidaPageContext()};
-        if(aidaSelectedProvider&&aidaSelectedModel){ body.provider=aidaSelectedProvider; body.model=aidaSelectedModel; }
-        var r=await fetch('/api/aida/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        var r;
+        if(file){
+          // Same endpoint as the JSON path below, but multipart — the
+          // backend's upload middleware only engages for an actual
+          // multipart request (confirmed against the Android client, which
+          // already hits this same /chat route with a file this way).
+          var form=new FormData();
+          form.append('message',text);
+          form.append('file',file);
+          if(aidaSelectedProvider&&aidaSelectedModel){ form.append('provider',aidaSelectedProvider); form.append('model',aidaSelectedModel); }
+          r=await fetch('/api/aida/chat',{method:'POST',body:form});
+        }else{
+          var body={message:text,pageContext:buildAidaPageContext()};
+          if(aidaSelectedProvider&&aidaSelectedModel){ body.provider=aidaSelectedProvider; body.model=aidaSelectedModel; }
+          r=await fetch('/api/aida/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        }
         var data=await r.json();
         if(!r.ok){
           // A bad provider/model selection is a problem with the dropdown,
@@ -17357,7 +17537,9 @@ var AidaFaceFlow=(function(){
         clearAidaModelError();
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
         renderAidaMsgRows();
-        showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
+        var _card=showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
+        var _url=aidaExtractUrl(data.reply);
+        if(_url) appendAidaUrlPreview(_card,_url);
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
         AidaFaceFlow.responseArrived(!!data.turnId); // a turnId means the reply is being voiced
       }catch(e){
@@ -17483,7 +17665,9 @@ var AidaFaceFlow=(function(){
         // The spoken reply also lands in a floating card, so it can be
         // re-read or copied. Errors below still surface as a toast since
         // there's no reply to show when the request fails outright.
-        showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
+        var _card=showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
+        var _url=aidaExtractUrl(data.reply);
+        if(_url) appendAidaUrlPreview(_card,_url);
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
         AidaFaceFlow.responseArrived(!!data.turnId);
       }catch(e){
@@ -17586,6 +17770,7 @@ var AidaFaceFlow=(function(){
     }
     profileModalClose.addEventListener('click',function(){ closeFloatingModal(profileModal); });
     helpModalClose.addEventListener('click',function(){ closeFloatingModal(helpModal); });
+    connectorsModalClose.addEventListener('click',function(){ closeFloatingModal(connectorsModal); });
     logoutModalCancel.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
     logoutModalCancelBtn.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
     logoutModalConfirm.addEventListener('click',function(){ closeFloatingModal(logoutModal); performLogout(); });
@@ -17745,7 +17930,18 @@ function ensureAidaOverlay(){
         </div>
         <div class="msg-modal-body" id="aidaMsgBody"></div>
         <div id="aidaModelErrorNote" style="display:none;padding:6px 16px;font-size:12px;color:#C0392B;background:#C0392B15;border-top:1px solid var(--line)"></div>
+        <div id="aidaAttachedChip" class="aida-attached-chip"></div>
         <div class="msg-modal-inputbar">
+          <div class="aida-attach-wrap" id="aidaAttachWrap">
+            <button type="button" class="aida-attach-btn" id="aidaAttachBtn" title="Attach" aria-label="Attach" onclick="event.stopPropagation();toggleAidaAttachMenu()">+</button>
+            <div class="aida-attach-menu" id="aidaAttachMenu">
+              <button type="button" onclick="pickAidaFile('file')">📄 Upload file</button>
+              <button type="button" onclick="pickAidaFile('image')">🖼 Upload image</button>
+              <button type="button" onclick="toggleAidaAttachMenu(false);openAidaConnectorsPanel()">🔗 Connectors</button>
+            </div>
+            <input type="file" id="aidaFileInput" style="display:none" onchange="handleAidaFileChosen(this)">
+            <input type="file" id="aidaImageInput" accept="image/*" style="display:none" onchange="handleAidaFileChosen(this)">
+          </div>
           <select id="aidaModelSelect" title="AI provider & model" style="display:none;max-width:120px;padding:6px 8px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text);font-size:12px;flex-shrink:0"></select>
           <input type="text" class="msg-input" id="aidaMsgInput" placeholder="Type a message to AIDA…" autocomplete="off">
           <button class="msg-send-btn" id="aidaMsgSend" aria-label="Send" title="Send">
@@ -17815,6 +18011,17 @@ function ensureAidaOverlay(){
             <div><div class="help-title">Talking to AIDA</div><div class="help-desc">Tap the center icon to connect, hold Space to talk, release to hear the reply.</div></div>
           </div>
         </div>
+      </div>
+
+      <div class="floating-modal" id="connectorsModal" role="dialog" aria-modal="true" aria-label="Connectors">
+        <div class="fm-header">
+          <div class="fm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 6a3 3 0 110 6h-1M9 18a3 3 0 100-6h6a3 3 0 100-6"/></svg></div>
+          <span class="fm-title">Connectors</span>
+          <button class="fm-close" id="connectorsModalClose" aria-label="Close connectors">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="fm-body" id="connectorsModalBody"></div>
       </div>
 
       <div class="toast" id="logoutToast">
