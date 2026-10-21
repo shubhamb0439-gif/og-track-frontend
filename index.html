@@ -212,6 +212,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<!-- AIDA chart rendering (see AidaCharts below) — no other charting library in this project. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>if(typeof io==='undefined')window.io=()=>({on:()=>{},emit:()=>{}});</script>
 <style>
 /* ── LIGHT THEME (default) ── */
@@ -1096,7 +1099,12 @@ tr:hover .badge { transform: scale(1.08); }
    full-bleed), so the launcher orb would otherwise still peek out over the
    real page content in that gap — hidden only for this modal's lifetime,
    see expandAidaUrlPreview()/closeAidaUrlPreview(). */
-body.aida-url-preview-open .aida-launcher-btn{display:none;}
+/* !important: ensureAidaOverlay() sets this button's visibility as an
+   INLINE style (style.display='flex') every time the overlay opens, which
+   beats any plain stylesheet rule regardless of selector specificity —
+   this is the one place in this feature that actually needs !important to
+   win against that. */
+body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
 .aida-launcher-orb{width:56px;height:56px;object-fit:contain;display:block;}
 /* The QR fab (mobile only) sits at the same corner — stack AIDA's launcher above it there. */
 @media(max-width:768px){.aida-launcher-btn{bottom:94px;}}
@@ -1453,6 +1461,19 @@ body.aida-url-preview-open .aida-launcher-btn{display:none;}
     background:var(--panel); color:var(--text); font-size:12.5px; font-weight:600; cursor:pointer;
   }
 .connector-row button.is-connected{ border-color:var(--red); color:var(--red); }
+
+/* ── AIDA charts (```aida-chart fenced blocks) ── */
+.aida-chart-wrap{ margin:10px 0 2px; width:100%; height:300px; position:relative; }
+.aida-chart-canvas{ width:100% !important; height:100% !important; }
+/* Fallback when a chart block's JSON fails to parse — a plain code block
+   rather than crashing or showing nothing. */
+.aida-code-block{
+  margin:10px 0; padding:10px 12px; border-radius:8px;
+  background:rgba(0,0,0,.05); font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:12px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
+  overflow-x:auto;
+}
+#aida-overlay .chat-msg-assistant .aida-code-block{ background:rgba(255,255,255,.08); }
 
 #aida-overlay .chat-msg{
     max-width:78%; margin:6px 22px; padding:10px 14px;
@@ -17507,6 +17528,138 @@ var AidaFaceFlow=(function(){
       document.body.classList.remove('aida-url-preview-open');
     };
 
+    // ── AIDA charts — a ```aida-chart fenced block in a reply renders as a
+    // real Chart.js chart instead of literal code. The backend only ever
+    // hands back real numbers it already gathered earlier in the turn; this
+    // side only has to parse + draw, with a plain-code-block fallback if
+    // that JSON is ever malformed (shouldn't be reachable, but one bad
+    // block must never crash or blank out the rest of the message). ──
+    if(window.Chart&&window.ChartDataLabels) Chart.register(ChartDataLabels);
+    const AIDA_CHART_FENCE_RE=/```aida-chart\s*\n([\s\S]*?)```/;
+    let _aidaChartSeq=0;
+    // A small palette built outward from AIDA's own brand red (hue ~357°)
+    // rather than Chart.js's default rainbow, so a multi-slice pie still
+    // reads as "AIDA's own" — rotates hue, cycles lightness.
+    function aidaChartPalette(n){
+      const colors=[];
+      for(let i=0;i<n;i++){
+        const hue=((357-i*27)%360+360)%360;
+        const light=i===0?42:[48,58,66,36,52][i%5];
+        colors.push('hsl('+hue+',62%,'+light+'%)');
+      }
+      return colors;
+    }
+    function aidaChartIsDark(){ return document.documentElement.getAttribute('data-theme')==='dark'; }
+    function buildAidaChartConfig(spec){
+      const isPie=spec.type==='pie'||spec.type==='doughnut';
+      const series=Array.isArray(spec.series)?spec.series:[];
+      const palette=aidaChartPalette(isPie?(spec.labels||[]).length:Math.max(series.length,1));
+      const dark=aidaChartIsDark();
+      const textColor=dark?'#E6E6E6':'#2b2b2b';
+      const gridColor=dark?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)';
+      const multiSeries=series.length>1;
+      // A legend repeating what's already labeled on the chart itself is
+      // just noise — only shown when there's actually more than one thing
+      // to tell apart (several series, or more than ~4 pie slices).
+      const showLegend=isPie?(spec.labels||[]).length>4:multiSeries;
+      const datasets=series.map(function(s,i){
+        const ds={
+          label:s.label||spec.title||'',
+          data:s.values||[],
+        };
+        if(isPie){
+          ds.backgroundColor=palette;
+          ds.borderColor=dark?'#1c1c1e':'#fff';
+          ds.borderWidth=2;
+        }else if(spec.type==='line'){
+          ds.borderColor=palette[i];
+          ds.backgroundColor=palette[i]+'33';
+          ds.fill=!multiSeries;
+          ds.tension=.35;
+          ds.pointRadius=3;
+          ds.pointBackgroundColor=palette[i];
+          ds.borderWidth=2;
+        }else{
+          ds.backgroundColor=palette[i];
+          ds.borderRadius=6;
+          ds.maxBarThickness=48;
+        }
+        return ds;
+      });
+      return {
+        type:spec.type,
+        data:{ labels:spec.labels||[], datasets:datasets },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          animation:{ duration:700, easing:'easeOutQuart' },
+          plugins:{
+            title:{ display:!!spec.title, text:spec.title||'', color:textColor, font:{ size:13, weight:'600' }, padding:{ bottom:10 } },
+            legend:{ display:showLegend, position:'bottom', labels:{ color:textColor, boxWidth:12, padding:12 } },
+            tooltip:{ enabled:true },
+            // Only turned on where there's no legend to lean on instead —
+            // see showLegend above. Chart.register() above is a no-op (and
+            // this option harmless) if the plugin's CDN failed to load.
+            datalabels: window.ChartDataLabels ? {
+              display:!showLegend,
+              color: isPie ? '#fff' : textColor,
+              font:{ weight:'600', size:11 },
+              formatter:function(v){ return typeof v==='number'?v.toLocaleString():v; },
+              anchor: isPie?'center':'end',
+              align: isPie?'center':'top',
+            } : undefined,
+          },
+          scales: isPie ? {} : {
+            x:{ ticks:{ color:textColor }, grid:{ color:gridColor } },
+            y:{ ticks:{ color:textColor }, grid:{ color:gridColor }, beginAtZero:true }
+          }
+        }
+      };
+    }
+    // Splits message text around the FIRST ```aida-chart fence (the backend
+    // only ever asks for one per turn) and returns escaped-HTML before/after
+    // plus either a canvas placeholder (valid JSON) or a plain code block
+    // (invalid JSON — the documented fallback). No fence at all → the whole
+    // text, escaped, unchanged from how messages always rendered.
+    function renderAidaMessageHTML(text){
+      text=text||'';
+      const m=text.match(AIDA_CHART_FENCE_RE);
+      if(!m) return esc(text);
+      const before=esc(text.slice(0,m.index));
+      const after=esc(text.slice(m.index+m[0].length));
+      let spec=null;
+      try{ spec=JSON.parse(m[1]); }catch(e){ spec=null; }
+      if(!spec||!Array.isArray(spec.labels)||!Array.isArray(spec.series)||!spec.series.length){
+        return before+'<pre class="aida-code-block"><code>'+esc(m[1].trim())+'</code></pre>'+after;
+      }
+      const id='aidaChart'+(_aidaChartSeq++);
+      return before+'<div class="aida-chart-wrap"><canvas id="'+id+'" class="aida-chart-canvas" data-chart="'+esc(JSON.stringify(spec))+'"></canvas></div>'+after;
+    }
+    // Finds any not-yet-initialized chart canvases under `root` (a bubble
+    // list, a card body, ...) and draws them. Safe to call repeatedly on
+    // the same container (re-renders of the bubble list, for instance) —
+    // data-chart-done marks a canvas as already handled.
+    function hydrateAidaCharts(root){
+      if(!window.Chart) return; // CDN didn't load — canvases just sit empty, not a crash
+      (root||document).querySelectorAll('.aida-chart-canvas:not([data-chart-done])').forEach(function(canvas){
+        canvas.setAttribute('data-chart-done','1');
+        let spec;
+        try{ spec=JSON.parse(canvas.dataset.chart); }catch(e){ return; }
+        try{ new Chart(canvas,buildAidaChartConfig(spec)); }
+        catch(e){ console.warn('[AIDA chart] failed to render:',e); }
+      });
+    }
+    // The floating reply card's own body is plain textContent (FloatingCard
+    // is a generic, reusable module — it has no idea what an aida-chart
+    // fence is). Only touches the DOM at all when the reply actually has
+    // one, so a normal text-only reply's card is untouched.
+    function enhanceAidaCardChart(cardHandle,text){
+      if(!cardHandle||!cardHandle.el||!AIDA_CHART_FENCE_RE.test(text||'')) return;
+      const body=cardHandle.el.querySelector('.fcard-body');
+      if(!body) return;
+      body.innerHTML=renderAidaMessageHTML(text);
+      hydrateAidaCharts(cardHandle.el);
+    }
+
     // ── Connectors — built against an assumed backend contract (see the
     // backend spec handed back alongside this change). Every call below
     // degrades to a clear toast if the endpoint doesn't exist yet, rather
@@ -17602,6 +17755,7 @@ var AidaFaceFlow=(function(){
         aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
         renderAidaMsgRows();
         var _card=showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
+        enhanceAidaCardChart(_card,data.reply);
         var _url=aidaExtractUrl(data.reply);
         if(_url) appendAidaUrlPreview(_card,_url);
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
@@ -17730,6 +17884,7 @@ var AidaFaceFlow=(function(){
         // re-read or copied. Errors below still surface as a toast since
         // there's no reply to show when the request fails outright.
         var _card=showAidaResponseCard(data.reply||'(no response)',{fromLips:true});
+        enhanceAidaCardChart(_card,data.reply);
         var _url=aidaExtractUrl(data.reply);
         if(_url) appendAidaUrlPreview(_card,_url);
         if(data.turnId){ _aidaVoiceCurrentTurnId=data.turnId; _aidaWatchForSilence(data.turnId); }
@@ -17896,8 +18051,12 @@ var AidaFaceFlow=(function(){
           var label=aidaModelLabel(m.provider,m.model)||m.model;
           caption='<div style="font-size:11px;color:var(--text-dim);margin-top:3px">'+esc(label)+'</div>';
         }
-        return '<div class="'+cls+'">'+esc(m.content||'')+caption+'</div>';
+        // User's own text is always plain-escaped — only AIDA's own replies
+        // are scanned for a ```aida-chart block.
+        var contentHtml=m.role==='assistant'?renderAidaMessageHTML(m.content||''):esc(m.content||'');
+        return '<div class="'+cls+'">'+contentHtml+caption+'</div>';
       }).join('');
+      hydrateAidaCharts(body);
       body.scrollTop=body.scrollHeight;
     }
     function renderAidaProfile(){
