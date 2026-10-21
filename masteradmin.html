@@ -188,6 +188,11 @@
     z-index:850;align-items:center;justify-content:center;transition:transform .2s}
   .aida-launcher-btn:hover{transform:scale(1.07)}
   .aida-launcher-btn:active{transform:scale(.95)}
+  /* The expanded URL-preview modal leaves a margin around itself (not
+     full-bleed), so the launcher orb would otherwise still peek out over the
+     real page content in that gap — hidden only for this modal's lifetime,
+     see expandAidaUrlPreview()/closeAidaUrlPreview(). */
+  body.aida-url-preview-open .aida-launcher-btn{display:none;}
   .aida-launcher-orb{width:56px;height:56px;object-fit:contain;display:block}
 
   .aida-overlay{display:none;position:fixed;inset:0;z-index:900;overflow:hidden;}
@@ -3791,13 +3796,24 @@ var AidaFaceFlow=(function(){
         modal=document.createElement('div');
         modal.id='aidaUrlPreviewModal';
         modal.className='aida-url-preview-modal';
-        modal.innerHTML='<div class="aida-url-preview-modal-bar"><span id="aidaUrlPreviewModalLink"></span><a id="aidaUrlPreviewModalOpen" target="_blank" rel="noopener">Open in new tab ↗</a><button type="button" onclick="document.getElementById(\'aidaUrlPreviewModal\').classList.remove(\'open\')">✕</button></div><iframe id="aidaUrlPreviewModalFrame" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>';
+        modal.innerHTML='<div class="aida-url-preview-modal-bar"><span id="aidaUrlPreviewModalLink"></span><a id="aidaUrlPreviewModalOpen" target="_blank" rel="noopener">Open in new tab ↗</a><button type="button" onclick="closeAidaUrlPreview()">✕</button></div><iframe id="aidaUrlPreviewModalFrame" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>';
         document.body.appendChild(modal);
       }
       document.getElementById('aidaUrlPreviewModalFrame').src=url;
       document.getElementById('aidaUrlPreviewModalLink').textContent=url;
       document.getElementById('aidaUrlPreviewModalOpen').href=url;
       modal.classList.add('open');
+      // The expanded preview isn't full-bleed (inset:5vh 6vw), so the AIDA
+      // launcher orb — otherwise always floating bottom-right — was peeking
+      // out over the real page content in that margin. Only needed here,
+      // not on the main card/orb view, so it's a body class scoped to just
+      // this modal's lifetime rather than a permanent CSS change.
+      document.body.classList.add('aida-url-preview-open');
+    };
+    window.closeAidaUrlPreview=function(){
+      const modal=document.getElementById('aidaUrlPreviewModal');
+      if(modal) modal.classList.remove('open');
+      document.body.classList.remove('aida-url-preview-open');
     };
 
     // ── Connectors — built against an assumed backend contract (see the
