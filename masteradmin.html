@@ -4274,6 +4274,27 @@ var AidaFaceFlow=(function(){
     var AIDA_CI_COLOR={success:'#27AE60',failure:'#C0392B',pending:'#B7791F',unknown:'#8A8886'};
     var AIDA_CI_LABEL={success:'Passing',failure:'Failing',pending:'Pending',unknown:'Unknown'};
 
+    // Timeline events come from the backend as internal keys (snake_case or
+    // camelCase, e.g. 'pr_opened', 'ciCheckStarted'). Admins reviewing a job
+    // shouldn't have to decode internal naming — show them as plain words.
+    var AIDA_EVENT_LABEL_OVERRIDES={
+      pr_opened:'Pull request opened', pr_merged:'Pull request merged',
+      ci_passed:'CI checks passed', ci_failed:'CI checks failed',
+    };
+    function humanizeAidaEventLabel(raw){
+      var key=String(raw||'').trim();
+      if(!key) return 'Update';
+      if(AIDA_EVENT_LABEL_OVERRIDES[key]) return AIDA_EVENT_LABEL_OVERRIDES[key];
+      var words=key
+        .replace(/[_-]+/g,' ')
+        .replace(/([a-z0-9])([A-Z])/g,'$1 $2')
+        .trim().split(/\s+/);
+      if(!words.length) return 'Update';
+      return words.map(function(w,i){
+        return i===0 ? (w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()) : w.toLowerCase();
+      }).join(' ');
+    }
+
     function openAidaJobsPanel(originEl){
       openFloatingModal(aidaJobsModal,originEl);
       aidaJobDetailId=null; aidaJobDetail=null; aidaJobDetailError=null;
@@ -4396,7 +4417,7 @@ var AidaFaceFlow=(function(){
       }
       html+=summaryIsRawError
         ? '<div style="font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#C0392B;background:#C0392B0d;border:1px solid #C0392B33;border-radius:8px;padding:10px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow-y:auto;margin-bottom:12px">'+esc(summary)+'</div>'
-        : '<div style="font-size:13.5px;color:var(--text);line-height:1.5;margin-bottom:12px">'+esc(summary)+'</div>';
+        : '<div style="font-size:13.5px;color:var(--text);line-height:1.5;margin-bottom:12px;white-space:pre-wrap;word-break:break-word">'+esc(summary)+'</div>';
       if(job.kind==='create_module'){
         // Two repos, two PRs, two CI checks, plus a live preview — everything
         // else about this job (status badge, summary, approve/reject,
@@ -4444,7 +4465,7 @@ var AidaFaceFlow=(function(){
       if(events.length){
         html+='<div style="font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;margin-top:16px;margin-bottom:6px">Timeline</div>'+
           '<div style="font-size:12px;color:var(--text-dim)">'+events.map(function(e){
-            return '<div style="padding:3px 0">'+esc(e.event||'')+(e.createdAt?' · '+esc(_aidaHubRelTime(e.createdAt)):'')+'</div>';
+            return '<div style="padding:3px 0">'+esc(humanizeAidaEventLabel(e.event))+(e.createdAt?' · '+esc(_aidaHubRelTime(e.createdAt)):'')+'</div>';
           }).join('')+'</div>';
       }
       return html;
