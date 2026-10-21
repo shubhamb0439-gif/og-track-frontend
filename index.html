@@ -1286,7 +1286,7 @@ tr:hover .badge { transform: scale(1.08); }
 #aida-overlay .msg-modal-header {
     display:flex; align-items:center; justify-content:space-between;
     padding:22px 22px 18px;
-    background:var(--red);
+    background:#1a1a1a;
     color:#fff;
     font-size:17px; font-weight:500;
     flex-shrink:0;
@@ -2198,6 +2198,15 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
 /* Same rule as the close button: Messages' own header owns that corner. */
 #aida-overlay .msg-modal.open ~ .aida-layout-btn{display:none;}
 @media (max-width:767px){ #aida-overlay .aida-layout-btn{display:none;} }
+/* Floating reply cards are meant for the main orb screen — with Messages
+   open, the same replies are already visible as chat bubbles right there,
+   so piling draggable cards on top of that modal was just clutter.
+   .fcard-layer is appended as a child of #aida-overlay (same container
+   showAidaResponseCard() passes in) AFTER .msg-modal in the DOM, so this
+   sibling selector reaches it the same way the rule above reaches the
+   layout button. Hiding is visual only — FloatingCard's own state (for
+   Clear all/Undo) keeps tracking them, so they're back once Messages closes. */
+#aida-overlay .msg-modal.open ~ .fcard-layer{display:none;}
 
 /* Scanner modal */
 .qr-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:900;flex-direction:column;}
