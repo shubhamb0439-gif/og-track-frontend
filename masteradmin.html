@@ -1088,9 +1088,9 @@
 
 #aida-overlay .help-icon svg { width:15px; height:15px; }
 
-#aida-overlay .help-row { align-items:center; }
-
 #aida-overlay .help-title { font-size:13.5px; font-weight:500; color:var(--text); }
+
+#aida-overlay .help-desc { font-size:12.5px; color:var(--text-dim); margin-top:2px; line-height:1.45; }
 
 #aida-overlay .toast {
     position:fixed;
@@ -4783,7 +4783,7 @@ function ensureAidaOverlay(){
             <button class="msg-modal-close" id="aidaConvToggleBtn" aria-label="Chat history" title="Chat history">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
             </button>
-            <span>Messages</span>
+            <span>Chats</span>
           </div>
           <button class="msg-modal-close" id="msgModalClose" aria-label="Close messages">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
@@ -4860,27 +4860,27 @@ function ensureAidaOverlay(){
         <div class="fm-body">
           <div class="help-row">
             <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></div>
-            <div class="help-title">Profile</div>
+            <div><div class="help-title">Profile</div><div class="help-desc">View and manage your profile information.</div></div>
           </div>
           <div class="help-row">
             <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H9l-4 4V5z"/></svg></div>
-            <div class="help-title">Messages</div>
+            <div><div class="help-title">Messages</div><div class="help-desc">Preview your recent conversations.</div></div>
           </div>
           <div class="help-row">
             <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2.9-1.2 1.9"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg></div>
-            <div class="help-title">Help</div>
+            <div><div class="help-title">Help</div><div class="help-desc">View a quick guide explaining the available features.</div></div>
           </div>
           <div class="help-row">
             <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H5v14h4"/><path d="M13 12h8m0 0-3-3m3 3-3 3"/></svg></div>
-            <div class="help-title">Logout</div>
+            <div><div class="help-title">Logout</div><div class="help-desc">Sign out of the application securely.</div></div>
           </div>
           <div class="help-row">
             <div class="help-icon">🎙</div>
-            <div class="help-title">Talking to AIDA</div>
+            <div><div class="help-title">Talking to AIDA</div><div class="help-desc">Tap the center icon to connect, hold Space to talk, release to hear the reply.</div></div>
           </div>
           <div class="help-row">
             <div class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6 3 12l5 6M16 6l5 6-5 6"/></svg></div>
-            <div class="help-title">AIDA Job</div>
+            <div><div class="help-title">AIDA Job</div><div class="help-desc">Review and approve real code fixes AIDA has proposed for this repo.</div></div>
           </div>
         </div>
       </div>
@@ -4942,25 +4942,20 @@ function ensureAidaOverlay(){
         <div class="orbit-wrap" id="orbitWrap">
           <div id="logoContainer"></div>
 
-          <div class="menu-item" data-pos="tr" data-side="right" role="menuitem" tabindex="-1" data-action="profile">
+          <div class="menu-item" data-pos="tr" data-side="right" role="menuitem" tabindex="-1" data-action="profile" aria-label="Profile">
             <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></div>
-            <div class="menu-pill"><span class="menu-label">Profile</span></div>
           </div>
-          <div class="menu-item" data-pos="br" data-side="right" role="menuitem" tabindex="-1" data-action="messages">
+          <div class="menu-item" data-pos="br" data-side="right" role="menuitem" tabindex="-1" data-action="messages" aria-label="Messages">
             <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5h16v11H9l-4 4V5z"/></svg></div>
-            <div class="menu-pill"><span class="menu-label">Messages</span></div>
           </div>
-          <div class="menu-item" data-pos="tl" data-side="left" role="menuitem" tabindex="-1" data-action="help">
-            <div class="menu-pill"><span class="menu-label">Help</span></div>
+          <div class="menu-item" data-pos="tl" data-side="left" role="menuitem" tabindex="-1" data-action="help" aria-label="Help">
             <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2.9-1.2 1.9"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg></div>
           </div>
-          <div class="menu-item" data-pos="bl" data-side="left" role="menuitem" tabindex="-1" data-action="logout">
-            <div class="menu-pill"><span class="menu-label">Logout</span></div>
+          <div class="menu-item" data-pos="bl" data-side="left" role="menuitem" tabindex="-1" data-action="logout" aria-label="Logout">
             <div class="menu-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5H5v14h4"/><path d="M13 12h8m0 0-3-3m3 3-3 3"/></svg></div>
           </div>
-          <div class="menu-item" data-pos="b" role="menuitem" tabindex="-1" data-action="aidaJob">
+          <div class="menu-item" data-pos="b" role="menuitem" tabindex="-1" data-action="aidaJob" aria-label="AIDA Job">
             <div class="menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 6 3 12l5 6M16 6l5 6-5 6"/></svg></div>
-            <div class="menu-pill"><span class="menu-label">AIDA Job</span></div>
           </div>
         </div>
 
