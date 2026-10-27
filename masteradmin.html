@@ -2427,6 +2427,10 @@ let aidaConversations=[]; // sidebar cache: [{id,title,createdAt,updatedAt,lastM
 let aidaConversationsLoaded=false;
 let aidaActiveConversationId=null; // threaded through every POST /chat and /voice-input; stored back from each response
 let _aidaInitialConvLoadStarted=false; // guards loadInitialAidaConversation() to exactly one attempt per overlay session, same role aidaHistoryLoaded used to play
+// Skills panel (browse AIDA's tools + propose a new one) — masteradmin only.
+let aidaSkillsTab='browse';
+let aidaSkillsTools=null; // null = not loaded yet or failed; [] = loaded, empty
+let aidaSkillsLoaded=false;
 let aidaSpeaking=false; // true for the span between the first voice chunk playing and the last one finishing
 let aidaSocket=null; // connected once, on first entry into the AIDA screen
 let aidaOverlayOpen=false;
@@ -3623,7 +3627,7 @@ var AidaFaceFlow=(function(){
       logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems,
       aidaJobsModal, aidaJobsModalClose, aidaJobsBody,
       aidaConvToggleBtn, aidaConvSidebar, aidaConvNewBtn, aidaConvList,
-      connectorsModal, connectorsModalClose;
+      connectorsModal, connectorsModalClose, skillsModal, skillsModalClose;
   var msgSending=false;
   var aidaConvSidebarOpen=false;
   // AIDA Job panel state (Phase 1 self-fix approval flow) — kept in this
@@ -3676,6 +3680,8 @@ var AidaFaceFlow=(function(){
     aidaConvList=document.getElementById('aidaConvList');
     connectorsModal=document.getElementById('connectorsModal');
     connectorsModalClose=document.getElementById('connectorsModalClose');
+    skillsModal=document.getElementById('skillsModal');
+    skillsModalClose=document.getElementById('skillsModalClose');
     menuItems=Array.prototype.slice.call(document.querySelectorAll('#aida-overlay .menu-item'));
 
     function openMenu(){
@@ -4018,6 +4024,100 @@ var AidaFaceFlow=(function(){
         showAidaToast("Connectors aren't wired up on the backend yet.");
       }
       loadAidaConnectors();
+    };
+
+    // ── Skills — masteradmin-only browse of everything AIDA can currently
+    // do, plus a "+ New skill" box that feeds AIDA's existing plan-then-build
+    // job pipeline (same Job panel already built for #31-#33 — this never
+    // builds a second progress UI, it just creates a job that panel already
+    // knows how to show). State vars declared top-level (see near
+    // aidaConversations above) — clearAidaSessionOnLogout() is outside this
+    // IIFE and needs to reach them to reset on logout. ──
+    window.openAidaSkillsPanel=function(){
+      openFloatingModal(skillsModal,document.getElementById('aidaAttachBtn'));
+      aidaSkillsTab='browse';
+      renderAidaSkillsPanel();
+      if(!aidaSkillsLoaded) loadAidaSkillsTools();
+    };
+    async function loadAidaSkillsTools(){
+      try{
+        const r=await authFetch('/api/masteradmin/aida/tools');
+        if(!r.ok) throw new Error();
+        const data=await r.json();
+        aidaSkillsTools=Array.isArray(data.tools)?data.tools:[];
+      }catch(e){ aidaSkillsTools=null; }
+      aidaSkillsLoaded=true;
+      renderAidaSkillsPanel();
+    }
+    // Tool names are developer-ish (masteradmin_sitara_get_dashboard) — a
+    // light display-only humanization, not a change to the data contract.
+    function aidaHumanizeToolName(name){
+      return String(name||'').replace(/^masteradmin_/,'').replace(/_/g,' ').replace(/\b\w/g,function(c){ return c.toUpperCase(); });
+    }
+    window.switchAidaSkillsTab=function(tab){
+      aidaSkillsTab=tab;
+      renderAidaSkillsPanel();
+    };
+    function aidaSkillsTabsHtml(){
+      return '<div style="display:flex;gap:18px;margin-bottom:14px;border-bottom:1px solid var(--line)">'+
+        ['browse','new'].map(function(t){
+          var active=aidaSkillsTab===t;
+          var label=t==='browse'?'Browse':'+ New skill';
+          return '<button type="button" onclick="switchAidaSkillsTab(\''+t+'\')" style="padding:8px 2px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid '+(active?'#1a1a1a':'transparent')+';color:'+(active?'#1a1a1a':'var(--text-dim)')+'">'+label+'</button>';
+        }).join('')+
+      '</div>';
+    }
+    function renderAidaSkillsPanel(){
+      const body=document.getElementById('skillsModalBody');
+      if(!body) return;
+      if(aidaSkillsTab==='new'){
+        body.innerHTML=aidaSkillsTabsHtml()+
+          '<div style="font-size:13px;color:var(--text-dim);margin-bottom:10px">Describe what you want AIDA to be able to do, in your own words.</div>'+
+          '<textarea id="aidaSkillDesc" rows="4" placeholder="e.g. let AIDA send a Slack DM when a job fails" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--panel);resize:vertical"></textarea>'+
+          '<button type="button" class="primary-btn-sm" style="margin-top:10px;width:100%" onclick="submitAidaSkillProposal()">Submit</button>';
+        return;
+      }
+      if(!aidaSkillsLoaded){
+        body.innerHTML=aidaSkillsTabsHtml()+'<div style="padding:16px 0;color:var(--text-dim);font-size:13px">Loading…</div>';
+        return;
+      }
+      if(!aidaSkillsTools){
+        body.innerHTML=aidaSkillsTabsHtml()+'<div style="padding:16px 0;color:#C0392B;font-size:13px">Could not load AIDA\'s skills list.</div>';
+        return;
+      }
+      if(!aidaSkillsTools.length){
+        body.innerHTML=aidaSkillsTabsHtml()+'<div style="padding:16px 0;color:var(--text-dim);font-size:13px">No skills found.</div>';
+        return;
+      }
+      const byCategory={};
+      aidaSkillsTools.forEach(function(t){
+        const cat=t.category||'Other';
+        (byCategory[cat]=byCategory[cat]||[]).push(t);
+      });
+      const categories=Object.keys(byCategory).sort();
+      body.innerHTML=aidaSkillsTabsHtml()+categories.map(function(cat){
+        return '<div style="margin-bottom:16px">'+
+          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin-bottom:8px">'+esc(cat)+'</div>'+
+          byCategory[cat].map(function(t){
+            return '<div style="padding:8px 0;border-top:1px solid var(--line)">'+
+              '<div style="font-size:13px;font-weight:600;color:var(--text)">'+esc(aidaHumanizeToolName(t.name))+'</div>'+
+              (t.description?'<div style="font-size:12px;color:var(--text-dim);margin-top:2px">'+esc(t.description)+'</div>':'')+
+            '</div>';
+          }).join('')+
+        '</div>';
+      }).join('');
+    }
+    window.submitAidaSkillProposal=async function(){
+      const ta=document.getElementById('aidaSkillDesc');
+      const description=(ta.value||'').trim();
+      if(!description){ showAidaToast('Describe what you want AIDA to be able to do'); return; }
+      try{
+        const r=await authFetch('/api/masteradmin/aida/skills/propose',{method:'POST',body:JSON.stringify({description:description})});
+        const data=await r.json().catch(function(){ return {}; });
+        if(!r.ok) throw new Error(data.error||'Could not submit');
+        showAidaToast('Submitted — check the AIDA Job panel for progress');
+        closeFloatingModal(skillsModal);
+      }catch(e){ showAidaToast(e.message||'Could not submit skill proposal'); }
     };
 
     // Typed alternative to sendAidaVoiceInput() below — same turn history,
@@ -4386,6 +4486,7 @@ var AidaFaceFlow=(function(){
     profileModalClose.addEventListener('click',function(){ closeFloatingModal(profileModal); });
     helpModalClose.addEventListener('click',function(){ closeFloatingModal(helpModal); });
     connectorsModalClose.addEventListener('click',function(){ closeFloatingModal(connectorsModal); });
+    skillsModalClose.addEventListener('click',function(){ closeFloatingModal(skillsModal); });
     logoutModalCancel.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
     logoutModalCancelBtn.addEventListener('click',function(){ closeFloatingModal(logoutModal); });
     logoutModalConfirm.addEventListener('click',function(){ closeFloatingModal(logoutModal); performLogout(); });
@@ -4737,6 +4838,8 @@ var AidaFaceFlow=(function(){
       closeFloatingModal(helpModal);
       closeFloatingModal(logoutModal);
       closeFloatingModal(aidaJobsModal);
+      closeFloatingModal(connectorsModal);
+      closeFloatingModal(skillsModal);
       if(isListening){ stopListening(); }
     };
     window._aidaHubOnLogout=function(){
@@ -4806,6 +4909,7 @@ function ensureAidaOverlay(){
               <button type="button" onclick="pickAidaFile('file')">📄 Upload file</button>
               <button type="button" onclick="pickAidaFile('image')">🖼 Upload image</button>
               <button type="button" onclick="toggleAidaAttachMenu(false);openAidaConnectorsPanel()">🔗 Connectors</button>
+              <button type="button" onclick="toggleAidaAttachMenu(false);openAidaSkillsPanel()">🧠 Skills</button>
             </div>
             <input type="file" id="aidaFileInput" style="display:none" onchange="handleAidaFileChosen(this)">
             <input type="file" id="aidaImageInput" accept="image/*" style="display:none" onchange="handleAidaFileChosen(this)">
@@ -4905,6 +5009,17 @@ function ensureAidaOverlay(){
           </button>
         </div>
         <div class="fm-body" id="connectorsModalBody"></div>
+      </div>
+
+      <div class="floating-modal" id="skillsModal" role="dialog" aria-modal="true" aria-label="Skills">
+        <div class="fm-header">
+          <div class="fm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a5 5 0 00-5 5c0 1.6.8 2.7 1.6 3.6.5.6 1 1.1 1.2 1.7.2.5.2 1 .2 1.7v.5h4v-.5c0-.7 0-1.2.2-1.7.2-.6.7-1.1 1.2-1.7C16.2 9.7 17 8.6 17 7a5 5 0 00-5-5z"/><path d="M9.5 20h5M10 17.5h4"/></svg></div>
+          <span class="fm-title">Skills</span>
+          <button class="fm-close" id="skillsModalClose" aria-label="Close skills">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="fm-body" id="skillsModalBody"></div>
       </div>
 
       <div class="toast" id="logoutToast">
@@ -5406,6 +5521,9 @@ async function clearAidaSessionOnLogout(){
   aidaModelsByProvider={};
   aidaSelectedProvider=null;
   aidaSelectedModel=null;
+  aidaSkillsTab='browse';
+  aidaSkillsTools=null;
+  aidaSkillsLoaded=false;
 }
 
 // ── Auto-login if token in storage ────────────────────────────────────────
