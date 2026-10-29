@@ -1822,7 +1822,11 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
 
 #aida-overlay .menu-icon svg { width:14px; height:14px; }
 
-#aida-overlay .menu-icon.danger { border-color:#1a1a1a; color:#1a1a1a; }
+/* Red rather than the plain dark charcoal the other icons use — reads as
+   "destructive action" by convention, and (unlike charcoal) stays visible
+   against a dark panel background in dark mode without needing its own
+   per-theme override. */
+#aida-overlay .menu-icon.danger { border-color:var(--red); color:var(--red); }
 
 #aida-overlay .menu-pill {
     background:var(--panel);
@@ -1845,16 +1849,16 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
     font-size:11.5px;
     font-weight:500;
     letter-spacing:.1px;
-    color:#1a1a1a;
+    color:var(--text);
   }
 
-#aida-overlay .menu-item:hover .menu-icon:not(.danger) { border-color:#1a1a1a; color:#1a1a1a; }
+#aida-overlay .menu-item:hover .menu-icon:not(.danger) { border-color:var(--text); color:var(--text); }
 
-#aida-overlay .menu-item:hover .menu-pill { border-color:#1a1a1a; }
+#aida-overlay .menu-item:hover .menu-pill { border-color:var(--text); }
 
 #aida-overlay .menu-item:focus-visible { outline:none; }
 
-#aida-overlay .menu-item:focus-visible .menu-pill { border-color:#1a1a1a; }
+#aida-overlay .menu-item:focus-visible .menu-pill { border-color:var(--text); }
 
 #aida-overlay .orbit-wrap.open .menu-item {
     opacity:1;
