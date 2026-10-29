@@ -1658,6 +1658,11 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
 .aida-flow-field-mode button.active{ background:var(--red); color:#fff; }
 .aida-flow-field-mode button:not(.active):hover{ background:var(--bg); color:var(--g2); }
 
+/* compare_datasets' dedicated form — same card language as .aida-flow-field,
+   one card per labeled section instead of per raw schema property. */
+.aida-flow-compare-section{ background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:11px 12px; margin-bottom:10px; }
+.aida-flow-compare-preview{ font-family:monospace; font-size:11px; line-height:1.5; background:var(--white); border:1px solid var(--border); border-radius:7px; padding:8px; white-space:pre-wrap; word-break:break-all; margin:0; color:var(--g2); }
+
 .aida-flow-pause{ margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--border); }
 .aida-flow-pause label{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--g2); cursor:pointer; }
 .aida-flow-pause.is-paused label{ color:var(--g3); }
@@ -6271,8 +6276,15 @@ function renderAidaFlowCanvasSidePanel(){
     var step=d.steps[i];
     if(!step){ closeAidaFlowCanvasSidePanel(); return; }
     var node=aidaFlowNodeByName(step.toolName);
+    // compare_datasets needs two array-output refs, two never-referenceable
+    // plain keys, and two optional repeatable lists — the generic
+    // single-value "Value / From earlier step" form can't express that
+    // shape cleanly (and previously produced stray _picker keys / dropped
+    // fields trying to). It gets its own dedicated form; every other node
+    // keeps using the generic one unchanged.
+    var stepFormHtml=step.toolName==='compare_datasets'?aidaFlowCompareDatasetsFormHtml(node,step,i):aidaFlowStepConfigFormHtml(node,step,i);
     panel.innerHTML='<div class="afc-panel-head"><button type="button" class="afc-panel-back" id="afcPanelBack">&larr;</button><span>'+esc(node?aidaHumanizeToolName(node.name):step.toolName)+'</span></div>'+
-      '<div class="afc-panel-body">'+aidaFlowPausedToggleHtml(i)+aidaFlowDependsOnChipsHtml(i)+aidaFlowStepConfigFormHtml(node,step,i)+'</div>';
+      '<div class="afc-panel-body">'+aidaFlowPausedToggleHtml(i)+aidaFlowDependsOnChipsHtml(i)+stepFormHtml+'</div>';
     var pauseToggle=document.getElementById('afcPauseToggle');
     if(pauseToggle) pauseToggle.addEventListener('change',function(){ setAidaFlowStepPaused(i,!this.checked); });
     panel.querySelectorAll('[data-remove-dep]').forEach(function(btn){
@@ -6466,6 +6478,190 @@ window.insertAidaFlowFieldRef=function(fid,stepIdx,fieldName){
   if(picker) picker.classList.remove('open');
   if(pathInp) pathInp.value='';
 };
+
+// ── compare_datasets: a dedicated, plain-language config form. ──
+// Its own output construction, kept deliberately separate from the generic
+// per-property form above: leftRows/rightRows compose to real
+// {{step_<id>.output.<path>}} ref strings (same format the generic ref
+// picker writes), but the user only ever sees "which step" + "which list",
+// never the {{...}} syntax. leftKey/rightKey are plain strings and must
+// never go through the ref machinery. Saved payload is built explicitly as
+// {leftRows,rightRows,leftKey,rightKey,rightFilters?,projectFields?} —
+// nothing else is ever written into step.config for this tool.
+function aidaFlowCompareDatasetsPreviewJson(step){
+  var cfg=step.config||{};
+  var out={leftRows:cfg.leftRows||'',rightRows:cfg.rightRows||'',leftKey:cfg.leftKey||'',rightKey:cfg.rightKey||''};
+  if(Array.isArray(cfg.rightFilters)&&cfg.rightFilters.length) out.rightFilters=cfg.rightFilters;
+  if(Array.isArray(cfg.projectFields)&&cfg.projectFields.length) out.projectFields=cfg.projectFields;
+  return out;
+}
+function aidaFlowCompareUpdatePreview(stepIdx){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  var el=document.getElementById('cmpPreview'+stepIdx);
+  if(el&&step) el.textContent=JSON.stringify(aidaFlowCompareDatasetsPreviewJson(step),null,2);
+}
+function aidaFlowCompareSidePickerHtml(stepIdx,side,step,deps){
+  var key=side+'Rows';
+  var ref=aidaFlowFieldRefMatch(step.config[key]);
+  var curStepIdx=ref?ref.stepIndex:null;
+  var curField=ref?ref.path:'';
+  var fid='cmp'+stepIdx+'_'+side;
+  return '<div style="display:flex;gap:6px;margin-bottom:'+(side==='left'?'8px':'0')+'">'+
+      '<select id="'+fid+'_step" style="flex:1" onchange="setAidaFlowCompareStep('+stepIdx+',\''+side+'\',this.value)">'+
+        (deps.length?deps.map(function(pi){
+          return '<option value="'+pi+'" '+(curStepIdx===pi?'selected':'')+'>'+esc(aidaFlowStepLabel(pi))+'</option>';
+        }).join(''):'<option value="">— no connected step —</option>')+
+      '</select>'+
+      '<input id="'+fid+'_field" type="text" style="flex:1" placeholder="which list — e.g. rows" value="'+esc(curField)+'" oninput="setAidaFlowCompareField('+stepIdx+',\''+side+'\',this.value)">'+
+    '</div>';
+}
+window.setAidaFlowCompareStep=function(stepIdx,side,val){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  var key=side+'Rows';
+  var cur=aidaFlowFieldRefMatch(step.config[key]);
+  var path=cur?cur.path:'';
+  var si=val===''?null:parseInt(val,10);
+  step.config[key]=si==null?'':aidaFlowBuildRefToken(si,path);
+  aidaFlowMarkDirty();
+  aidaFlowCanvasRefreshNodeSummary(stepIdx);
+  aidaFlowCompareUpdatePreview(stepIdx);
+};
+window.setAidaFlowCompareField=function(stepIdx,side,val){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  var key=side+'Rows';
+  var cur=aidaFlowFieldRefMatch(step.config[key]);
+  var si=cur?cur.stepIndex:null;
+  if(si==null){
+    var deps=Array.isArray(step.dependsOn)?step.dependsOn:[];
+    si=deps.length?deps[0]:null;
+  }
+  step.config[key]=si==null?'':aidaFlowBuildRefToken(si,val);
+  aidaFlowMarkDirty();
+  aidaFlowCanvasRefreshNodeSummary(stepIdx);
+  aidaFlowCompareUpdatePreview(stepIdx);
+};
+window.setAidaFlowCompareKey=function(stepIdx,side,val){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  var key=side+'Key';
+  if(val) step.config[key]=val; else delete step.config[key];
+  aidaFlowMarkDirty();
+  aidaFlowCanvasRefreshNodeSummary(stepIdx);
+  aidaFlowCompareUpdatePreview(stepIdx);
+};
+window.addAidaFlowCompareFilter=function(stepIdx){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  step.config.rightFilters=Array.isArray(step.config.rightFilters)?step.config.rightFilters:[];
+  step.config.rightFilters.push({field:'',op:'eq',value:''});
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasSidePanel();
+};
+window.removeAidaFlowCompareFilter=function(stepIdx,idx){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  if(Array.isArray(step.config.rightFilters)){
+    step.config.rightFilters.splice(idx,1);
+    if(!step.config.rightFilters.length) delete step.config.rightFilters;
+  }
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasSidePanel();
+};
+window.setAidaFlowCompareFilterField=function(stepIdx,idx,field,val){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  if(!step.config.rightFilters||!step.config.rightFilters[idx]) return;
+  step.config.rightFilters[idx][field]=val;
+  aidaFlowMarkDirty();
+  aidaFlowCompareUpdatePreview(stepIdx);
+};
+window.addAidaFlowCompareProjection=function(stepIdx){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  step.config.projectFields=Array.isArray(step.config.projectFields)?step.config.projectFields:[];
+  step.config.projectFields.push({from:'left',field:'',as:''});
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasSidePanel();
+};
+window.removeAidaFlowCompareProjection=function(stepIdx,idx){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  if(Array.isArray(step.config.projectFields)){
+    step.config.projectFields.splice(idx,1);
+    if(!step.config.projectFields.length) delete step.config.projectFields;
+  }
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasSidePanel();
+};
+window.setAidaFlowCompareProjectionField=function(stepIdx,idx,field,val){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  if(!step.config.projectFields||!step.config.projectFields[idx]) return;
+  step.config.projectFields[idx][field]=val;
+  aidaFlowMarkDirty();
+  aidaFlowCompareUpdatePreview(stepIdx);
+};
+function aidaFlowCompareDatasetsFormHtml(node,step,stepIdx){
+  step.config=step.config||{};
+  var deps=Array.isArray(step.dependsOn)?step.dependsOn:[];
+  var filters=Array.isArray(step.config.rightFilters)?step.config.rightFilters:[];
+  var proj=Array.isArray(step.config.projectFields)?step.config.projectFields:[];
+  var opLabels={eq:'is',neq:'is not',gt:'greater than',lt:'less than'};
+  var html='';
+  html+='<div class="aida-flow-compare-section">'+
+      '<div class="aida-flow-field-label">Compare…</div>'+
+      aidaFlowCompareSidePickerHtml(stepIdx,'left',step,deps)+
+      aidaFlowCompareSidePickerHtml(stepIdx,'right',step,deps)+
+      (deps.length<2?'<div class="aida-flow-field-hint" style="margin-top:8px">Connect at least two upstream steps (drag a connection to this node) to compare their outputs.</div>':'')+
+    '</div>';
+  html+='<div class="aida-flow-compare-section">'+
+      '<div class="aida-flow-field-label">Match them by</div>'+
+      '<div style="display:flex;gap:6px">'+
+        '<div style="flex:1">'+
+          '<div class="aida-flow-field-hint">Left field — e.g. orderId</div>'+
+          '<input type="text" oninput="setAidaFlowCompareKey('+stepIdx+',\'left\',this.value)" value="'+esc(step.config.leftKey||'')+'">'+
+        '</div>'+
+        '<div style="flex:1">'+
+          '<div class="aida-flow-field-hint">Right field — e.g. orderId</div>'+
+          '<input type="text" oninput="setAidaFlowCompareKey('+stepIdx+',\'right\',this.value)" value="'+esc(step.config.rightKey||'')+'">'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  html+='<div class="aida-flow-compare-section">'+
+      '<div class="aida-flow-field-label">Only keep matches where <span style="font-weight:400;color:var(--g3)">(optional)</span></div>'+
+      filters.map(function(f,idx){
+        return '<div style="display:flex;gap:6px;margin:8px 0;align-items:center">'+
+          '<input type="text" style="flex:1;min-width:0" placeholder="field name" value="'+esc(f.field||'')+'" oninput="setAidaFlowCompareFilterField('+stepIdx+','+idx+',\'field\',this.value)">'+
+          '<select onchange="setAidaFlowCompareFilterField('+stepIdx+','+idx+',\'op\',this.value)">'+
+            ['eq','neq','gt','lt'].map(function(op){ return '<option value="'+op+'" '+(f.op===op?'selected':'')+'>'+opLabels[op]+'</option>'; }).join('')+
+          '</select>'+
+          '<input type="text" style="flex:1;min-width:0" placeholder="value" value="'+esc(f.value!=null?String(f.value):'')+'" oninput="setAidaFlowCompareFilterField('+stepIdx+','+idx+',\'value\',this.value)">'+
+          '<button type="button" class="aida-flow-insert-btn" onclick="removeAidaFlowCompareFilter('+stepIdx+','+idx+')" title="Remove">&times;</button>'+
+        '</div>';
+      }).join('')+
+      '<button type="button" class="afc-btn" onclick="addAidaFlowCompareFilter('+stepIdx+')">+ Add condition</button>'+
+    '</div>';
+  html+='<div class="aida-flow-compare-section">'+
+      '<div class="aida-flow-field-label">Include in the result <span style="font-weight:400;color:var(--g3)">(optional)</span></div>'+
+      proj.map(function(p,idx){
+        return '<div style="display:flex;gap:6px;margin:8px 0;align-items:center">'+
+          '<span style="font-size:11.5px;color:var(--g3);flex-shrink:0">Pull from</span>'+
+          '<select onchange="setAidaFlowCompareProjectionField('+stepIdx+','+idx+',\'from\',this.value)">'+
+            '<option value="left" '+(p.from==='left'?'selected':'')+'>Left</option>'+
+            '<option value="right" '+(p.from==='right'?'selected':'')+'>Right</option>'+
+          '</select>'+
+          '<input type="text" style="flex:1;min-width:0" placeholder="field name" value="'+esc(p.field||'')+'" oninput="setAidaFlowCompareProjectionField('+stepIdx+','+idx+',\'field\',this.value)">'+
+          '<span style="font-size:11.5px;color:var(--g3);flex-shrink:0">as</span>'+
+          '<input type="text" style="flex:1;min-width:0" placeholder="label" value="'+esc(p.as||'')+'" oninput="setAidaFlowCompareProjectionField('+stepIdx+','+idx+',\'as\',this.value)">'+
+          '<button type="button" class="aida-flow-insert-btn" onclick="removeAidaFlowCompareProjection('+stepIdx+','+idx+')" title="Remove">&times;</button>'+
+        '</div>';
+      }).join('')+
+      '<button type="button" class="afc-btn" onclick="addAidaFlowCompareProjection('+stepIdx+')">+ Add field</button>'+
+    '</div>';
+  html+='<div class="aida-flow-compare-section">'+
+      '<div class="aida-flow-field-label">Preview — what gets saved</div>'+
+      '<pre id="cmpPreview'+stepIdx+'" class="aida-flow-compare-preview">'+esc(JSON.stringify(aidaFlowCompareDatasetsPreviewJson(step),null,2))+'</pre>'+
+    '</div>';
+  return html;
+}
 function aidaFlowStepConfigFormHtml(node,step,stepIdx){
   if(!node||!node.inputSchema||!node.inputSchema.properties){
     return '<textarea rows="4" style="width:100%;font-family:monospace;font-size:11.5px;box-sizing:border-box" placeholder="JSON config" onchange="setAidaFlowStepRawConfig('+stepIdx+',this.value)">'+esc(JSON.stringify(step.config||{},null,2))+'</textarea>';
