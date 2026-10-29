@@ -215,17 +215,46 @@
    none of these class names or @keyframes can collide with the rest of
    this file) from the exact dashboard.css/logo.js the user supplied. ── */
 #aida-overlay {
-    --bg:#FFFFFF;
-    --panel:#FFFFFF;
-    --line:#E4E2DE;
+    --bg:#ebe7be;
+    --panel:#ebe7be;
+    --line:#d8d4a8;
     --charcoal:#424242;
     --red:#B7252D;
     --readbadge:#F3E9EA;
     --text:#242424;
     --text-dim:#8A8886;
     --label-blue:#33539E;
+    /* Chat bubbles — kept as their own tokens (not reusing --bg/--panel)
+       since dark mode swaps these two relative to each other rather than
+       just darkening them like everything else. */
+    --chat-user-bg:#fff;
+    --chat-user-text:#1a1a1a;
+    --chat-assistant-bg:#1a1a1a;
+    --chat-assistant-text:#fff;
+    --chat-code-tint:rgba(255,255,255,.08);
+    --input-bg:#fff;
     --logo-size: clamp(190px, 30vmin, 300px);
     background:var(--bg); color:var(--text);
+  }
+  /* Dark mode — toggled via #aidaThemeToggle (aidaThemeIsDark/applyAidaTheme).
+     Not a literal per-pixel inversion (that reads as broken, not "dark
+     mode") — the neutral surface/text/border tokens flip light<->dark, the
+     two chat-bubble colors swap with each other, and the brand red stays
+     the brand red in both themes, same as any normal dark theme. */
+  #aida-overlay[data-aida-theme="dark"] {
+    --bg:#17161a;
+    --panel:#1f1e23;
+    --line:#38363d;
+    --charcoal:#d8d6da;
+    --readbadge:#3a2226;
+    --text:#f1efe9;
+    --text-dim:#9d9aa3;
+    --chat-user-bg:#1a1a1a;
+    --chat-user-text:#fff;
+    --chat-assistant-bg:#fff;
+    --chat-assistant-text:#1a1a1a;
+    --chat-code-tint:rgba(0,0,0,.06);
+    --input-bg:#2a2930;
   }
 
 #aida-overlay .stage {
@@ -488,7 +517,7 @@
     flex:1; min-width:0;
     border:1px solid var(--line); border-radius:20px;
     padding:10px 16px; font-size:14px; color:var(--text);
-    background:var(--bg); outline:none; font-family:inherit;
+    background:var(--input-bg); outline:none; font-family:inherit;
   }
 #aida-overlay .msg-input:focus{ border-color:#1a1a1a; }
 #aida-overlay .msg-send-btn{
@@ -637,7 +666,7 @@
   font-size:12px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
   overflow-x:auto;
 }
-#aida-overlay .chat-msg-assistant .aida-code-block{ background:rgba(255,255,255,.08); }
+#aida-overlay .chat-msg-assistant .aida-code-block{ background:var(--chat-code-tint); }
 
 #aida-overlay .chat-msg{
     max-width:78%; margin:6px 22px; padding:10px 14px;
@@ -645,14 +674,14 @@
     overflow-wrap:break-word; white-space:pre-wrap;
   }
 #aida-overlay .chat-msg-user{
-    margin-left:auto; background:#fff; color:#1a1a1a; border:1px solid var(--line); border-bottom-right-radius:4px;
+    margin-left:auto; background:var(--chat-user-bg); color:var(--chat-user-text); border:1px solid var(--line); border-bottom-right-radius:4px;
   }
 #aida-overlay .chat-msg-assistant{
-    margin-right:auto; background:#1a1a1a; color:#fff; border-bottom-left-radius:4px;
+    margin-right:auto; background:var(--chat-assistant-bg); color:var(--chat-assistant-text); border-bottom-left-radius:4px;
   }
 #aida-overlay .chat-msg-thinking{ display:flex; align-items:center; gap:4px; padding:14px; }
 #aida-overlay .aida-thinking-dot{
-    width:6px; height:6px; border-radius:50%; background:#fff; opacity:.4;
+    width:6px; height:6px; border-radius:50%; background:var(--chat-assistant-text); opacity:.4;
     animation:aidaThinkingBounce 1.1s ease-in-out infinite;
   }
 #aida-overlay .aida-thinking-dot:nth-child(2){ animation-delay:.15s; }
@@ -1417,14 +1446,16 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
   .fcard-undo{min-height:44px;}
 }
 @media (prefers-reduced-motion: reduce){ .fcard-pill{transition:none !important;} }
-/* Layout toggle — sits left of the hub's own close (✕) button, same look. */
+/* Layout toggle — sits left of the hub's own close (✕) button, same look.
+   Uses the theme tokens (not hardcoded hex) so it — like the close button
+   and popup/theme toggles next to it — follows dark mode automatically. */
 #aida-overlay .aida-layout-btn{
   position:absolute;top:16px;right:64px;width:36px;height:36px;border-radius:50%;
-  border:1px solid #E4E2DE;background:#fff;color:#424242;cursor:pointer;z-index:80;
+  border:1px solid var(--line);background:var(--panel);color:var(--charcoal);cursor:pointer;z-index:80;
   box-shadow:0 1px 4px rgba(0,0,0,.08);
   display:flex;align-items:center;justify-content:center;padding:0;
 }
-#aida-overlay .aida-layout-btn:hover{border-color:#c9c6c1;}
+#aida-overlay .aida-layout-btn:hover{border-color:var(--text-dim);}
 #aida-overlay .aida-layout-btn:focus-visible{outline:2px solid var(--red);outline-offset:2px;}
 #aida-overlay .aida-layout-btn svg{width:18px;height:18px;}
 /* Same rule as the close button: Messages' own header owns that corner. */
@@ -1435,15 +1466,238 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
    the layout toggle above, one slot further from the close button. */
 #aida-overlay .aida-popup-btn{
   position:absolute;top:16px;right:108px;width:36px;height:36px;border-radius:50%;
-  border:1px solid #E4E2DE;background:#fff;color:#424242;cursor:pointer;z-index:80;
+  border:1px solid var(--line);background:var(--panel);color:var(--charcoal);cursor:pointer;z-index:80;
   box-shadow:0 1px 4px rgba(0,0,0,.08);
   display:flex;align-items:center;justify-content:center;padding:0;
 }
-#aida-overlay .aida-popup-btn:hover{border-color:#c9c6c1;}
+#aida-overlay .aida-popup-btn:hover{border-color:var(--text-dim);}
 #aida-overlay .aida-popup-btn:focus-visible{outline:2px solid var(--red);outline-offset:2px;}
 #aida-overlay .aida-popup-btn svg{width:18px;height:18px;}
 #aida-overlay .msg-modal.open ~ .aida-popup-btn{display:none;}
 @media (max-width:767px){ #aida-overlay .aida-popup-btn{display:none;} }
+/* Dark-mode toggle — one slot further out again. */
+#aida-overlay .aida-theme-btn{
+  position:absolute;top:16px;right:152px;width:36px;height:36px;border-radius:50%;
+  border:1px solid var(--line);background:var(--panel);color:var(--charcoal);cursor:pointer;z-index:80;
+  box-shadow:0 1px 4px rgba(0,0,0,.08);
+  display:flex;align-items:center;justify-content:center;padding:0;
+}
+#aida-overlay .aida-theme-btn:hover{border-color:var(--text-dim);}
+#aida-overlay .aida-theme-btn:focus-visible{outline:2px solid var(--red);outline-offset:2px;}
+#aida-overlay .aida-theme-btn svg{width:18px;height:18px;}
+#aida-overlay .msg-modal.open ~ .aida-theme-btn{display:none;}
+@media (max-width:767px){ #aida-overlay .aida-theme-btn{display:none;} }
+
+/* ── Dashboard sidenav (Dashboard / Flows) ── */
+.dash-body{ display:flex; align-items:stretch; min-height:calc(100vh - 58px); }
+.dash-sidenav{ width:188px; flex-shrink:0; background:var(--white); border-right:1px solid var(--border); padding:18px 10px; display:flex; flex-direction:column; gap:2px; }
+.dash-sidenav-item{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:9px 12px; border:none; background:none; border-radius:8px; cursor:pointer; color:var(--g2); font-size:13.5px; font-weight:600; }
+.dash-sidenav-item:hover{ background:var(--bg); }
+.dash-sidenav-item.active{ background:var(--red-light); color:var(--red); }
+.dash-pages{ flex:1; min-width:0; display:flex; flex-direction:column; }
+.dash-page{ flex:1; min-height:0; }
+
+/* ── Flows — node-canvas page (n8n/Zapier-style), light theme to match the
+   rest of this dashboard. Linear-chain only (confirmed v1 backend scope) —
+   nodes are freely draggable for readability, but the real execution order
+   is always the trigger → step0 → step1 → … array order; dragging a node's
+   red output dot onto another node's input dot reorders the chain, it never
+   branches. ── */
+#flowsPage{ background:var(--white); color:var(--g2); flex-direction:column; overflow:hidden; }
+.afc-topbar{ display:flex; align-items:center; gap:10px; padding:13px 22px; border-bottom:1px solid var(--border); flex-shrink:0; flex-wrap:wrap; row-gap:10px; background:var(--white); }
+.afc-back{ border:1px solid transparent; background:none; color:var(--g3); cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:9px; transition:background .15s ease, color .15s ease; flex-shrink:0; }
+.afc-back:hover{ background:var(--bg); color:var(--g2); }
+.afc-name{ flex:0 1 320px; min-width:120px; background:none; border:1px solid transparent; color:var(--g2); font-size:15px; font-weight:700; padding:8px 10px; border-radius:8px; transition:background .15s ease, border-color .15s ease; }
+.afc-name::placeholder{ color:var(--g4); font-weight:600; }
+.afc-name:hover{ background:var(--bg); }
+.afc-name:focus{ border-color:var(--red); background:var(--white); outline:none; box-shadow:0 0 0 3px var(--red-light); }
+.afc-help-popover{ display:none; position:absolute; top:40px; left:0; width:300px; background:var(--white); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 30px rgba(30,20,18,.15); padding:14px 16px; z-index:20; }
+.afc-help-popover.open{ display:block; }
+.afc-help-title{ font-size:13px; font-weight:700; color:var(--g2); margin-bottom:8px; }
+.afc-help-popover ol{ margin:0; padding-left:18px; font-size:12px; color:var(--g2); line-height:1.5; }
+.afc-help-popover li{ margin-bottom:7px; }
+.afc-help-popover li:last-child{ margin-bottom:0; }
+.afc-topbar-spacer{ flex:1; min-width:8px; }
+.afc-dirty-badge{ font-size:11.5px; font-weight:700; color:var(--red); white-space:nowrap; display:flex; align-items:center; gap:5px; }
+.afc-topbar-divider{ width:1px; align-self:stretch; background:var(--border); flex-shrink:0; }
+.afc-btn{ border:1px solid var(--border); background:var(--white); color:var(--g2); font-size:12.5px; font-weight:600; height:36px; padding:0 14px; border-radius:9px; cursor:pointer; display:flex; align-items:center; gap:6px; transition:border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .05s ease; }
+.afc-btn:disabled{ opacity:.5; cursor:not-allowed; }
+.afc-btn:not(:disabled):hover{ border-color:var(--g4); background:var(--bg); }
+.afc-btn:not(:disabled):active{ transform:scale(.97); }
+.afc-btn.primary{ background:var(--red); border-color:var(--red); color:#fff; box-shadow:0 1px 3px rgba(192,57,43,.35); font-weight:700; }
+.afc-btn.primary:not(:disabled):hover{ background:var(--red2); border-color:var(--red2); }
+.afc-active-toggle{ position:relative; width:36px; height:20px; flex-shrink:0; cursor:pointer; }
+.afc-active-toggle input{ position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; }
+.afc-active-track{ position:absolute; inset:0; background:var(--g4); border-radius:999px; transition:background .15s ease; }
+.afc-active-track::after{ content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; background:#fff; border-radius:50%; transition:transform .15s ease; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+.afc-active-toggle input:checked ~ .afc-active-track{ background:#27AE60; }
+.afc-active-toggle input:checked ~ .afc-active-track::after{ transform:translateX(16px); }
+.afc-active-toggle:has(input:focus-visible) .afc-active-track{ outline:2px solid var(--red); outline-offset:2px; }
+
+.afc-tabs{ display:flex; align-items:center; gap:8px; padding:10px 22px; border-bottom:1px solid var(--border); flex-shrink:0; overflow-x:auto; background:var(--bg); }
+.afc-tab{ border:1px solid var(--border); background:var(--white); color:var(--g3); font-size:12.5px; font-weight:600; height:32px; padding:0 14px; border-radius:999px; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:border-color .15s ease, background .15s ease, color .15s ease; }
+.afc-tab:hover{ color:var(--g2); border-color:var(--g4); }
+.afc-tab.active{ background:var(--red-light); border-color:var(--red); color:var(--red); }
+.afc-tab-new{ font-weight:700; color:var(--g3); border-style:dashed; }
+.afc-tab-new:hover{ color:var(--red); border-color:var(--red); background:var(--red-light); }
+/* The "current unsaved draft" placeholder — a <span>, not a <button>, so it
+   never looks like a second "start a new flow" action next to the real one. */
+.afc-tab-current{ cursor:default; border-style:dashed; }
+
+.afc-empty-banner{ display:none; align-items:center; gap:8px; padding:9px 22px; background:var(--red-light); color:var(--red); font-size:12.5px; font-weight:600; border-bottom:1px solid var(--border); flex-shrink:0; }
+.afc-empty-banner.show{ display:flex; }
+.afc-empty-banner svg{ flex-shrink:0; }
+
+.afc-body{ flex:1; display:flex; min-height:0; position:relative; }
+.afc-sidebar{ width:200px; flex-shrink:0; border-right:1px solid var(--border); overflow-y:auto; padding:14px 10px; background:var(--white); }
+.afc-sidebar-section-label{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--g3); margin:14px 6px 6px; }
+.afc-sidebar-section-label:first-child{ margin-top:0; }
+.afc-sidebar-loading{ color:var(--g3); font-size:12.5px; padding:8px 6px; }
+.afc-palette-item{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:8px 8px; border:none; background:none; border-radius:7px; cursor:pointer; color:var(--g2); font-size:12.5px; font-weight:600; }
+.afc-palette-item:hover{ background:var(--bg); }
+.afc-palette-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.afc-sidebar-new-action{ margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+.afc-sidebar-new-action button{ width:100%; padding:9px; border-radius:8px; border:1px dashed var(--border); background:none; color:var(--g3); font-size:12.5px; font-weight:700; cursor:pointer; }
+.afc-sidebar-new-action button:hover{ border-color:var(--red); color:var(--red); background:var(--red-light); }
+
+/* Collapsible category (16 of them now, 5 with a subcategory level below —
+   see aidaGroupToolsByCategory). Collapsed by default so the palette stays
+   scannable; see toggleAidaFlowSidebarCat. */
+.afc-sidebar-cat-head{ display:flex; align-items:center; gap:6px; width:100%; padding:7px 6px; border:none; background:none; cursor:pointer; text-align:left; border-radius:7px; }
+.afc-sidebar-cat-head:hover{ background:var(--bg); }
+.afc-sidebar-cat-chevron{ font-size:9px; color:var(--g4); transition:transform .15s ease; flex-shrink:0; }
+.afc-sidebar-cat-head.open .afc-sidebar-cat-chevron{ transform:rotate(90deg); }
+.afc-sidebar-cat-name{ flex:1; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--g3); }
+.afc-sidebar-cat-count{ font-size:10.5px; font-weight:700; color:var(--g4); }
+.afc-sidebar-cat-body{ display:none; padding-left:4px; }
+.afc-sidebar-cat-body.open{ display:block; }
+.afc-sidebar-subcat-label{ font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--g4); margin:8px 0 2px 8px; }
+
+.afc-canvas-wrap{ flex:1; overflow:auto; position:relative; background-color:var(--bg); background-image:radial-gradient(#dfe1e8 1px, transparent 1px); background-size:22px 22px; }
+.afc-canvas{ position:relative; transform-origin:0 0; }
+.afc-svg{ position:absolute; top:0; left:0; pointer-events:none; overflow:visible; }
+.afc-path{ fill:none; stroke:#c7c9d1; stroke-width:2; }
+.afc-temp-path{ fill:none; stroke:var(--red); stroke-width:2; stroke-dasharray:5 4; }
+.afc-nodes{ position:relative; }
+
+.afc-node{
+  position:absolute; width:220px; background:var(--white); border:1px solid var(--border); border-radius:12px;
+  padding:10px 12px; cursor:grab; box-shadow:0 2px 10px rgba(30,20,18,.08); user-select:none; touch-action:none;
+}
+.afc-node:active{ cursor:grabbing; }
+.afc-node.selected{ border-color:var(--red); box-shadow:0 0 0 1px var(--red), 0 2px 10px rgba(30,20,18,.08); }
+/* Live run feedback — "Run flow" polls the real run trace and toggles these
+   per node as each step starts/finishes (see aidaFlowApplyStepGlow). */
+.afc-node.running{ border-color:var(--red); animation:afcNodeGlow 1.1s ease-in-out infinite; }
+@keyframes afcNodeGlow{
+  0%,100%{ box-shadow:0 0 0 0 rgba(192,57,43,.45), 0 2px 10px rgba(30,20,18,.08); }
+  50%{ box-shadow:0 0 0 7px rgba(192,57,43,0), 0 2px 10px rgba(30,20,18,.08); }
+}
+.afc-node.step-success{ border-color:#1a7a3c; box-shadow:0 0 0 2px rgba(26,122,60,.25); transition:box-shadow .3s ease, border-color .3s ease; }
+.afc-node.step-failed{ border-color:#C0392B; box-shadow:0 0 0 2px rgba(192,57,43,.3); transition:box-shadow .3s ease, border-color .3s ease; }
+.afc-node-head{ display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+.afc-node-dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.afc-node-eyebrow{ flex:1; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--g3); }
+.afc-node-remove{ border:none; background:none; color:var(--g4); cursor:pointer; font-size:13px; line-height:1; padding:2px 4px; border-radius:5px; }
+.afc-node-remove:hover{ color:var(--red); background:var(--red-light); }
+.afc-node-title{ font-size:13px; font-weight:700; color:var(--g2); margin-bottom:2px; }
+.afc-node-sub{ font-size:11px; color:var(--g3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.afc-node-trigger{ border-color:var(--red); }
+.afc-node-paused{ border-style:dashed; opacity:.6; }
+.afc-node-paused .afc-port{ opacity:.4; }
+.afc-port{ position:absolute; top:50%; width:11px; height:11px; margin-top:-5.5px; border-radius:50%; background:var(--white); border:2px solid var(--g4); cursor:crosshair; }
+.afc-port-in{ left:-6px; }
+.afc-port-out{ right:-6px; background:var(--red); border-color:var(--red); }
+.afc-port:hover{ transform:scale(1.3); }
+
+.afc-sidepanel{ width:280px; flex-shrink:0; border-left:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column; background:var(--white); }
+.afc-panel-head{ display:flex; align-items:center; gap:8px; padding:14px 16px; border-bottom:1px solid var(--border); font-size:13px; font-weight:700; color:var(--g2); flex-shrink:0; }
+.afc-panel-back{ border:none; background:none; color:var(--g3); cursor:pointer; font-size:16px; display:flex; }
+.afc-panel-back:hover{ color:var(--g2); }
+.afc-panel-body{ padding:14px 16px; overflow-y:auto; }
+.afc-panel-hint{ font-size:12px; color:var(--g3); margin-top:8px; }
+.afc-field-label{ font-size:11px; font-weight:700; color:var(--g3); text-transform:uppercase; letter-spacing:.03em; margin-bottom:6px; }
+.afc-trig-opt{ flex:1; padding:8px 6px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--g2); font-size:12px; font-weight:600; cursor:pointer; }
+.afc-trig-opt.active{ border-color:var(--red); background:var(--red-light); color:var(--red); }
+.afc-trig-opt:disabled{ opacity:.4; cursor:not-allowed; }
+.afc-delete-flow-btn{ width:100%; margin-top:18px; padding:9px; border-radius:8px; border:1px solid #f1948a; background:var(--red-light); color:var(--red); font-size:12.5px; font-weight:600; cursor:pointer; }
+.afc-delete-flow-btn:hover{ background:#f8d7da; }
+
+#afcDescInput, .afc-panel-body textarea, .afc-panel-body input[type=text], .afc-panel-body input[type=number], .afc-panel-body input[type=time], .afc-panel-body select{
+  width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid var(--border); border-radius:7px; font-size:12.5px; color:var(--g2); background:var(--white);
+}
+.afc-panel-body input:focus, .afc-panel-body select:focus, .afc-panel-body textarea:focus{ outline:none; border-color:var(--red); box-shadow:0 0 0 3px var(--red-light); }
+
+/* Each step-config field gets its own card — this was missing a real base
+   style entirely before (only narrow .afc-panel-body overrides existed),
+   which is why the panel read as bare/unstyled text. */
+.aida-flow-field{ background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:11px 12px; margin-bottom:10px; }
+.aida-flow-field-label{ font-size:12.5px; font-weight:700; color:var(--g2); }
+.aida-flow-field-hint{ display:block; font-size:11px; font-weight:400; color:var(--g3); line-height:1.4; margin:2px 0 8px; }
+.aida-flow-field-mode{ display:flex; background:var(--white); border:1px solid var(--border); border-radius:8px; padding:2px; margin-bottom:8px; gap:2px; }
+.aida-flow-field-mode button{ flex:1; border:none; background:none; color:var(--g3); font-size:11.5px; font-weight:600; padding:6px 8px; border-radius:6px; cursor:pointer; transition:background .15s ease, color .15s ease; }
+.aida-flow-field-mode button.active{ background:var(--red); color:#fff; }
+.aida-flow-field-mode button:not(.active):hover{ background:var(--bg); color:var(--g2); }
+
+.aida-flow-pause{ margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+.aida-flow-pause label{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--g2); cursor:pointer; }
+.aida-flow-pause.is-paused label{ color:var(--g3); }
+.aida-flow-pause-note{ font-size:11px; color:var(--g3); line-height:1.4; margin-top:6px; padding:8px 10px; background:var(--bg); border-radius:7px; }
+
+/* Dependency chips (DAG) — the discoverable alternative to dragging a
+   connection on the canvas; see aidaFlowDependsOnChipsHtml. */
+.aida-flow-deps{ margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+.aida-flow-dep-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.aida-flow-dep-chip{ display:inline-flex; align-items:center; gap:5px; background:var(--red-light); color:var(--red); font-size:11.5px; font-weight:600; padding:4px 6px 4px 10px; border-radius:999px; }
+.aida-flow-dep-chip button{ border:none; background:none; color:inherit; font-size:13px; line-height:1; cursor:pointer; padding:2px; opacity:.75; }
+.aida-flow-dep-chip button:hover{ opacity:1; }
+.aida-flow-dep-chip-trigger{ background:var(--bg); color:var(--g3); padding:4px 10px; }
+#afcAddDepSelect{ width:100%; }
+
+/* Insert-a-reference-into-literal-text (#47 follow-up) — the backend now
+   resolves mixed literal+{{...}} text in one field, so instead of forcing
+   an either/or "Value vs From earlier step" choice, a text field can get a
+   {{stepN.output.path}} token inserted at the cursor without leaving
+   literal mode. See insertAidaFlowFieldRef. */
+.aida-flow-literal-row{ display:flex; gap:6px; }
+.aida-flow-literal-row input[type=text]{ flex:1; }
+.aida-flow-insert-btn{ flex-shrink:0; border:1px solid var(--border); background:var(--bg); color:var(--g3); font-size:11px; font-weight:700; padding:0 9px; border-radius:7px; cursor:pointer; font-family:monospace; }
+.aida-flow-insert-btn:hover{ border-color:var(--red); color:var(--red); }
+.aida-flow-insert-picker{ display:none; gap:6px; margin-top:6px; }
+.aida-flow-insert-picker.open{ display:flex; }
+.aida-flow-insert-picker select, .aida-flow-insert-picker input{ flex:1; min-width:0; }
+.aida-flow-insert-picker button{ flex-shrink:0; border:1px solid var(--red); background:var(--red); color:#fff; font-size:11.5px; font-weight:600; padding:0 10px; border-radius:7px; cursor:pointer; }
+
+.afc-run-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); cursor:pointer; }
+.afc-run-row:last-child{ border-bottom:none; }
+.afc-run-row-time{ font-size:12px; color:var(--g2); }
+.afc-run-row-err{ font-size:11px; color:var(--red); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.afc-run-status{ font-size:9.5px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:6px; background:var(--bg); color:var(--g3); flex-shrink:0; }
+.afc-run-status.ok{ background:#d4edda; color:#1a7a3c; }
+.afc-run-status.fail{ background:#f8d7da; color:#C0392B; }
+.afc-run-status.run{ background:var(--red-light); color:var(--red); }
+.afc-run-status.skip{ background:var(--white); color:var(--g4); border:1px dashed var(--g4); }
+.afc-run-error{ padding:8px 10px; border-radius:7px; background:#f8d7da; color:#721c24; font-size:12px; margin-bottom:12px; }
+.afc-run-step{ border:1px solid var(--border); border-radius:9px; padding:9px 10px; margin-bottom:8px; }
+.afc-run-step-skipped{ border-style:dashed; opacity:.65; }
+.afc-run-step-head{ display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:12.5px; font-weight:600; color:var(--g2); }
+.afc-run-io-label{ font-size:9.5px; font-weight:700; text-transform:uppercase; color:var(--g3); margin:4px 0 2px; }
+.afc-run-step pre{ margin:0; font-size:10.5px; background:var(--bg); border-radius:6px; padding:6px 8px; overflow-x:auto; white-space:pre-wrap; word-break:break-word; color:var(--g2); max-height:140px; overflow-y:auto; }
+.afc-run-step-err{ color:var(--red); font-size:11px; margin-top:4px; }
+
+.afc-zoom{ position:absolute; left:214px; bottom:14px; display:flex; align-items:center; gap:2px; background:var(--white); border:1px solid var(--border); border-radius:9px; padding:4px; z-index:5; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.afc-zoom button{ width:26px; height:26px; border:none; background:none; color:var(--g2); font-size:15px; cursor:pointer; border-radius:6px; }
+.afc-zoom button:hover{ background:var(--bg); }
+.afc-zoom span{ font-size:11px; color:var(--g3); width:38px; text-align:center; }
+
+@media (max-width:860px){
+  .afc-sidebar{ display:none; }
+  .afc-sidepanel{ position:fixed; right:0; top:58px; bottom:0; background:var(--white); z-index:10; box-shadow:-4px 0 16px rgba(0,0,0,.1); }
+  .afc-zoom{ left:14px; }
+  .dash-sidenav{ width:56px; }
+  .dash-sidenav-item span{ display:none; }
+}
+
 /* Floating reply cards are meant for the main orb screen — with Messages
    open, the same replies are already visible as chat bubbles right there,
    so piling draggable cards on top of that modal was just clutter.
@@ -1488,6 +1742,19 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
     </div>
   </div>
 
+  <div class="dash-body">
+    <div class="dash-sidenav">
+      <button type="button" class="dash-sidenav-item active" id="dashNavDashboard" onclick="switchDashPage('dashboard')">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" class="dash-sidenav-item" id="dashNavFlows" onclick="switchDashPage('flows')">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8.3 6h7.4M8.3 18h7.4M6 8.4v7.2M18 8.4v7.2"/></svg>
+        <span>Flows</span>
+      </button>
+    </div>
+    <div class="dash-pages">
+      <div id="dashPage" class="dash-page">
   <div class="content">
     <!-- Dashboard overview -->
     <div class="dash-section-label">📅 This Month</div>
@@ -1598,6 +1865,10 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
       </div>
     </div>
   </div>
+      </div><!-- /#dashPage -->
+      <div id="flowsPage" class="dash-page" style="display:none"></div>
+    </div><!-- /.dash-pages -->
+  </div><!-- /.dash-body -->
 </div>
 
 <!-- Zoho Link-Company Modal -->
@@ -2475,6 +2746,28 @@ function showToast(msg, type='success') {
   toastTimer = setTimeout(()=>{ t.className=''; }, 3000);
 }
 
+// Tool names are developer-ish (masteradmin_sitara_get_dashboard) — a light
+// display-only humanization, not a change to the data contract. Top-level
+// since both the AIDA Skills browse tab and the (AIDA-independent) Flows
+// page below use it.
+function aidaHumanizeToolName(name){
+  return String(name||'').replace(/^masteradmin_/,'').replace(/_/g,' ').replace(/\b\w/g,function(c){ return c.toUpperCase(); });
+}
+// Shared by the Skills browse panel and the Flows node palette — both get
+// {name, description, category, subcategory} from the same backend tool
+// registry (category/subcategory are now real declared metadata, not a
+// name-based guess). Top-level for the same reason as the function above.
+function aidaGroupToolsByCategory(tools){
+  var byCategory={};
+  tools.forEach(function(t){
+    var cat=t.category||'Other';
+    byCategory[cat]=byCategory[cat]||{tools:[],subcats:{}};
+    if(t.subcategory){ (byCategory[cat].subcats[t.subcategory]=byCategory[cat].subcats[t.subcategory]||[]).push(t); }
+    else byCategory[cat].tools.push(t);
+  });
+  return byCategory;
+}
+
 // ── AIDA — AI conversational layer (master-admin) ───────────────────────────
 // Same architecture as the tenant app's AIDA: this file only orchestrates UI
 // state and one network call per action — intent detection, tool selection,
@@ -2508,6 +2801,26 @@ let aidaModelsProviders=[];
 let aidaModelsByProvider={};
 let aidaSelectedProvider=null;
 let aidaSelectedModel=null;
+
+// Flows — node-canvas page in the master-admin dashboard's own sidenav
+// (independent of AIDA chat — see switchDashPage/openAidaFlowCanvasWorkspace
+// near _aidaHubRelTime below). State kept top-level since it's read by
+// inline onclick/onchange markup from the reused config-form generator too.
+let aidaFlowsLoaded=false;
+let aidaFlowsList=null; // null=not loaded/failed, [] = loaded empty
+let aidaFlowNodesLoaded=false;
+let aidaFlowNodes=null; // available-nodes catalog — the step "node library"
+let aidaFlowsDraft=null; // {id?, name, description, triggerType, triggerConfig, steps:[{toolName,config}]} being built/edited
+let aidaFlowsEditingId=null; // id of the flow being edited, null when creating new
+let aidaFlowsRuns=null;
+let aidaFlowsRunsLoaded=false;
+let aidaFlowsRunDetail=null; // {run, steps} for the open run
+let aidaFlowCanvasBuilt=false; // #flowsPage's DOM scaffold has been created
+let aidaFlowCanvasZoom=1;
+let aidaFlowCanvasSelected=null; // 'trigger' | stepIndex | null — which node's config shows in the side panel
+let aidaFlowCanvasPanelMode='node'; // 'node' | 'runs' | 'runDetail' — what the side panel is currently showing
+let aidaFlowCanvasLayout={trigger:{x:60,y:160},steps:[]}; // x/y per node — view-only, persisted in localStorage, NEVER sent to the backend
+let aidaFlowDirty=false; // true once the draft has real (non-position) edits since the last load/save — drives the "Unsaved changes" badge
 
 // ── AIDA logo — the interactive 3-layer speech-bubble mark, verbatim from
 // the user's logo.js. Kept in its own render function so the SVG can be
@@ -3182,6 +3495,36 @@ function syncAidaPopupToggle(){
   if(layoutBtn) layoutBtn.style.display=on?'':'none';
 }
 FloatingCard.onClear(function(){ stopAidaSpeechLocally(); });
+
+// Dark mode — flips #aida-overlay's own CSS variables (bg/panel/line/text,
+// chat bubble colors, input background) via [data-aida-theme="dark"]; see
+// the variable blocks at the top of this file's <style>. Persisted the same
+// way the layout/popup toggles already are.
+var AIDA_THEME_STORAGE_KEY='aida_theme_dark';
+function aidaThemeIsDark(){
+  try{ return localStorage.getItem(AIDA_THEME_STORAGE_KEY)==='1'; }catch(e){ return false; }
+}
+var AIDA_THEME_ICONS={
+  light:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>',
+  dark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>'
+};
+function applyAidaTheme(){
+  var dark=aidaThemeIsDark();
+  var overlay=document.getElementById('aida-overlay');
+  if(overlay) overlay.setAttribute('data-aida-theme',dark?'dark':'light');
+  var btn=document.getElementById('aidaThemeToggle');
+  if(btn){
+    btn.innerHTML=AIDA_THEME_ICONS[dark?'dark':'light'];
+    var label=dark?'Switch to light mode':'Switch to dark mode';
+    btn.title=label;
+    btn.setAttribute('aria-label',label);
+  }
+}
+window.toggleAidaThemeSetting=function(){
+  var next=!aidaThemeIsDark();
+  try{ localStorage.setItem(AIDA_THEME_STORAGE_KEY,next?'1':'0'); }catch(e){}
+  applyAidaTheme();
+};
 
 // ── AIDA particle background + particle face ────────────────────────────────
 // One <canvas> behind the hub. Idle: a particles.js-style network (drifting
@@ -4158,11 +4501,6 @@ var AidaFaceFlow=(function(){
       aidaSkillsLoaded=true;
       renderAidaSkillsPanel();
     }
-    // Tool names are developer-ish (masteradmin_sitara_get_dashboard) — a
-    // light display-only humanization, not a change to the data contract.
-    function aidaHumanizeToolName(name){
-      return String(name||'').replace(/^masteradmin_/,'').replace(/_/g,' ').replace(/\b\w/g,function(c){ return c.toUpperCase(); });
-    }
     window.switchAidaSkillsTab=function(tab){
       aidaSkillsTab=tab;
       renderAidaSkillsPanel();
@@ -4198,24 +4536,47 @@ var AidaFaceFlow=(function(){
         body.innerHTML=aidaSkillsTabsHtml()+'<div style="padding:16px 0;color:var(--text-dim);font-size:13px">No skills found.</div>';
         return;
       }
-      const byCategory={};
-      aidaSkillsTools.forEach(function(t){
-        const cat=t.category||'Other';
-        (byCategory[cat]=byCategory[cat]||[]).push(t);
-      });
+      // 16 categories now (was 10 guessed-from-name ones) — a flat list per
+      // category is too long to scan, so each is collapsed by default;
+      // category→subcategory grouping matches the real metadata the
+      // backend now declares on every tool (category/subcategory), not a
+      // name-based guess.
+      const byCategory=aidaGroupToolsByCategory(aidaSkillsTools);
       const categories=Object.keys(byCategory).sort();
-      body.innerHTML=aidaSkillsTabsHtml()+categories.map(function(cat){
-        return '<div style="margin-bottom:16px">'+
-          '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);margin-bottom:8px">'+esc(cat)+'</div>'+
-          byCategory[cat].map(function(t){
-            return '<div style="padding:8px 0;border-top:1px solid var(--line)">'+
-              '<div style="font-size:13px;font-weight:600;color:var(--text)">'+esc(aidaHumanizeToolName(t.name))+'</div>'+
-              (t.description?'<div style="font-size:12px;color:var(--text-dim);margin-top:2px">'+esc(t.description)+'</div>':'')+
-            '</div>';
-          }).join('')+
+      body.innerHTML=aidaSkillsTabsHtml()+categories.map(function(cat,ci){
+        const group=byCategory[cat];
+        const subNames=Object.keys(group.subcats).sort();
+        const total=group.tools.length+subNames.reduce(function(n,s){ return n+group.subcats[s].length; },0);
+        const catId='aidaSkillsCat'+ci;
+        return '<div style="margin-bottom:4px">'+
+          '<button type="button" onclick="toggleAidaSkillsCat(\''+catId+'\')" style="display:flex;align-items:center;justify-content:space-between;width:100%;padding:8px 0;border:none;background:none;cursor:pointer;text-align:left">'+
+            '<span style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim)"><span id="'+catId+'_chevron" style="font-size:9px">&#9656;</span>'+esc(cat)+'</span>'+
+            '<span style="font-size:11px;color:var(--text-dim);font-weight:600">'+total+'</span>'+
+          '</button>'+
+          '<div id="'+catId+'" style="display:none">'+
+            group.tools.map(aidaSkillToolRowHtml).join('')+
+            subNames.map(function(sub){
+              return '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-dim);padding:6px 0 2px 10px">'+esc(sub)+'</div>'+
+                group.subcats[sub].map(aidaSkillToolRowHtml).join('');
+            }).join('')+
+          '</div>'+
         '</div>';
       }).join('');
     }
+    function aidaSkillToolRowHtml(t){
+      return '<div style="padding:8px 0 8px 10px;border-top:1px solid var(--line)">'+
+        '<div style="font-size:13px;font-weight:600;color:var(--text)">'+esc(aidaHumanizeToolName(t.name))+'</div>'+
+        (t.description?'<div style="font-size:12px;color:var(--text-dim);margin-top:2px">'+esc(t.description)+'</div>':'')+
+      '</div>';
+    }
+    window.toggleAidaSkillsCat=function(id){
+      const el=document.getElementById(id);
+      if(!el) return;
+      const open=el.style.display!=='none';
+      el.style.display=open?'none':'block';
+      const chevron=document.getElementById(id+'_chevron');
+      if(chevron) chevron.innerHTML=open?'&#9656;':'&#9662;';
+    };
     window.submitAidaSkillProposal=async function(){
       const ta=document.getElementById('aidaSkillDesc');
       const description=(ta.value||'').trim();
@@ -4228,6 +4589,7 @@ var AidaFaceFlow=(function(){
         closeFloatingModal(skillsModal);
       }catch(e){ showAidaToast(e.message||'Could not submit skill proposal'); }
     };
+
 
     // Typed alternative to sendAidaVoiceInput() below — same turn history,
     // same turnId hookup so a typed message still gets a spoken reply
@@ -4964,6 +5326,1302 @@ var AidaFaceFlow=(function(){
   };
 })();
 
+// Dashboard sidenav — Dashboard / Flows. Flows mounts (and keeps) its own
+// workspace inside #flowsPage the first time it's opened; switching back to
+// Dashboard just hides it, it is not torn down.
+function switchDashPage(page){
+  var dashBtn=document.getElementById('dashNavDashboard'), flowsBtn=document.getElementById('dashNavFlows');
+  var dashPage=document.getElementById('dashPage'), flowsPage=document.getElementById('flowsPage');
+  if(page==='flows'){
+    dashBtn.classList.remove('active'); flowsBtn.classList.add('active');
+    dashPage.style.display='none'; flowsPage.style.display='flex';
+    openAidaFlowCanvasWorkspace();
+  }else{
+    flowsBtn.classList.remove('active'); dashBtn.classList.add('active');
+    flowsPage.style.display='none'; dashPage.style.display='block';
+  }
+}
+
+// ── Flows — node-canvas page living in the master-admin dashboard's own
+// sidenav (dashNavFlows/#flowsPage below), independent of AIDA chat — it
+// used to be a tab inside AIDA's Skills popup; moved out so it works
+// whether or not AIDA has ever been opened, and top-level so it doesn't
+// depend on _aidaHubInit() having run. A flow is a trigger node + a
+// chain of step nodes, each wired to AIDA's own tools (the
+// available-nodes catalog — approval-gated/destructive tools already
+// excluded server-side). Nodes are freely draggable for readability,
+// but the backend only ever executes a straight linear chain (v1
+// scope, confirmed) — dragging a node's red output dot onto another
+// node's input dot REORDERS the chain (moves the target to be that
+// node's immediate successor) rather than branching; the array order
+// in aidaFlowsDraft.steps IS the execution order. Canvas x/y positions
+// are a pure client-side viewing aid, persisted per flow in
+// localStorage, never sent to the backend (which only ever sees
+// {toolName, config}). ──
+function aidaFlowTriggerLabel(t){
+  return t==='schedule'?'Schedule':t==='webhook'?'Webhook':'Manual';
+}
+function aidaBlankFlowDraft(){
+  return {name:'',description:'',triggerType:'manual',triggerConfig:{},steps:[]};
+}
+// ── DAG support — a step's real dependencies live in step.dependsOn, an
+// array of OTHER STEPS' ARRAY INDICES (not ids — matches the backend's save
+// contract exactly, see POST/PUT .../flows). No dependsOn entries = a root,
+// drawn connected straight from the trigger; multiple roots run in
+// parallel; a step can depend on any number of earlier steps (fan-in), and
+// be depended on by any number of later ones (fan-out). ──
+function aidaFlowNormalizeLoadedSteps(rawSteps){
+  var idToIndex={};
+  rawSteps.forEach(function(rs,i){ if(rs.id) idToIndex[rs.id]=i; });
+  return rawSteps.map(function(rs,i){
+    var dependsOn;
+    if(Array.isArray(rs.dependsOnStepIds)){
+      dependsOn=rs.dependsOnStepIds.map(function(id){ return idToIndex[id]; }).filter(function(x){ return x!=null; });
+    }else{
+      // Pre-DAG flow, saved before this existed — old implicit behavior was
+      // "depends on whatever came right before it in the array".
+      dependsOn=i===0?[]:[i-1];
+    }
+    return {toolName:rs.toolName,config:rs.config||{},dependsOn:dependsOn,_savedId:rs.id||null};
+  });
+}
+// All ancestors (direct or transitive) of a step — the only steps allowed
+// as a "from earlier step" reference source, per spec: offering every step
+// in the flow regardless of connection would let you reference something
+// that might not have run yet (or ever, if it's a sibling branch).
+function aidaFlowAncestorsOf(stepIdx){
+  var visited={};
+  var stack=(aidaFlowsDraft.steps[stepIdx]&&aidaFlowsDraft.steps[stepIdx].dependsOn||[]).slice();
+  while(stack.length){
+    var d=stack.pop();
+    if(visited[d]) continue;
+    visited[d]=true;
+    (aidaFlowsDraft.steps[d]&&aidaFlowsDraft.steps[d].dependsOn||[]).forEach(function(dd){ if(!visited[dd]) stack.push(dd); });
+  }
+  return Object.keys(visited).map(Number).filter(function(i){ return !(aidaFlowsDraft.steps[i]&&aidaFlowsDraft.steps[i].paused); }).sort(function(a,b){ return a-b; });
+}
+// Adding edge fromIdx->toIdx (toIdx would depend on fromIdx) creates a
+// cycle iff fromIdx is already an ancestor of toIdx — i.e. toIdx already
+// (directly or transitively) feeds INTO fromIdx.
+function aidaFlowWouldCreateCycle(fromIdx,toIdx){
+  if(fromIdx===toIdx) return true;
+  return aidaFlowAncestorsOf(fromIdx).indexOf(toIdx)!==-1;
+}
+function aidaFlowStepLabel(stepIdx){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  if(!step) return 'Step '+(stepIdx+1);
+  var node=aidaFlowNodeByName(step.toolName);
+  return node?aidaHumanizeToolName(node.name):step.toolName;
+}
+// A reference uses the stable {{step_<realId>.output.path}} form once the
+// upstream step has actually been saved (survives reordering/branching);
+// falls back to the positional {{stepN.output.path}} form for a step added
+// this session that has no real id yet — exactly per spec.
+function aidaFlowBuildRefToken(stepIdx,path){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  var key=(step&&step._savedId)?('step_'+step._savedId):('step'+stepIdx);
+  return '{{'+key+'.output.'+(path||'')+'}}';
+}
+// Parses EITHER form back into a CURRENT array index (a step_<id> token is
+// resolved by looking up which step in THIS draft currently holds that
+// saved id — it may have moved since the token was written).
+function aidaFlowFieldRefMatch(val){
+  var m=/^\{\{step_([^.]+)\.output\.(.*)\}\}$/.exec(String(val==null?'':val));
+  if(m){
+    var idx=(aidaFlowsDraft.steps||[]).findIndex(function(s){ return s._savedId===m[1]; });
+    return idx===-1?null:{stepIndex:idx,path:m[2]};
+  }
+  m=/^\{\{step(\d+)\.output\.(.*)\}\}$/.exec(String(val==null?'':val));
+  return m?{stepIndex:parseInt(m[1],10),path:m[2]}:null;
+}
+function aidaFlowWebhookUrl(flowId,secret){
+  return API+'/api/aida/flows-webhook/'+flowId+'/'+secret;
+}
+function aidaFlowNodeByName(name){
+  return (aidaFlowNodes||[]).find(function(n){ return n.name===name; });
+}
+function aidaFlowLayoutStorageKey(id){ return 'aida_flow_layout_'+id; }
+function loadAidaFlowCanvasLayoutFromStorage(flowId){
+  if(!flowId) return null;
+  try{ var raw=localStorage.getItem(aidaFlowLayoutStorageKey(flowId)); return raw?JSON.parse(raw):null; }
+  catch(e){ return null; }
+}
+function persistAidaFlowCanvasLayout(){
+  if(!aidaFlowsEditingId) return;
+  try{ localStorage.setItem(aidaFlowLayoutStorageKey(aidaFlowsEditingId),JSON.stringify(aidaFlowCanvasLayout)); }catch(e){}
+}
+function aidaFlowDefaultNodePos(i){
+  var col=Math.floor(i/3), row=i%3;
+  return {x:360+col*260,y:60+row*140};
+}
+function aidaFlowDefaultLayoutFor(draft){
+  return {trigger:{x:60,y:160},steps:draft.steps.map(function(_,i){ return aidaFlowDefaultNodePos(i); })};
+}
+function aidaFlowCanvasEnsureLayoutLength(){
+  var steps=aidaFlowsDraft.steps;
+  if(!aidaFlowCanvasLayout.trigger) aidaFlowCanvasLayout.trigger={x:60,y:160};
+  if(!Array.isArray(aidaFlowCanvasLayout.steps)) aidaFlowCanvasLayout.steps=[];
+  while(aidaFlowCanvasLayout.steps.length<steps.length) aidaFlowCanvasLayout.steps.push(aidaFlowDefaultNodePos(aidaFlowCanvasLayout.steps.length));
+  aidaFlowCanvasLayout.steps.length=steps.length;
+}
+// Called by every mutator that changes something the backend actually
+// persists (name/description/trigger/steps) — NOT by node dragging, which
+// is purely a local view preference. Re-renders the topbar so the "Unsaved
+// changes" badge appears immediately.
+function aidaFlowMarkDirty(){
+  aidaFlowDirty=true;
+  renderAidaFlowCanvasTopbar();
+}
+var AFC_PALETTE_COLORS=['#7c6fee','#4f8cff','#34c78a','#e0a940','#27b8b0','#e0719c'];
+var AFC_TRIGGER_COLOR='#C0392B';
+function aidaFlowCategoryColor(cat){
+  var h=0; for(var i=0;i<cat.length;i++) h=(h*31+cat.charCodeAt(i))>>>0;
+  return AFC_PALETTE_COLORS[h%AFC_PALETTE_COLORS.length];
+}
+
+// ── Data loaders — pure fetch, rendering is always the caller's job ──
+async function loadAidaFlowNodes(){
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/available-nodes');
+    if(!r.ok) throw new Error();
+    const data=await r.json();
+    aidaFlowNodes=Array.isArray(data.nodes)?data.nodes:[];
+  }catch(e){ aidaFlowNodes=null; }
+  aidaFlowNodesLoaded=true;
+}
+async function loadAidaFlowsList(){
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows');
+    if(!r.ok) throw new Error();
+    const data=await r.json();
+    aidaFlowsList=Array.isArray(data.flows)?data.flows:[];
+  }catch(e){ aidaFlowsList=null; }
+  aidaFlowsLoaded=true;
+}
+async function loadAidaFlowRuns(id){
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/'+id+'/runs');
+    if(!r.ok) throw new Error();
+    const data=await r.json();
+    aidaFlowsRuns=Array.isArray(data.runs)?data.runs:[];
+  }catch(e){ aidaFlowsRuns=null; }
+  aidaFlowsRunsLoaded=true;
+}
+async function loadAidaFlowRunDetail(runId){
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/runs/'+runId);
+    if(!r.ok) throw new Error();
+    const data=await r.json();
+    aidaFlowsRunDetail={run:data.run||{},steps:Array.isArray(data.steps)?data.steps:[]};
+  }catch(e){ aidaFlowsRunDetail=null; }
+}
+function aidaFlowRunStatusBadge(status){
+  var cls=(status==='success'||status==='completed')?'ok':status==='failed'?'fail':status==='skipped'?'skip':status==='running'?'run':'';
+  return '<span class="afc-run-status '+cls+'">'+esc(status||'—')+'</span>';
+}
+// A run step's trace only carries its real stepId (not a tool name) — look
+// it up against the currently-loaded flow's steps to show a real label
+// ("Send Email") instead of a meaningless position once the flow branches.
+function aidaFlowRunStepLabel(runStep,i){
+  if(runStep&&runStep.stepId&&aidaFlowsDraft){
+    var idx=aidaFlowsDraft.steps.findIndex(function(s){ return s._savedId===runStep.stepId; });
+    if(idx!==-1) return aidaFlowStepLabel(idx);
+  }
+  return 'Step '+(i+1);
+}
+window.runAidaFlowNow=async function(id){
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/'+id+'/run',{method:'POST'});
+    const data=await r.json().catch(function(){ return {}; });
+    if(!r.ok) throw new Error(data.error||'Could not start flow');
+    showToast('Flow started');
+    // Only animate on-canvas if we're actually looking at the flow that was run —
+    // e.g. a run kicked off from a schedule/webhook elsewhere shouldn't glow nodes here.
+    if(aidaFlowsEditingId===id&&data.runId) aidaFlowStartRunPolling(data.runId);
+  }catch(e){ showToast(e.message||'Could not start flow','error'); }
+};
+
+// ── Live run animation — poll the run's real per-step trace (same endpoint
+// Runs/Run-detail already use) and glow each node as its step starts/
+// finishes, so "Run flow" gives visible step-by-step feedback instead of
+// just a toast. Steps map to nodes by array index, same as everywhere else
+// in Flows. ──
+let aidaFlowRunPollTimer=null;
+let aidaFlowRunPollStartedAt=0;
+const AIDA_FLOW_RUN_POLL_MS=1200;
+const AIDA_FLOW_RUN_POLL_MAX_MS=10*60*1000; // give up watching (not cancel) a run stuck past this
+function aidaFlowSetRunButtonState(running){
+  var btn=document.getElementById('afcTestRunBtn');
+  if(!btn) return;
+  btn.disabled=running;
+  btn.innerHTML=running?'Running…':'&#9654; Run flow';
+}
+function aidaFlowApplyStepGlow(stepIdx,status){
+  var el=aidaFlowCanvasNodeEl('step',stepIdx);
+  if(!el) return;
+  el.classList.remove('running','step-success','step-failed');
+  if(status==='running') el.classList.add('running');
+  else if(status==='success') el.classList.add('step-success');
+  else if(status==='failed') el.classList.add('step-failed');
+}
+function aidaFlowClearAllGlow(){
+  document.querySelectorAll('.afc-node').forEach(function(el){ el.classList.remove('running','step-success','step-failed'); });
+}
+function aidaFlowStopRunPolling(){
+  if(aidaFlowRunPollTimer){ clearInterval(aidaFlowRunPollTimer); aidaFlowRunPollTimer=null; }
+  aidaFlowSetRunButtonState(false);
+}
+function aidaFlowStartRunPolling(runId){
+  aidaFlowStopRunPolling();
+  aidaFlowClearAllGlow();
+  aidaFlowSetRunButtonState(true);
+  aidaFlowRunPollStartedAt=Date.now();
+  var trigEl=aidaFlowCanvasNodeEl('trigger');
+  if(trigEl){ trigEl.classList.add('running'); setTimeout(function(){ trigEl.classList.remove('running'); },1500); }
+  aidaFlowPollRunOnce(runId);
+  aidaFlowRunPollTimer=setInterval(function(){ aidaFlowPollRunOnce(runId); },AIDA_FLOW_RUN_POLL_MS);
+}
+async function aidaFlowPollRunOnce(runId){
+  if(Date.now()-aidaFlowRunPollStartedAt>AIDA_FLOW_RUN_POLL_MAX_MS){
+    aidaFlowStopRunPolling();
+    showToast('Still running — check Runs for status','error');
+    return;
+  }
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/runs/'+runId);
+    if(!r.ok) throw new Error();
+    const data=await r.json();
+    var run=data.run||{};
+    var steps=Array.isArray(data.steps)?data.steps:[];
+    steps.forEach(function(s,i){ aidaFlowApplyStepGlow(i,s.status); });
+    if(run.status!=='running'){
+      aidaFlowStopRunPolling();
+      if(run.status==='success') showToast('Flow run finished');
+      else if(run.status==='failed') showToast('Flow run failed'+(run.errorMessage?': '+run.errorMessage:''),'error');
+      setTimeout(aidaFlowClearAllGlow,2500);
+    }
+  }catch(e){ /* transient fetch hiccup — keep polling, the interval will retry */ }
+}
+window.toggleAidaFlowStatus=async function(id,checked){
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/'+id,{method:'PUT',body:JSON.stringify({status:checked?'active':'paused'})});
+    if(!r.ok) throw new Error();
+    if(aidaFlowsList){ var f=aidaFlowsList.find(function(x){ return x.id===id; }); if(f) f.status=checked?'active':'paused'; }
+  }catch(e){
+    showToast('Could not update flow status','error');
+    await loadAidaFlowsList();
+    renderAidaFlowCanvasTopbar();
+  }
+};
+window.deleteAidaFlow=async function(id,name){
+  if(!confirm('Delete flow "'+name+'"? This cannot be undone.')) return;
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/'+id,{method:'DELETE'});
+    if(!r.ok) throw new Error();
+    aidaFlowsList=(aidaFlowsList||[]).filter(function(f){ return f.id!==id; });
+    try{ localStorage.removeItem(aidaFlowLayoutStorageKey(id)); }catch(e){}
+    showToast('Flow deleted');
+    if(aidaFlowsEditingId===id){
+      if(aidaFlowsList.length) openAidaFlowInCanvas(aidaFlowsList[0].id);
+      else startNewAidaFlowInCanvas();
+    }else{
+      refreshAidaFlowCanvasTabs();
+    }
+  }catch(e){ showToast('Could not delete flow','error'); }
+};
+
+// ── Workspace entry/exit ──
+window.openAidaFlowCanvasWorkspace=async function(){
+  ensureAidaFlowCanvas();
+  if(!aidaFlowNodesLoaded) await loadAidaFlowNodes();
+  if(!companies||!companies.length) await loadCompanies(); // for the companySlug picker — same data the dashboard's own company table uses
+  renderAidaFlowCanvasSidebar();
+  if(!aidaFlowsLoaded) await loadAidaFlowsList();
+  refreshAidaFlowCanvasTabs();
+  if(aidaFlowsEditingId&&(aidaFlowsList||[]).some(function(f){ return f.id===aidaFlowsEditingId; })) openAidaFlowInCanvas(aidaFlowsEditingId);
+  else if(aidaFlowsList&&aidaFlowsList.length) openAidaFlowInCanvas(aidaFlowsList[0].id);
+  else startNewAidaFlowInCanvas();
+};
+function closeAidaFlowCanvas(){
+  switchDashPage('dashboard');
+}
+function ensureAidaFlowCanvas(){
+  if(aidaFlowCanvasBuilt) return;
+  aidaFlowCanvasBuilt=true;
+  var ov=document.getElementById('flowsPage');
+  if(!ov) return;
+  ov.innerHTML=
+    '<div class="afc-topbar">'+
+      '<button type="button" class="afc-back" id="afcBack" title="Back to Dashboard"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>'+
+      '<div style="position:relative">'+
+        '<button type="button" class="afc-back" id="afcHelpBtn" title="How Flows work"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2.9-1.2 1.9"/><circle cx="12" cy="17" r=".4" fill="currentColor"/></svg></button>'+
+        '<div class="afc-help-popover" id="afcHelpPopover">'+
+          '<div class="afc-help-title">How Flows work</div>'+
+          '<ol>'+
+            '<li>Every flow starts with one <strong>Trigger</strong> (Manual, Schedule, or Webhook) — click it to set when it fires.</li>'+
+            '<li>Add <strong>steps</strong> from the sidebar on the left — each one calls a real AIDA tool, and they run in order, left to right along the chain.</li>'+
+            '<li>Click a step to configure it. A field can be a fixed <strong>Value</strong>, or wired <strong>From earlier step</strong> to reuse something an earlier step produced.</li>'+
+            '<li>Fields highlighted in <strong>yellow</strong> need to be switched on — they normally wait for a human to approve mid-conversation, which can\'t happen in an unattended flow.</li>'+
+            '<li>Hit <strong>Save flow</strong>, then <strong>Run flow</strong> to test it — each node glows as it executes, and <strong>Runs</strong> shows the full history if something goes wrong.</li>'+
+          '</ol>'+
+        '</div>'+
+      '</div>'+
+      '<input type="text" class="afc-name" id="afcNameInput" placeholder="Untitled flow — click to name it">'+
+      '<div class="afc-topbar-spacer"></div>'+
+      '<span class="afc-dirty-badge" id="afcDirtyBadge" style="display:none">&#9679; Unsaved changes</span>'+
+      '<label class="afc-active-toggle" id="afcActiveToggleWrap" style="display:none" title="Active / Paused">'+
+        '<input type="checkbox" id="afcActiveToggle"><span class="afc-active-track"></span>'+
+      '</label>'+
+      '<div class="afc-topbar-divider"></div>'+
+      '<button type="button" class="afc-btn" id="afcRunsBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/><path d="M12 7v5l4 2"/></svg> Runs</button>'+
+      '<button type="button" class="afc-btn" id="afcTestRunBtn">&#9654; Run flow</button>'+
+      '<button type="button" class="afc-btn primary" id="afcSaveBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h11l3 3v13H5V4z"/><path d="M8 4v5h8V4"/><path d="M8 14h8v6H8z"/></svg> Save flow</button>'+
+    '</div>'+
+    '<div class="afc-tabs" id="afcTabs"></div>'+
+    '<div class="afc-empty-banner" id="afcEmptyBanner">'+
+      '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16v-4M12 8h.01"/><circle cx="12" cy="12" r="9"/></svg>'+
+      '<span>No steps yet — click a tool on the left to add your first step, then hit <strong>Save flow</strong>.</span>'+
+    '</div>'+
+    '<div class="afc-body">'+
+      '<div class="afc-sidebar" id="afcSidebar"></div>'+
+      '<div class="afc-canvas-wrap" id="afcCanvasWrap">'+
+        '<div class="afc-canvas" id="afcCanvas">'+
+          '<svg class="afc-svg" id="afcSvg"></svg>'+
+          '<div class="afc-nodes" id="afcNodes"></div>'+
+        '</div>'+
+        '<div class="afc-zoom">'+
+          '<button type="button" id="afcZoomOut">&minus;</button>'+
+          '<span id="afcZoomPct">100%</span>'+
+          '<button type="button" id="afcZoomIn">+</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="afc-sidepanel" id="afcSidePanel"></div>'+
+    '</div>';
+  document.getElementById('afcBack').addEventListener('click',closeAidaFlowCanvas);
+  document.getElementById('afcHelpBtn').addEventListener('click',function(e){
+    e.stopPropagation();
+    document.getElementById('afcHelpPopover').classList.toggle('open');
+  });
+  document.addEventListener('click',function(e){
+    var pop=document.getElementById('afcHelpPopover');
+    if(pop&&pop.classList.contains('open')&&!pop.contains(e.target)&&e.target.id!=='afcHelpBtn') pop.classList.remove('open');
+  });
+  document.getElementById('afcSaveBtn').addEventListener('click',saveAidaFlowCanvas);
+  document.getElementById('afcNameInput').addEventListener('change',function(){ setAidaFlowName(this.value); refreshAidaFlowCanvasTabs(); });
+  document.getElementById('afcTestRunBtn').addEventListener('click',function(){ if(aidaFlowsEditingId) runAidaFlowNow(aidaFlowsEditingId); });
+  document.getElementById('afcRunsBtn').addEventListener('click',openAidaFlowCanvasRuns);
+  document.getElementById('afcActiveToggle').addEventListener('change',function(){ if(aidaFlowsEditingId) toggleAidaFlowStatus(aidaFlowsEditingId,this.checked); });
+  document.getElementById('afcZoomIn').addEventListener('click',function(){ setAidaFlowCanvasZoom(aidaFlowCanvasZoom+0.1); });
+  document.getElementById('afcZoomOut').addEventListener('click',function(){ setAidaFlowCanvasZoom(aidaFlowCanvasZoom-0.1); });
+  document.getElementById('afcCanvas').addEventListener('pointerdown',function(e){
+    if(e.target===this||e.target.id==='afcSvg') closeAidaFlowCanvasSidePanel();
+  });
+}
+function setAidaFlowCanvasZoom(z){
+  aidaFlowCanvasZoom=Math.max(0.4,Math.min(1.6,z));
+  var canvas=document.getElementById('afcCanvas');
+  if(canvas) canvas.style.transform='scale('+aidaFlowCanvasZoom+')';
+  var pct=document.getElementById('afcZoomPct');
+  if(pct) pct.textContent=Math.round(aidaFlowCanvasZoom*100)+'%';
+  updateAidaFlowConnectorPaths();
+}
+
+// ── Loading / switching / creating a flow in the workspace ──
+async function openAidaFlowInCanvas(id){
+  aidaFlowStopRunPolling();
+  aidaFlowDirty=false;
+  aidaFlowsEditingId=id;
+  aidaFlowsDraft=null;
+  aidaFlowCanvasSelected=null;
+  aidaFlowCanvasPanelMode='node';
+  var nodesWrap=document.getElementById('afcNodes');
+  if(nodesWrap) nodesWrap.innerHTML='<div class="afc-sidebar-loading" style="padding:20px">Loading…</div>';
+  try{
+    const r=await authFetch('/api/masteradmin/aida/flows/'+id);
+    if(!r.ok) throw new Error();
+    const data=await r.json();
+    var f=data.flow||{};
+    aidaFlowsDraft={id:f.id,name:f.name||'',description:f.description||'',triggerType:f.triggerType||'manual',triggerConfig:f.triggerConfig||{},steps:aidaFlowNormalizeLoadedSteps(Array.isArray(f.steps)?f.steps:[])};
+  }catch(e){ aidaFlowsDraft=aidaBlankFlowDraft(); showToast('Could not load that flow','error'); }
+  aidaFlowCanvasLayout=loadAidaFlowCanvasLayoutFromStorage(id)||aidaFlowDefaultLayoutFor(aidaFlowsDraft);
+  aidaFlowCanvasEnsureLayoutLength();
+  refreshAidaFlowCanvasTabs();
+  renderAidaFlowCanvasTopbar();
+  renderAidaFlowCanvasNodes();
+  renderAidaFlowCanvasSidePanel();
+}
+function startNewAidaFlowInCanvas(){
+  aidaFlowStopRunPolling();
+  aidaFlowDirty=false;
+  aidaFlowsEditingId=null;
+  aidaFlowsDraft=aidaBlankFlowDraft();
+  aidaFlowCanvasSelected=null;
+  aidaFlowCanvasPanelMode='node';
+  aidaFlowCanvasLayout=aidaFlowDefaultLayoutFor(aidaFlowsDraft);
+  refreshAidaFlowCanvasTabs();
+  renderAidaFlowCanvasTopbar();
+  renderAidaFlowCanvasNodes();
+  renderAidaFlowCanvasSidePanel();
+}
+function refreshAidaFlowCanvasTabs(){
+  var wrap=document.getElementById('afcTabs');
+  if(!wrap) return;
+  var tabs=(aidaFlowsList||[]).map(function(f){
+    var active=f.id===aidaFlowsEditingId;
+    return '<button type="button" class="afc-tab'+(active?' active':'')+'" data-flow-id="'+f.id+'">'+esc(f.name||'Untitled')+'</button>';
+  }).join('');
+  if(!aidaFlowsEditingId&&aidaFlowsDraft){
+    // Not a button — just shows where you currently are. It used to be a
+    // real <button> labelled "New flow" sitting right next to the real
+    // "+" new-flow action below, which looked like a second way to do the
+    // same thing (it wasn't wired to anything). A plain span fixes that.
+    tabs+='<span class="afc-tab active afc-tab-current">'+esc(aidaFlowsDraft.name||'Untitled draft')+'</span>';
+  }
+  tabs+='<button type="button" class="afc-tab afc-tab-new" id="afcNewTab" title="Start a new flow">+ New flow</button>';
+  wrap.innerHTML=tabs;
+  wrap.querySelectorAll('[data-flow-id]').forEach(function(btn){
+    btn.addEventListener('click',function(){ openAidaFlowInCanvas(btn.getAttribute('data-flow-id')); });
+  });
+  var newBtn=document.getElementById('afcNewTab');
+  if(newBtn) newBtn.addEventListener('click',startNewAidaFlowInCanvas);
+}
+function renderAidaFlowCanvasTopbar(){
+  var nameInput=document.getElementById('afcNameInput');
+  if(nameInput) nameInput.value=aidaFlowsDraft.name||'';
+  var isSaved=!!aidaFlowsEditingId;
+  // Run flow/Runs genuinely need a saved flow id (POST/GET .../flows/:id/...) —
+  // but hiding them outright until then isn't discoverable, so show them
+  // always and disable with an explanatory tooltip instead.
+  var runBtn=document.getElementById('afcTestRunBtn');
+  runBtn.style.display='';
+  runBtn.disabled=!isSaved;
+  runBtn.title=isSaved?'':'Save this flow first';
+  var runsBtn=document.getElementById('afcRunsBtn');
+  runsBtn.style.display='';
+  runsBtn.disabled=!isSaved;
+  runsBtn.title=isSaved?'':'Save this flow first';
+  // Active/paused genuinely doesn't apply before the flow exists — stays hidden.
+  document.getElementById('afcActiveToggleWrap').style.display=isSaved?'':'none';
+  if(isSaved){
+    var f=(aidaFlowsList||[]).find(function(x){ return x.id===aidaFlowsEditingId; });
+    document.getElementById('afcActiveToggle').checked=!f||f.status==='active';
+  }
+  // Save button keeps its icon+"Save flow" label whether this is the first
+  // save or not — "Create"/"Save" wording differences weren't worth the
+  // ambiguity, one unmistakable action is clearer.
+  var dirtyBadge=document.getElementById('afcDirtyBadge');
+  if(dirtyBadge) dirtyBadge.style.display=aidaFlowDirty?'':'none';
+}
+
+// ── Sidebar palette — click a tool to append it as the chain's new last step ──
+// Reuses the existing AIDA Skills "+ New skill" pipeline (#42) — the
+// documented way to close a real gap in the node library — rather than
+// inventing a second "propose a tool" flow just for Flows.
+window.openAidaSkillsProposeFromFlows=function(){
+  openAidaOverlay();
+  if(window.openAidaSkillsPanel){
+    window.openAidaSkillsPanel();
+    window.switchAidaSkillsTab('new');
+  }
+};
+function aidaFlowPaletteItemHtml(n,color){
+  return '<button type="button" class="afc-palette-item" data-tool="'+esc(n.name)+'"><span class="afc-palette-dot" style="background:'+color+'"></span>'+esc(aidaHumanizeToolName(n.name))+'</button>';
+}
+// 16 real categories now (5 with subcategories), declared directly on each
+// tool by the backend — not guessed from its name, and not a heuristic
+// "messaging" pile on top (the real "Communication" category, with Email/
+// WhatsApp/Contacts/In-App Messages subcats, covers that properly now).
+// Collapsed by default so the palette stays scannable at this count.
+function renderAidaFlowCanvasSidebar(){
+  var wrap=document.getElementById('afcSidebar');
+  if(!wrap) return;
+  if(!aidaFlowNodesLoaded){ wrap.innerHTML='<div class="afc-sidebar-loading">Loading tools…</div>'; return; }
+  if(!aidaFlowNodes){ wrap.innerHTML='<div class="afc-sidebar-loading">Could not load tools.</div>'; return; }
+  var byCategory=aidaGroupToolsByCategory(aidaFlowNodes);
+  var categories=Object.keys(byCategory).sort();
+  var html='<div class="afc-sidebar-section-label">Trigger</div>'+
+    '<button type="button" class="afc-palette-item" id="afcTriggerPaletteBtn"><span class="afc-palette-dot" style="background:'+AFC_TRIGGER_COLOR+'"></span><span id="afcTriggerPaletteLabel">'+esc(aidaFlowTriggerLabel(aidaFlowsDraft?aidaFlowsDraft.triggerType:'manual'))+'</span></button>'+
+    categories.map(function(cat,ci){
+      var group=byCategory[cat];
+      var color=aidaFlowCategoryColor(cat);
+      var subNames=Object.keys(group.subcats).sort();
+      var total=group.tools.length+subNames.reduce(function(n,s){ return n+group.subcats[s].length; },0);
+      var catId='afcCat'+ci;
+      return '<button type="button" class="afc-sidebar-cat-head" data-cat-toggle="'+catId+'">'+
+          '<span class="afc-sidebar-cat-chevron">&#9656;</span><span class="afc-sidebar-cat-name">'+esc(cat)+'</span><span class="afc-sidebar-cat-count">'+total+'</span>'+
+        '</button>'+
+        '<div class="afc-sidebar-cat-body" id="'+catId+'">'+
+          group.tools.map(function(n){ return aidaFlowPaletteItemHtml(n,color); }).join('')+
+          subNames.map(function(sub){
+            return '<div class="afc-sidebar-subcat-label">'+esc(sub)+'</div>'+group.subcats[sub].map(function(n){ return aidaFlowPaletteItemHtml(n,color); }).join('');
+          }).join('')+
+        '</div>';
+    }).join('')+
+    // The one entry point into #42/#47's "+ New skill" pipeline for
+    // anything the node library doesn't have yet.
+    '<div class="afc-sidebar-new-action"><button type="button" id="afcNewActionBtn">+ New action</button></div>';
+  wrap.innerHTML=html;
+  wrap.querySelectorAll('[data-tool]').forEach(function(btn){
+    btn.addEventListener('click',function(){ addAidaFlowCanvasStep(btn.getAttribute('data-tool')); });
+  });
+  wrap.querySelectorAll('[data-cat-toggle]').forEach(function(btn){
+    btn.addEventListener('click',function(){ toggleAidaFlowSidebarCat(btn.getAttribute('data-cat-toggle')); });
+  });
+  var trigBtn=document.getElementById('afcTriggerPaletteBtn');
+  if(trigBtn) trigBtn.addEventListener('click',function(){ selectAidaFlowCanvasNode('trigger'); });
+  var newActionBtn=document.getElementById('afcNewActionBtn');
+  if(newActionBtn) newActionBtn.addEventListener('click',openAidaSkillsProposeFromFlows);
+}
+function toggleAidaFlowSidebarCat(id){
+  var body=document.getElementById(id);
+  if(!body) return;
+  body.classList.toggle('open');
+  var head=body.previousElementSibling;
+  if(head) head.classList.toggle('open',body.classList.contains('open'));
+}
+
+// ── Canvas nodes + connectors ──
+function aidaFlowCanvasNodeEl(kind,idx){
+  return kind==='trigger'?document.querySelector('.afc-node[data-kind="trigger"]'):document.querySelector('.afc-node[data-kind="step"][data-idx="'+idx+'"]');
+}
+function aidaFlowTriggerSummary(d){
+  if(d.triggerType==='schedule'){
+    return (d.triggerConfig&&d.triggerConfig.dailyAt)?('Daily at '+d.triggerConfig.dailyAt):('Every '+((d.triggerConfig&&d.triggerConfig.everyMinutes)||60)+' min');
+  }
+  if(d.triggerType==='webhook') return 'External POST';
+  return 'Run on demand';
+}
+function aidaFlowStepSummary(node,step){
+  if(!node) return 'Unknown tool';
+  var cfg=step.config||{};
+  var keys=Object.keys(cfg);
+  if(!keys.length) return 'Click to configure';
+  var k=keys[0];
+  var ref=aidaFlowFieldRefMatch(cfg[k]);
+  if(ref) return k+' ← step '+(ref.stepIndex+1);
+  return k+': '+String(cfg[k]).slice(0,28);
+}
+function renderAidaFlowCanvasNodes(){
+  var nodesWrap=document.getElementById('afcNodes');
+  if(!nodesWrap) return;
+  var d=aidaFlowsDraft;
+  var trigPos=aidaFlowCanvasLayout.trigger;
+  var html='<div class="afc-node afc-node-trigger" data-kind="trigger" style="left:'+trigPos.x+'px;top:'+trigPos.y+'px">'+
+    '<div class="afc-node-head"><span class="afc-node-dot" style="background:'+AFC_TRIGGER_COLOR+'"></span><span class="afc-node-eyebrow">Trigger</span></div>'+
+    '<div class="afc-node-title">'+esc(aidaFlowTriggerLabel(d.triggerType))+'</div>'+
+    '<div class="afc-node-sub">'+esc(aidaFlowTriggerSummary(d))+'</div>'+
+    '<span class="afc-port afc-port-out" data-port="out" data-kind="trigger"></span>'+
+  '</div>';
+  html+=d.steps.map(function(s,i){
+    var node=aidaFlowNodeByName(s.toolName);
+    var cat=node?(node.category||'Other'):'Other';
+    var color=aidaFlowCategoryColor(cat);
+    var pos=aidaFlowCanvasLayout.steps[i]||aidaFlowDefaultNodePos(i);
+    var paused=!!s.paused;
+    return '<div class="afc-node'+(paused?' afc-node-paused':'')+'" data-kind="step" data-idx="'+i+'" style="left:'+pos.x+'px;top:'+pos.y+'px">'+
+      '<div class="afc-node-head"><span class="afc-node-dot" style="background:'+(paused?'transparent':color)+'"></span><span class="afc-node-eyebrow">'+(paused?'Paused':esc(cat))+'</span>'+
+        '<button type="button" class="afc-node-remove" data-remove="'+i+'" title="Remove">&times;</button>'+
+      '</div>'+
+      '<div class="afc-node-title">'+esc(node?aidaHumanizeToolName(node.name):s.toolName)+'</div>'+
+      '<div class="afc-node-sub">'+(paused?'Not connected — won\'t run':esc(aidaFlowStepSummary(node,s)))+'</div>'+
+      '<span class="afc-port afc-port-in" data-port="in" data-idx="'+i+'"></span>'+
+      '<span class="afc-port afc-port-out" data-port="out" data-idx="'+i+'"></span>'+
+    '</div>';
+  }).join('');
+  nodesWrap.innerHTML=html;
+  wireAidaFlowCanvasNodeEvents();
+  updateAidaFlowConnectorPaths();
+  var banner=document.getElementById('afcEmptyBanner');
+  if(banner) banner.classList.toggle('show',!d.steps.length);
+}
+function aidaFlowCanvasRefreshNodeSummary(stepIdx){
+  var el=aidaFlowCanvasNodeEl('step',stepIdx);
+  if(!el) return;
+  var sub=el.querySelector('.afc-node-sub');
+  var step=aidaFlowsDraft.steps[stepIdx];
+  if(sub&&step) sub.textContent=aidaFlowStepSummary(aidaFlowNodeByName(step.toolName),step);
+}
+function wireAidaFlowCanvasNodeEvents(){
+  document.querySelectorAll('.afc-node').forEach(function(el){
+    el.addEventListener('pointerdown',function(e){
+      if(e.target.closest('.afc-port')||e.target.closest('.afc-node-remove')) return;
+      startAidaFlowNodeDrag(el,e);
+    });
+  });
+  document.querySelectorAll('[data-remove]').forEach(function(btn){
+    btn.addEventListener('click',function(e){ e.stopPropagation(); removeAidaFlowCanvasStep(parseInt(btn.getAttribute('data-remove'),10)); });
+  });
+  document.querySelectorAll('.afc-port-out').forEach(function(dot){
+    dot.addEventListener('pointerdown',function(e){ e.stopPropagation(); startAidaFlowConnectDrag(dot,e); });
+  });
+}
+function startAidaFlowNodeDrag(el,e){
+  e.preventDefault();
+  var startX=e.clientX,startY=e.clientY;
+  var origLeft=parseFloat(el.style.left)||0, origTop=parseFloat(el.style.top)||0;
+  var moved=false;
+  function onMove(ev){
+    var dx=(ev.clientX-startX)/aidaFlowCanvasZoom, dy=(ev.clientY-startY)/aidaFlowCanvasZoom;
+    if(Math.abs(dx)>3||Math.abs(dy)>3) moved=true;
+    el.style.left=(origLeft+dx)+'px'; el.style.top=(origTop+dy)+'px';
+    updateAidaFlowConnectorPaths();
+  }
+  function onUp(){
+    document.removeEventListener('pointermove',onMove);
+    document.removeEventListener('pointerup',onUp);
+    var nx=parseFloat(el.style.left),ny=parseFloat(el.style.top);
+    if(el.getAttribute('data-kind')==='trigger') aidaFlowCanvasLayout.trigger={x:nx,y:ny};
+    else aidaFlowCanvasLayout.steps[parseInt(el.getAttribute('data-idx'),10)]={x:nx,y:ny};
+    persistAidaFlowCanvasLayout();
+    if(!moved){
+      var kind=el.getAttribute('data-kind');
+      selectAidaFlowCanvasNode(kind==='trigger'?'trigger':parseInt(el.getAttribute('data-idx'),10));
+    }
+  }
+  document.addEventListener('pointermove',onMove);
+  document.addEventListener('pointerup',onUp);
+}
+function aidaFlowBezierPath(a,b){
+  var dx=Math.max(40,(b.x-a.x)/2);
+  return 'M'+a.x+','+a.y+' C'+(a.x+dx)+','+a.y+' '+(b.x-dx)+','+b.y+' '+b.x+','+b.y;
+}
+function startAidaFlowConnectDrag(dot,e){
+  e.preventDefault();
+  var svg=document.getElementById('afcSvg');
+  var wrap=document.getElementById('afcCanvas');
+  var fromKind=dot.getAttribute('data-kind')==='trigger'?'trigger':'step';
+  var fromIdx=fromKind==='step'?parseInt(dot.getAttribute('data-idx'),10):null;
+  var tempPath=document.createElementNS('http://www.w3.org/2000/svg','path');
+  tempPath.setAttribute('class','afc-temp-path');
+  svg.appendChild(tempPath);
+  function localPoint(clientX,clientY){
+    var cr=wrap.getBoundingClientRect();
+    return {x:(clientX-cr.left)/aidaFlowCanvasZoom,y:(clientY-cr.top)/aidaFlowCanvasZoom};
+  }
+  var dotRect=dot.getBoundingClientRect();
+  var start=localPoint(dotRect.left+dotRect.width/2,dotRect.top+dotRect.height/2);
+  function onMove(ev){
+    var end=localPoint(ev.clientX,ev.clientY);
+    tempPath.setAttribute('d',aidaFlowBezierPath(start,end));
+  }
+  function onUp(ev){
+    document.removeEventListener('pointermove',onMove);
+    document.removeEventListener('pointerup',onUp);
+    tempPath.remove();
+    var target=document.elementFromPoint(ev.clientX,ev.clientY);
+    var portIn=target&&target.closest('.afc-port-in');
+    if(portIn) aidaFlowAddDependency(fromKind,fromIdx,parseInt(portIn.getAttribute('data-idx'),10));
+  }
+  document.addEventListener('pointermove',onMove);
+  document.addEventListener('pointerup',onUp);
+}
+// Dragging a connection IS how a dependency gets set — there's no separate
+// "pick your dependencies" dropdown. From the trigger onto a step clears
+// that step back to a root (dependsOn:[]); from another step onto a step
+// ADDS a dependency (fan-in — a step can depend on any number of earlier
+// steps, and be depended on by any number of later ones for fan-out).
+function aidaFlowAddDependency(fromKind,fromIdx,toIdx){
+  var toStep=aidaFlowsDraft.steps[toIdx];
+  if(!toStep) return;
+  if(fromKind==='step'&&aidaFlowsDraft.steps[fromIdx]&&aidaFlowsDraft.steps[fromIdx].paused){
+    showToast('That step is paused — unpause it first','error'); return;
+  }
+  if(!Array.isArray(toStep.dependsOn)) toStep.dependsOn=[];
+  if(fromKind==='trigger'){
+    toStep.dependsOn=[];
+  }else{
+    if(fromIdx===toIdx) return;
+    if(toStep.dependsOn.indexOf(fromIdx)!==-1) return; // already connected
+    if(aidaFlowWouldCreateCycle(fromIdx,toIdx)){ showToast('That would create a loop — can\'t connect it','error'); return; }
+    toStep.dependsOn.push(fromIdx);
+  }
+  // Dragging a real connection onto a paused step is a clear signal to
+  // bring it back into the flow — no dead end where a paused node can
+  // never be rewired.
+  toStep.paused=false;
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasNodes();
+  if(aidaFlowCanvasSelected===toIdx) renderAidaFlowCanvasSidePanel();
+}
+function aidaFlowRemoveDependency(toIdx,fromIdx){
+  var toStep=aidaFlowsDraft.steps[toIdx];
+  if(!toStep||!Array.isArray(toStep.dependsOn)) return;
+  toStep.dependsOn=toStep.dependsOn.filter(function(d){ return d!==fromIdx; });
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasNodes();
+  renderAidaFlowCanvasSidePanel();
+}
+function updateAidaFlowConnectorPaths(){
+  var svg=document.getElementById('afcSvg');
+  var wrap=document.getElementById('afcCanvas');
+  if(!svg||!wrap||!aidaFlowsDraft) return;
+  var cr=wrap.getBoundingClientRect();
+  function centerOf(sel){
+    var el=wrap.querySelector(sel);
+    if(!el) return null;
+    var r=el.getBoundingClientRect();
+    return {x:(r.left+r.width/2-cr.left)/aidaFlowCanvasZoom,y:(r.top+r.height/2-cr.top)/aidaFlowCanvasZoom};
+  }
+  var triggerOut=centerOf('.afc-node[data-kind="trigger"] .afc-port-out');
+  var outs=[],ins=[];
+  aidaFlowsDraft.steps.forEach(function(_,i){
+    ins[i]=centerOf('.afc-node[data-kind="step"][data-idx="'+i+'"] .afc-port-in');
+    outs[i]=centerOf('.afc-node[data-kind="step"][data-idx="'+i+'"] .afc-port-out');
+  });
+  var paths='';
+  aidaFlowsDraft.steps.forEach(function(s,i){
+    if(s.paused) return; // disconnected on purpose — draw nothing in or out
+    var deps=Array.isArray(s.dependsOn)?s.dependsOn:[];
+    var b=ins[i];
+    if(!b) return;
+    if(!deps.length){
+      if(triggerOut) paths+='<path class="afc-path" d="'+aidaFlowBezierPath(triggerOut,b)+'"/>';
+    }else{
+      deps.forEach(function(d){
+        if(aidaFlowsDraft.steps[d]&&aidaFlowsDraft.steps[d].paused) return;
+        var a=outs[d];
+        if(a) paths+='<path class="afc-path" d="'+aidaFlowBezierPath(a,b)+'"/>';
+      });
+    }
+  });
+  svg.innerHTML=paths;
+  var maxX=640,maxY=500;
+  wrap.querySelectorAll('.afc-node').forEach(function(n){ maxX=Math.max(maxX,parseFloat(n.style.left)+260); maxY=Math.max(maxY,parseFloat(n.style.top)+160); });
+  svg.setAttribute('width',maxX); svg.setAttribute('height',maxY);
+  var nodesWrap=document.getElementById('afcNodes');
+  if(nodesWrap){ nodesWrap.style.width=maxX+'px'; nodesWrap.style.height=maxY+'px'; }
+}
+
+// ── Add / remove steps ──
+// Fields the backend silently forces/ignores for flow-invoked tool calls —
+// no point showing a control that can never do anything:
+// - confirmed: the backend now always forces this true for flow-invoked
+//   calls (it exists so AIDA's chat can draft something and wait for a
+//   human to say "yes, send it" — a flow has no human mid-run to ask).
+// - includeAttachment on message_contact/send_email: means "attach the
+//   file a human just sent AIDA in THIS live chat" — there is no live chat
+//   in an unattended flow run, so the backend force-clears it to false.
+function aidaFlowFieldIsHidden(toolName,fieldName){
+  if(fieldName==='confirmed') return true;
+  var bare=String(toolName||'').replace(/^masteradmin_/,'');
+  if((bare==='message_contact'||bare==='send_email')&&fieldName==='includeAttachment') return true;
+  return false;
+}
+function addAidaFlowCanvasStep(toolName){
+  // No dependsOn = a parallel root, connected straight from the trigger —
+  // the honest default, rather than guessing it should chain off whatever
+  // was added last. Draw a real connection to wire it up.
+  aidaFlowsDraft.steps.push({toolName:toolName,config:{},dependsOn:[]});
+  aidaFlowCanvasLayout.steps.push(aidaFlowDefaultNodePos(aidaFlowsDraft.steps.length-1));
+  persistAidaFlowCanvasLayout();
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasNodes();
+  selectAidaFlowCanvasNode(aidaFlowsDraft.steps.length-1);
+}
+// Removing a step shifts every later index down by one AND can orphan
+// dependsOn references — both the removed step's own dependents (drop the
+// now-gone dependency) and every index greater than it (shift down) need
+// fixing up before the splice, using the pre-removal index space.
+function aidaFlowReindexDependsOnAfterRemoval(removedIdx){
+  aidaFlowsDraft.steps.forEach(function(s){
+    if(!Array.isArray(s.dependsOn)) return;
+    s.dependsOn=s.dependsOn.filter(function(d){ return d!==removedIdx; }).map(function(d){ return d>removedIdx?d-1:d; });
+  });
+}
+function removeAidaFlowCanvasStep(i){
+  aidaFlowReindexDependsOnAfterRemoval(i);
+  aidaFlowsDraft.steps.splice(i,1);
+  aidaFlowCanvasLayout.steps.splice(i,1);
+  persistAidaFlowCanvasLayout();
+  aidaFlowMarkDirty();
+  if(aidaFlowCanvasSelected===i) closeAidaFlowCanvasSidePanel();
+  else if(typeof aidaFlowCanvasSelected==='number'&&aidaFlowCanvasSelected>i) aidaFlowCanvasSelected--;
+  renderAidaFlowCanvasNodes();
+  renderAidaFlowCanvasSidePanel();
+}
+
+// ── Side panel: Flow details (default) / Trigger config / Step config.
+// Reuses the schema-driven form markup below unchanged — those strings
+// carry their own inline onclick/onchange calling window.setAidaFlow*
+// functions, which resolve fine no matter where the HTML lands. ──
+function selectAidaFlowCanvasNode(sel){
+  aidaFlowCanvasSelected=sel;
+  aidaFlowCanvasPanelMode='node';
+  document.querySelectorAll('.afc-node').forEach(function(el){ el.classList.remove('selected'); });
+  var el=sel==='trigger'?aidaFlowCanvasNodeEl('trigger'):aidaFlowCanvasNodeEl('step',sel);
+  if(el) el.classList.add('selected');
+  renderAidaFlowCanvasSidePanel();
+}
+function closeAidaFlowCanvasSidePanel(){
+  aidaFlowCanvasSelected=null;
+  aidaFlowCanvasPanelMode='node';
+  document.querySelectorAll('.afc-node').forEach(function(el){ el.classList.remove('selected'); });
+  renderAidaFlowCanvasSidePanel();
+}
+function renderAidaFlowCanvasSidePanel(){
+  var panel=document.getElementById('afcSidePanel');
+  if(!panel||!aidaFlowsDraft) return;
+  if(aidaFlowCanvasPanelMode==='runs') return renderAidaFlowCanvasRunsPanel(panel);
+  if(aidaFlowCanvasPanelMode==='runDetail') return renderAidaFlowCanvasRunDetailPanel(panel);
+  var d=aidaFlowsDraft;
+  if(aidaFlowCanvasSelected==null){
+    var isEdit=!!aidaFlowsEditingId;
+    panel.innerHTML='<div class="afc-panel-head"><span>Flow details</span></div>'+
+      '<div class="afc-panel-body">'+
+        '<div class="afc-field-label">Description</div>'+
+        '<textarea id="afcDescInput" rows="4" placeholder="What does this flow do? (optional)">'+esc(d.description)+'</textarea>'+
+        '<div class="afc-panel-hint">Click any node on the canvas to configure it. Drag a node\'s red output dot onto another node\'s left input dot to make it run after that one — a step with nothing feeding into it runs immediately, and several steps with nothing feeding in run in parallel.</div>'+
+        (isEdit?'<button type="button" class="afc-delete-flow-btn" id="afcDeleteFlowBtn">Delete this flow</button>':'')+
+      '</div>';
+    var descInput=document.getElementById('afcDescInput');
+    if(descInput) descInput.addEventListener('change',function(){ setAidaFlowDescription(this.value); });
+    var delBtn=document.getElementById('afcDeleteFlowBtn');
+    if(delBtn) delBtn.addEventListener('click',function(){ deleteAidaFlow(aidaFlowsEditingId,d.name); });
+    return;
+  }
+  if(aidaFlowCanvasSelected==='trigger'){
+    var isEdit2=!!aidaFlowsEditingId;
+    panel.innerHTML='<div class="afc-panel-head"><button type="button" class="afc-panel-back" id="afcPanelBack">&larr;</button><span>Trigger</span></div>'+
+      '<div class="afc-panel-body">'+
+        '<div class="afc-field-label">Type</div>'+
+        '<div style="display:flex;gap:6px;margin-bottom:12px">'+
+          ['manual','schedule','webhook'].map(function(t){
+            var sel2=d.triggerType===t, disabled=isEdit2&&!sel2;
+            return '<button type="button" class="afc-trig-opt'+(sel2?' active':'')+'" data-trig="'+t+'" '+(disabled?'disabled':'')+'>'+aidaFlowTriggerLabel(t)+'</button>';
+          }).join('')+
+        '</div>'+
+        aidaFlowTriggerConfigHtml(d,isEdit2)+
+      '</div>';
+    panel.querySelectorAll('[data-trig]').forEach(function(btn){
+      btn.addEventListener('click',function(){ setAidaFlowTriggerType(btn.getAttribute('data-trig')); });
+    });
+  }else{
+    var i=aidaFlowCanvasSelected;
+    var step=d.steps[i];
+    if(!step){ closeAidaFlowCanvasSidePanel(); return; }
+    var node=aidaFlowNodeByName(step.toolName);
+    panel.innerHTML='<div class="afc-panel-head"><button type="button" class="afc-panel-back" id="afcPanelBack">&larr;</button><span>'+esc(node?aidaHumanizeToolName(node.name):step.toolName)+'</span></div>'+
+      '<div class="afc-panel-body">'+aidaFlowPausedToggleHtml(i)+aidaFlowDependsOnChipsHtml(i)+aidaFlowStepConfigFormHtml(node,step,i)+'</div>';
+    var pauseToggle=document.getElementById('afcPauseToggle');
+    if(pauseToggle) pauseToggle.addEventListener('change',function(){ setAidaFlowStepPaused(i,!this.checked); });
+    panel.querySelectorAll('[data-remove-dep]').forEach(function(btn){
+      btn.addEventListener('click',function(){ aidaFlowRemoveDependency(i,parseInt(btn.getAttribute('data-remove-dep'),10)); });
+    });
+    var addSel=document.getElementById('afcAddDepSelect');
+    if(addSel) addSel.addEventListener('change',function(){
+      if(this.value!=='') aidaFlowAddDependency('step',parseInt(this.value,10),i);
+    });
+  }
+  var backBtn=document.getElementById('afcPanelBack');
+  if(backBtn) backBtn.addEventListener('click',closeAidaFlowCanvasSidePanel);
+}
+// A reliable, non-drag way to see/add/remove this step's dependencies —
+// dragging connections on the canvas does the same thing, this is just the
+// discoverable alternative for anyone who'd rather not drag dots around.
+function aidaFlowDependsOnChipsHtml(stepIdx){
+  if(aidaFlowsDraft.steps[stepIdx].paused) return ''; // the pause toggle's own note already covers this
+  var deps=Array.isArray(aidaFlowsDraft.steps[stepIdx].dependsOn)?aidaFlowsDraft.steps[stepIdx].dependsOn:[];
+  var chips=deps.length?
+    deps.map(function(d){
+      return '<span class="aida-flow-dep-chip">'+esc(aidaFlowStepLabel(d))+'<button type="button" data-remove-dep="'+d+'" title="Remove">&times;</button></span>';
+    }).join('')
+    :
+    '<span class="aida-flow-dep-chip aida-flow-dep-chip-trigger">Trigger — runs immediately</span>';
+  var candidates=aidaFlowsDraft.steps.map(function(_,i){ return i; }).filter(function(i){
+    return i!==stepIdx&&deps.indexOf(i)===-1&&!aidaFlowsDraft.steps[i].paused&&!aidaFlowWouldCreateCycle(i,stepIdx);
+  });
+  var addControl=candidates.length?
+    '<select id="afcAddDepSelect"><option value="">+ Add dependency…</option>'+
+      candidates.map(function(i){ return '<option value="'+i+'">'+esc(aidaFlowStepLabel(i))+'</option>'; }).join('')+
+    '</select>'
+    : '';
+  return '<div class="aida-flow-deps"><div class="afc-field-label">Runs after</div><div class="aida-flow-dep-chips">'+chips+'</div>'+addControl+'</div>';
+}
+// The one real way to fully detach a step: the backend has no "step that
+// never runs" concept (every submitted step is either a root off the
+// trigger or depends on something), so "paused" is a client-side-only
+// state — excluded from the canvas's connections entirely, and from the
+// save payload. Said plainly in the UI so it's never a silent surprise.
+function aidaFlowPausedToggleHtml(stepIdx){
+  var paused=!!aidaFlowsDraft.steps[stepIdx].paused;
+  return '<div class="aida-flow-pause'+(paused?' is-paused':'')+'">'+
+    '<label><input type="checkbox" id="afcPauseToggle" '+(paused?'':'checked')+'> Connected — runs as part of this flow</label>'+
+    (paused?'<div class="aida-flow-pause-note">Disconnected from everything, including the trigger. It won\'t run, and won\'t be saved with the flow until you reconnect it (drag a connection to it, or check this box).</div>':'')+
+  '</div>';
+}
+window.setAidaFlowStepPaused=function(stepIdx,paused){
+  aidaFlowsDraft.steps[stepIdx].paused=paused;
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasNodes();
+  renderAidaFlowCanvasSidePanel();
+};
+
+// ── Trigger-type / schedule setters — called both from the side panel's
+// own event listeners above and (for schedule sub-fields, reused as-is
+// inside aidaFlowTriggerConfigHtml's markup) from inline onchange. ──
+function setAidaFlowName(v){ aidaFlowsDraft.name=v; aidaFlowMarkDirty(); }
+window.setAidaFlowDescription=function(v){ aidaFlowsDraft.description=v; aidaFlowMarkDirty(); };
+window.setAidaFlowScheduleEvery=function(v){ aidaFlowsDraft.triggerConfig={everyMinutes:parseInt(v,10)||1}; aidaFlowMarkDirty(); };
+window.setAidaFlowScheduleDaily=function(v){ aidaFlowsDraft.triggerConfig={dailyAt:v}; aidaFlowMarkDirty(); };
+function setAidaFlowTriggerType(t){
+  if(aidaFlowsEditingId) return; // locked after creation — PUT can't change triggerType
+  aidaFlowsDraft.triggerType=t;
+  aidaFlowsDraft.triggerConfig=t==='schedule'?{everyMinutes:60}:{};
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasSidePanel();
+  renderAidaFlowCanvasNodes();
+  renderAidaFlowCanvasSidebar();
+}
+window.setAidaFlowScheduleMode=function(mode){
+  aidaFlowsDraft.triggerConfig=mode==='daily'?{dailyAt:'09:00'}:{everyMinutes:60};
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasSidePanel();
+  renderAidaFlowCanvasNodes();
+};
+window.copyAidaFlowUrlDirect=function(url){
+  try{ navigator.clipboard&&navigator.clipboard.writeText(url).then(function(){ showToast('Copied'); }).catch(function(){}); }catch(e){}
+};
+function aidaFlowTriggerConfigHtml(d,isEdit){
+  if(d.triggerType==='manual') return '';
+  if(d.triggerType==='webhook'){
+    if(isEdit&&d.triggerConfig&&d.triggerConfig.webhookSecret){
+      var url=aidaFlowWebhookUrl(aidaFlowsEditingId,d.triggerConfig.webhookSecret);
+      var safeUrl=url.replace(/'/g,"\\'");
+      return '<div style="margin-bottom:14px">'+
+        '<div class="afc-field-label">Webhook URL</div>'+
+        '<div style="display:flex;gap:6px">'+
+          '<input readonly value="'+esc(url)+'" style="flex:1;min-width:0;font-size:11px" onclick="this.select()">'+
+          '<button type="button" onclick="copyAidaFlowUrlDirect(\''+safeUrl+'\')" class="afc-trig-opt" style="flex:none">Copy</button>'+
+        '</div></div>';
+    }
+    if(isEdit) return '<div class="afc-panel-hint">Triggered by an external POST to this flow\'s webhook URL.</div>';
+    return '<div class="afc-panel-hint">A callable URL with a random secret is generated once you create this flow.</div>';
+  }
+  var mode=(d.triggerConfig&&d.triggerConfig.dailyAt)?'daily':'interval';
+  var everyMinutes=(d.triggerConfig&&d.triggerConfig.everyMinutes)||60;
+  var dailyAt=(d.triggerConfig&&d.triggerConfig.dailyAt)||'09:00';
+  return '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;font-size:12px">'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="flowSchedMode" '+(mode==='interval'?'checked':'')+' onchange="setAidaFlowScheduleMode(\'interval\')"> Every N minutes</label>'+
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="radio" name="flowSchedMode" '+(mode==='daily'?'checked':'')+' onchange="setAidaFlowScheduleMode(\'daily\')"> Daily at</label>'+
+    '</div>'+
+    (mode==='interval'?
+      '<input type="number" min="1" value="'+everyMinutes+'" onchange="setAidaFlowScheduleEvery(this.value)">'
+      :
+      '<input type="time" value="'+esc(dailyAt)+'" onchange="setAidaFlowScheduleDaily(this.value)">'
+    );
+}
+
+// ── Per-step config form — generated from the tool's real JSON Schema.
+// Each field can be a literal value or "from an earlier step's output",
+// which becomes a {{step_<id>.output.path}} / {{stepN.output.path}} string
+// the backend resolves (aidaFlowFieldRefMatch/aidaFlowBuildRefToken above).
+// Schema-less tools (or object/array-typed fields) fall back to a raw
+// JSON textarea rather than guessing a shape. ──
+// Every masteradmin_* cross-tenant tool's schema has a property literally
+// named companySlug, injected identically by one shared backend wrapper —
+// checking the property NAME (not the tool name) catches every one of them,
+// present and future, without a tool-specific allowlist.
+function aidaFlowCompanyPickerHtml(fieldName,stepIdx,cur){
+  var safeField=fieldName.replace(/'/g,"\\'");
+  if(!companies||!companies.length){
+    return '<input type="text" value="'+(cur!=null?esc(String(cur)):'')+'" placeholder="company slug" onchange="setAidaFlowFieldLiteral('+stepIdx+',\''+safeField+'\',this.value)">';
+  }
+  var sorted=companies.slice().sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+  return '<select onchange="setAidaFlowFieldLiteral('+stepIdx+',\''+safeField+'\',this.value)">'+
+    '<option value="">— Select a company —</option>'+
+    sorted.map(function(c){ return '<option value="'+esc(c.slug)+'" '+(cur===c.slug?'selected':'')+'>'+esc(c.name)+'</option>'; }).join('')+
+  '</select>';
+}
+function aidaFlowLiteralInputHtml(schema,fieldName,stepIdx,cur,ancestorIdxs,fid){
+  var safeField=fieldName.replace(/'/g,"\\'");
+  var t=Array.isArray(schema.type)?schema.type[0]:schema.type;
+  if(fieldName==='companySlug') return aidaFlowCompanyPickerHtml(fieldName,stepIdx,cur);
+  if(schema.enum){
+    return '<select onchange="setAidaFlowFieldLiteral('+stepIdx+',\''+safeField+'\',this.value)">'+
+      '<option value="">—</option>'+
+      schema.enum.map(function(v){ return '<option value="'+esc(v)+'" '+(cur===v?'selected':'')+'>'+esc(v)+'</option>'; }).join('')+
+    '</select>';
+  }
+  if(t==='boolean'){
+    return '<label style="display:flex;align-items:center;gap:6px;font-size:12.5px"><input type="checkbox" '+(cur===true?'checked':'')+' onchange="setAidaFlowFieldLiteral('+stepIdx+',\''+safeField+'\',this.checked)"> true</label>';
+  }
+  if(t==='number'||t==='integer'){
+    return '<input type="number" value="'+(cur!=null?esc(String(cur)):'')+'" onchange="setAidaFlowFieldLiteral('+stepIdx+',\''+safeField+'\',this.value===\'\'?undefined:Number(this.value))">';
+  }
+  if(t==='object'||t==='array'){
+    return '<textarea rows="3" style="font-family:monospace;font-size:11px" placeholder="JSON" onchange="setAidaFlowFieldLiteralJson('+stepIdx+',\''+safeField+'\',this.value)">'+(cur!=null?esc(JSON.stringify(cur)):'')+'</textarea>';
+  }
+  // Plain string — the backend can resolve {{stepN.output.path}} tokens
+  // mixed into literal text, so offer "insert a reference at the cursor"
+  // instead of forcing an either/or choice with "From earlier step" mode.
+  var valId=fid+'_val';
+  var input='<input id="'+valId+'" type="text" value="'+(cur!=null?esc(String(cur)):'')+'" onchange="setAidaFlowFieldLiteral('+stepIdx+',\''+safeField+'\',this.value)">';
+  if(!ancestorIdxs||!ancestorIdxs.length) return input;
+  return '<div class="aida-flow-literal-row">'+input+
+      '<button type="button" class="aida-flow-insert-btn" onclick="toggleAidaFlowInsertPicker(\''+fid+'\')" title="Insert a reference to an earlier step\'s output">{ }</button>'+
+    '</div>'+
+    '<div class="aida-flow-insert-picker" id="'+fid+'_picker">'+
+      '<select id="'+fid+'_picker_step">'+
+        ancestorIdxs.map(function(pi){
+          return '<option value="'+pi+'">'+esc(aidaFlowStepLabel(pi))+'</option>';
+        }).join('')+
+      '</select>'+
+      '<input id="'+fid+'_picker_path" type="text" placeholder="field.path">'+
+      '<button type="button" onclick="insertAidaFlowFieldRef(\''+fid+'\','+stepIdx+',\''+safeField+'\')">Insert</button>'+
+    '</div>';
+}
+window.toggleAidaFlowInsertPicker=function(fid){
+  var picker=document.getElementById(fid+'_picker');
+  if(!picker) return;
+  var willOpen=!picker.classList.contains('open');
+  document.querySelectorAll('.aida-flow-insert-picker.open').forEach(function(p){ p.classList.remove('open'); });
+  if(willOpen) picker.classList.add('open');
+};
+window.insertAidaFlowFieldRef=function(fid,stepIdx,fieldName){
+  var input=document.getElementById(fid+'_val');
+  var stepSel=document.getElementById(fid+'_picker_step');
+  var pathInp=document.getElementById(fid+'_picker_path');
+  if(!input||!stepSel) return;
+  var token=aidaFlowBuildRefToken(parseInt(stepSel.value,10),pathInp?pathInp.value||'':'');
+  var start=input.selectionStart!=null?input.selectionStart:input.value.length;
+  var end=input.selectionEnd!=null?input.selectionEnd:input.value.length;
+  var newVal=input.value.slice(0,start)+token+input.value.slice(end);
+  input.value=newVal;
+  var newPos=start+token.length;
+  if(input.setSelectionRange) input.setSelectionRange(newPos,newPos);
+  input.focus();
+  setAidaFlowFieldLiteral(stepIdx,fieldName,newVal);
+  var picker=document.getElementById(fid+'_picker');
+  if(picker) picker.classList.remove('open');
+  if(pathInp) pathInp.value='';
+};
+function aidaFlowStepConfigFormHtml(node,step,stepIdx){
+  if(!node||!node.inputSchema||!node.inputSchema.properties){
+    return '<textarea rows="4" style="width:100%;font-family:monospace;font-size:11.5px;box-sizing:border-box" placeholder="JSON config" onchange="setAidaFlowStepRawConfig('+stepIdx+',this.value)">'+esc(JSON.stringify(step.config||{},null,2))+'</textarea>';
+  }
+  var props=node.inputSchema.properties;
+  var required=node.inputSchema.required||[];
+  // Only steps actually upstream of this one (direct or transitive) — not
+  // every step in the flow — since a sibling branch might not have run
+  // yet, or ever, by the time this step executes.
+  var ancestorIdxs=aidaFlowAncestorsOf(stepIdx);
+  return Object.keys(props).filter(function(fieldName){ return !aidaFlowFieldIsHidden(node.name,fieldName); }).map(function(fieldName){
+    var schema=props[fieldName]||{};
+    var cur=step.config?step.config[fieldName]:undefined;
+    var ref=aidaFlowFieldRefMatch(cur);
+    var isReq=required.indexOf(fieldName)!==-1;
+    var fid='flowstep'+stepIdx+'_'+fieldName;
+    var safeField=fieldName.replace(/'/g,"\\'");
+    var row='<div class="aida-flow-field">'+
+      '<div class="aida-flow-field-label">'+esc(fieldName)+(isReq?' <span style="color:var(--red)">*</span>':'')+'</div>'+
+      (schema.description?'<div class="aida-flow-field-hint">'+esc(schema.description)+'</div>':'')+
+      (ancestorIdxs.length?
+        '<div class="aida-flow-field-mode">'+
+          '<button type="button" class="'+(!ref?'active':'')+'" onclick="setAidaFlowFieldMode('+stepIdx+',\''+safeField+'\',\'literal\')">Value</button>'+
+          '<button type="button" class="'+(ref?'active':'')+'" onclick="setAidaFlowFieldMode('+stepIdx+',\''+safeField+'\',\'ref\')">From earlier step</button>'+
+        '</div>'
+        :'');
+    if(ref){
+      row+='<div style="display:flex;gap:6px">'+
+        '<select id="'+fid+'_step" onchange="setAidaFlowFieldRef('+stepIdx+',\''+safeField+'\')">'+
+          ancestorIdxs.map(function(pi){
+            return '<option value="'+pi+'" '+(ref.stepIndex===pi?'selected':'')+'>'+esc(aidaFlowStepLabel(pi))+'</option>';
+          }).join('')+
+        '</select>'+
+        '<input id="'+fid+'_path" type="text" placeholder="field.path" value="'+esc(ref.path)+'" onchange="setAidaFlowFieldRef('+stepIdx+',\''+safeField+'\')">'+
+      '</div>';
+    }else{
+      row+=aidaFlowLiteralInputHtml(schema,fieldName,stepIdx,cur,ancestorIdxs,fid);
+    }
+    row+='</div>';
+    return row;
+  }).join('');
+}
+window.setAidaFlowFieldLiteral=function(stepIdx,fieldName,value){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  if(value===undefined||value===''){ delete step.config[fieldName]; }
+  else step.config[fieldName]=value;
+  aidaFlowMarkDirty();
+  aidaFlowCanvasRefreshNodeSummary(stepIdx);
+};
+window.setAidaFlowFieldLiteralJson=function(stepIdx,fieldName,raw){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  if(!raw||!raw.trim()){ delete step.config[fieldName]; aidaFlowMarkDirty(); aidaFlowCanvasRefreshNodeSummary(stepIdx); return; }
+  try{ step.config[fieldName]=JSON.parse(raw); aidaFlowMarkDirty(); aidaFlowCanvasRefreshNodeSummary(stepIdx); }
+  catch(e){ showToast('Invalid JSON for '+fieldName,'error'); }
+};
+window.setAidaFlowFieldMode=function(stepIdx,fieldName,mode){
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  if(mode==='ref'){
+    var ancestorIdxs=aidaFlowAncestorsOf(stepIdx);
+    step.config[fieldName]=ancestorIdxs.length?aidaFlowBuildRefToken(ancestorIdxs[0],''):'';
+  }else{
+    delete step.config[fieldName];
+  }
+  aidaFlowMarkDirty();
+  renderAidaFlowCanvasSidePanel();
+  aidaFlowCanvasRefreshNodeSummary(stepIdx);
+};
+window.setAidaFlowFieldRef=function(stepIdx,fieldName){
+  var fid='flowstep'+stepIdx+'_'+fieldName;
+  var stepSel=document.getElementById(fid+'_step');
+  var pathInp=document.getElementById(fid+'_path');
+  var si=stepSel?parseInt(stepSel.value,10):(aidaFlowAncestorsOf(stepIdx)[0]||0);
+  var path=pathInp?(pathInp.value||''):'';
+  var step=aidaFlowsDraft.steps[stepIdx];
+  step.config=step.config||{};
+  step.config[fieldName]=aidaFlowBuildRefToken(si,path);
+  aidaFlowMarkDirty();
+  aidaFlowCanvasRefreshNodeSummary(stepIdx);
+};
+window.setAidaFlowStepRawConfig=function(stepIdx,raw){
+  try{ aidaFlowsDraft.steps[stepIdx].config=raw&&raw.trim()?JSON.parse(raw):{}; aidaFlowMarkDirty(); aidaFlowCanvasRefreshNodeSummary(stepIdx); }
+  catch(e){ showToast('Invalid JSON','error'); }
+};
+
+// ── Save ──
+window.saveAidaFlowCanvas=async function(){
+  var d=aidaFlowsDraft;
+  var nameInput=document.getElementById('afcNameInput'); if(nameInput) d.name=nameInput.value;
+  var descInput=document.getElementById('afcDescInput'); if(descInput) d.description=descInput.value;
+  var name=(d.name||'').trim();
+  if(!name){ showToast('Give this flow a name','error'); return; }
+  // Paused steps are a client-side-only concept (the backend has no "step
+  // that never runs" state) — they're excluded from the save entirely,
+  // with every remaining step's dependsOn remapped to the new, shorter
+  // index space. Always send an explicit dependsOn per step (never omit
+  // it) — per spec, omitting it is itself meaningful (old pre-DAG "depends
+  // on whatever's right before it" behavior), so the canvas should never
+  // be ambiguous about what it actually drew. _savedId is client-only, for
+  // resolving {{step_<id>...}} references — never sent to the backend.
+  var oldToNew={};
+  var liveSteps=[];
+  d.steps.forEach(function(s,i){ if(!s.paused){ oldToNew[i]=liveSteps.length; liveSteps.push(s); } });
+  var pausedCount=d.steps.length-liveSteps.length;
+  if(!liveSteps.length){ showToast('Add at least one connected (non-paused) step','error'); return; }
+  var stepsPayload=liveSteps.map(function(s){
+    var deps=(Array.isArray(s.dependsOn)?s.dependsOn:[]).filter(function(dep){ return oldToNew.hasOwnProperty(dep); }).map(function(dep){ return oldToNew[dep]; });
+    return {toolName:s.toolName,config:s.config||{},dependsOn:deps};
+  });
+  var isEdit=!!aidaFlowsEditingId;
+  try{
+    var r,payload;
+    if(isEdit){
+      payload={name:name,description:d.description||'',steps:stepsPayload};
+      if(d.triggerType==='schedule') payload.triggerConfig=d.triggerConfig;
+      r=await authFetch('/api/masteradmin/aida/flows/'+aidaFlowsEditingId,{method:'PUT',body:JSON.stringify(payload)});
+    }else{
+      payload={name:name,description:d.description||'',triggerType:d.triggerType,steps:stepsPayload};
+      if(d.triggerType==='schedule') payload.triggerConfig=d.triggerConfig;
+      r=await authFetch('/api/masteradmin/aida/flows',{method:'POST',body:JSON.stringify(payload)});
+    }
+    var data=await r.json().catch(function(){ return {}; });
+    if(!r.ok) throw new Error(data.error||'Could not save flow');
+    var savedFlow=data.flow||{};
+    var wasNew=!isEdit;
+    aidaFlowsEditingId=savedFlow.id||aidaFlowsEditingId;
+    d.id=aidaFlowsEditingId;
+    if(savedFlow.triggerConfig) d.triggerConfig=savedFlow.triggerConfig;
+    // Re-normalize from what the backend actually persisted — this is also
+    // the only place a live step picks up a real _savedId, which is what
+    // lets its later references use the stable {{step_<id>...}} form.
+    // Paused steps were never sent, so they're NOT in this response —
+    // merge the confirmed live steps back into their original positions
+    // rather than overwriting d.steps wholesale, so paused steps you're
+    // still mid-wiring don't vanish off the canvas the moment you save.
+    if(Array.isArray(savedFlow.steps)){
+      var normalizedLive=aidaFlowNormalizeLoadedSteps(savedFlow.steps);
+      var newToOld={};
+      Object.keys(oldToNew).forEach(function(oldIdx){ newToOld[oldToNew[oldIdx]]=parseInt(oldIdx,10); });
+      normalizedLive.forEach(function(normStep,newIdx){
+        var oldIdx=newToOld[newIdx];
+        if(oldIdx!=null) d.steps[oldIdx]=normStep;
+      });
+    }
+    aidaFlowCanvasEnsureLayoutLength();
+    aidaFlowDirty=false;
+    if(wasNew){
+      aidaFlowsList=aidaFlowsList||[];
+      aidaFlowsList.unshift({id:savedFlow.id,name:savedFlow.name||name,description:savedFlow.description||'',triggerType:savedFlow.triggerType||d.triggerType,triggerConfig:savedFlow.triggerConfig||d.triggerConfig,status:savedFlow.status||'active',createdAt:savedFlow.createdAt});
+    }else{
+      var idxInList=(aidaFlowsList||[]).findIndex(function(x){ return x.id===aidaFlowsEditingId; });
+      if(idxInList!==-1) aidaFlowsList[idxInList].name=name;
+    }
+    persistAidaFlowCanvasLayout();
+    refreshAidaFlowCanvasTabs();
+    renderAidaFlowCanvasTopbar();
+    renderAidaFlowCanvasNodes();
+    if(wasNew&&savedFlow.triggerType==='webhook'&&savedFlow.triggerConfig&&savedFlow.triggerConfig.webhookSecret){
+      selectAidaFlowCanvasNode('trigger');
+      showToast('Webhook created — copy the URL from the trigger panel now, it won\'t be shown again');
+    }else if(pausedCount>0){
+      showToast((isEdit?'Flow saved':'Flow created')+' — '+pausedCount+' paused step'+(pausedCount>1?'s':'')+' left out until reconnected','error');
+    }else{
+      showToast(isEdit?'Flow saved':'Flow created');
+    }
+  }catch(e){ showToast(e.message||'Could not save flow','error'); }
+};
+
+// ── Run history + per-step trace, shown in the same side panel ──
+window.openAidaFlowCanvasRuns=function(){
+  if(!aidaFlowsEditingId) return;
+  aidaFlowCanvasPanelMode='runs';
+  aidaFlowsRuns=null; aidaFlowsRunsLoaded=false;
+  renderAidaFlowCanvasSidePanel();
+  loadAidaFlowRuns(aidaFlowsEditingId).then(renderAidaFlowCanvasSidePanel);
+};
+function openAidaFlowCanvasRunDetail(runId){
+  aidaFlowCanvasPanelMode='runDetail';
+  aidaFlowsRunDetail=null;
+  renderAidaFlowCanvasSidePanel();
+  loadAidaFlowRunDetail(runId).then(renderAidaFlowCanvasSidePanel);
+}
+function renderAidaFlowCanvasRunsPanel(panel){
+  var html='<div class="afc-panel-head"><button type="button" class="afc-panel-back" id="afcPanelBack">&larr;</button><span>Runs</span></div><div class="afc-panel-body">';
+  if(!aidaFlowsRunsLoaded) html+='<div class="afc-panel-hint">Loading…</div>';
+  else if(!aidaFlowsRuns) html+='<div class="afc-panel-hint" style="color:var(--red)">Could not load run history.</div>';
+  else if(!aidaFlowsRuns.length) html+='<div class="afc-panel-hint">No runs yet.</div>';
+  else html+=aidaFlowsRuns.map(function(run){
+    return '<div class="afc-run-row" data-run="'+run.id+'">'+aidaFlowRunStatusBadge(run.status)+
+      '<div style="flex:1;min-width:0"><div class="afc-run-row-time">'+esc(_aidaHubRelTime(run.startedAt))+' &middot; '+esc(run.triggeredBy||'—')+'</div>'+
+      (run.errorMessage?'<div class="afc-run-row-err">'+esc(run.errorMessage)+'</div>':'')+'</div></div>';
+  }).join('');
+  html+='</div>';
+  panel.innerHTML=html;
+  document.getElementById('afcPanelBack').addEventListener('click',function(){ aidaFlowCanvasPanelMode='node'; renderAidaFlowCanvasSidePanel(); });
+  panel.querySelectorAll('[data-run]').forEach(function(row){
+    row.addEventListener('click',function(){ openAidaFlowCanvasRunDetail(row.getAttribute('data-run')); });
+  });
+}
+function renderAidaFlowCanvasRunDetailPanel(panel){
+  var html='<div class="afc-panel-head"><button type="button" class="afc-panel-back" id="afcPanelBack">&larr;</button><span>Run detail</span></div><div class="afc-panel-body">';
+  if(!aidaFlowsRunDetail){
+    html+='<div class="afc-panel-hint">Loading…</div></div>';
+    panel.innerHTML=html;
+    document.getElementById('afcPanelBack').addEventListener('click',function(){ aidaFlowCanvasPanelMode='runs'; renderAidaFlowCanvasSidePanel(); });
+    return;
+  }
+  var run=aidaFlowsRunDetail.run, steps=aidaFlowsRunDetail.steps;
+  html+='<div style="margin-bottom:10px">'+aidaFlowRunStatusBadge(run.status)+' <span class="afc-run-row-time">'+esc(_aidaHubRelTime(run.startedAt))+(run.finishedAt?' &rarr; '+esc(_aidaHubRelTime(run.finishedAt)):'')+'</span></div>';
+  if(run.errorMessage) html+='<div class="afc-run-error">'+esc(run.errorMessage)+'</div>';
+  html+=steps.map(function(s,i){
+    return '<div class="afc-run-step'+(s.status==='skipped'?' afc-run-step-skipped':'')+'">'+
+      '<div class="afc-run-step-head">'+aidaFlowRunStatusBadge(s.status)+'<span>'+esc(aidaFlowRunStepLabel(s,i))+'</span></div>'+
+      (s.status==='skipped'&&!s.errorMessage?'<div class="afc-run-io-label">Didn\'t run — an upstream step it depends on failed or was itself skipped</div>':'')+
+      (s.input!=null?'<div class="afc-run-io-label">Input</div><pre>'+esc(JSON.stringify(s.input,null,2))+'</pre>':'')+
+      (s.output!=null?'<div class="afc-run-io-label">Output</div><pre>'+esc(JSON.stringify(s.output,null,2))+'</pre>':'')+
+      (s.errorMessage?'<div class="afc-run-step-err">'+esc(s.errorMessage)+'</div>':'')+
+    '</div>';
+  }).join('');
+  html+='</div>';
+  panel.innerHTML=html;
+  document.getElementById('afcPanelBack').addEventListener('click',function(){ aidaFlowCanvasPanelMode='runs'; renderAidaFlowCanvasSidePanel(); });
+}
+
+
 function _aidaHubRelTime(iso){
   var d=new Date(iso), diffMin=Math.round((Date.now()-d.getTime())/60000);
   if(!isFinite(diffMin)) return '';
@@ -5163,8 +6821,9 @@ function ensureAidaOverlay(){
       </div>
 
       <button class="aida-close-btn" onclick="closeAidaOverlay()" title="Close"
-        style="position:absolute;top:16px;right:20px;width:36px;height:36px;border-radius:50%;border:1px solid #E4E2DE;background:#fff;color:#424242;font-size:15px;cursor:pointer;z-index:80;box-shadow:0 1px 4px rgba(0,0,0,.08)">✕</button>
+        style="position:absolute;top:16px;right:20px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--charcoal);font-size:15px;cursor:pointer;z-index:80;box-shadow:0 1px 4px rgba(0,0,0,.08)">✕</button>
       <button type="button" class="aida-layout-btn" id="aidaLayoutToggle" onclick="FloatingCard.toggleMode()"></button>
+      <button type="button" class="aida-theme-btn" id="aidaThemeToggle" onclick="toggleAidaThemeSetting()"></button>
       <button type="button" class="aida-popup-btn" id="aidaPopupToggle" onclick="toggleAidaResponsePopupSetting()"></button>
 
       <div class="stage">
@@ -5209,6 +6868,7 @@ function ensureAidaOverlay(){
     document.body.appendChild(ov);
     syncAidaLayoutToggle();
     syncAidaPopupToggle();
+    applyAidaTheme();
     window._aidaHubInit();
   }
   document.getElementById('aida-launcher-btn').style.display='flex';
