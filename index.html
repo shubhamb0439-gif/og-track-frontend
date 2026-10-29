@@ -91,6 +91,13 @@
   window.OGTRACK_getToken = () => localStorage.getItem('og_token') || null;
   window.OGTRACK_setToken = (t) => { if (t) localStorage.setItem('og_token', t); };
   window.OGTRACK_clearToken = () => localStorage.removeItem('og_token');
+  // The access token (above) lasts 12h with no refresh mechanism until this —
+  // once it expired, every call just 401'd until the person logged back in
+  // by hand. refreshToken lasts 30 days; see the fetch() override below for
+  // the actual refresh-and-retry-once logic.
+  window.OGTRACK_getRefreshToken = () => localStorage.getItem('og_refresh_token') || null;
+  window.OGTRACK_setRefreshToken = (t) => { if (t) localStorage.setItem('og_refresh_token', t); };
+  window.OGTRACK_clearRefreshToken = () => localStorage.removeItem('og_refresh_token');
 
   // ── Path rewriting ─────────────────────────────────────────────────────────
   // Given an original app path like '/api/bugs' or '/api/eod-reports', return
@@ -135,6 +142,31 @@
     return `/api/${slug}${rest}`;
   }
 
+  // ── Access-token refresh (single-flight) ────────────────────────────────────
+  // Several requests can 401 around the same moment right when the access
+  // token expires — they all await this SAME in-flight refresh instead of
+  // each firing their own /refresh call. Uses _origFetch directly (not the
+  // wrapped window.fetch below) so there's no risk of this itself recursing
+  // through the 401-retry logic it's part of.
+  let _ogRefreshInFlight = null;
+  function ogRefreshAccessToken() {
+    if (_ogRefreshInFlight) return _ogRefreshInFlight;
+    _ogRefreshInFlight = (async () => {
+      const rt = window.OGTRACK_getRefreshToken();
+      if (!rt) throw new Error('no refresh token');
+      const r = await _origFetch(window.OGTRACK_API_BASE + '/api/' + window.OGTRACK_SLUG + '/users/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: rt }),
+      });
+      if (!r.ok) throw new Error('refresh failed');
+      const data = await r.json();
+      window.OGTRACK_setToken(data.token);
+      window.OGTRACK_setRefreshToken(data.refreshToken);
+    })();
+    return _ogRefreshInFlight.finally(() => { _ogRefreshInFlight = null; });
+  }
+
   // ── fetch() interception ───────────────────────────────────────────────────
   const _origFetch = window.fetch.bind(window);
   window.fetch = function (input, init = {}) {
@@ -145,6 +177,10 @@
       if (url.startsWith('/api/') || url === '/api') {
         const newPath = rewriteApiPath(url);
         url = window.OGTRACK_API_BASE + newPath;
+        // Login/refresh calls must never trigger a refresh-and-retry of
+        // themselves on a 401 — that's just "wrong credentials" / "refresh
+        // token is dead", not an expired access token to recover from.
+        const isAuthEndpoint = /\/users\/(login|refresh)(\?|$)/.test(newPath);
 
         // Attach auth + ensure headers object exists.
         init = { ...init };
@@ -153,7 +189,26 @@
         if (token && !init.headers.has('Authorization')) {
           init.headers.set('Authorization', 'Bearer ' + token);
         }
-        return _origFetch(url, init);
+        return _origFetch(url, init).then((r) => {
+          if (r.status !== 401 || isAuthEndpoint || !window.OGTRACK_getRefreshToken()) return r;
+          return ogRefreshAccessToken()
+            .then(() => {
+              // Retry once, with the fresh token — the caller never sees
+              // the 401 that happened in between.
+              const retryInit = { ...init, headers: new Headers(init.headers) };
+              retryInit.headers.set('Authorization', 'Bearer ' + window.OGTRACK_getToken());
+              return _origFetch(url, retryInit);
+            })
+            .catch(() => {
+              // Refresh token itself is dead (30+ days old) or the account
+              // was deactivated — this is the one case that genuinely needs
+              // a real re-login.
+              window.OGTRACK_clearToken();
+              window.OGTRACK_clearRefreshToken();
+              if (!window.OGTRACK_IS_RESET_PASSWORD_PAGE) location.reload();
+              return r;
+            });
+        });
       }
     } catch (e) {
       // If anything goes wrong in rewriting, fall through to original fetch.
@@ -4285,6 +4340,7 @@ async function doLogin(){
     // New backend returns { token, user }. Store the JWT for the fetch adapter.
     const data = resp.user || resp;
     if(resp.token) window.OGTRACK_setToken(resp.token);
+    if(resp.refreshToken) window.OGTRACK_setRefreshToken(resp.refreshToken);
     localStorage.setItem('bt_user',JSON.stringify(data));
     currentUser=data;
     // Fade out auth screen immediately — don't wait for loadAll
@@ -4365,6 +4421,7 @@ function doLogout(){
   localStorage.removeItem('bt_user');
   localStorage.removeItem('bt_project');
   if(window.OGTRACK_clearToken) window.OGTRACK_clearToken();
+  if(window.OGTRACK_clearRefreshToken) window.OGTRACK_clearRefreshToken();
   sessionStorage.clear();
   currentUser=null;currentProject=null;bugs=[];allUsers=[];allProjects=[];
   conversations=[];activeConvoId=null;totalUnread=0;
@@ -6571,7 +6628,7 @@ function showImportPreview() {
   document.getElementById('import-body').innerHTML = `
     <div class="import-summary">
       <span class="import-sum-pill" style="background:#e8f5e9;color:#2e7d32">✓ ${valid.length} ready to import</span>
-      ${skipped.length ? `<span class="import-sum-pill" style="background:var(--g5);color:var(--g2)">⚠ ${skipped.length} skipped (no title)</span>` : ''}
+      ${skipped.length ? `<span class="import-sum-pill" style="background:var(--g5);color:var(--g2)"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ${skipped.length} skipped (no title)</span>` : ''}
     </div>
     <p style="font-size:12px;color:var(--g3);margin-bottom:12px">Review the bugs below. Bugs without a title are skipped. All bugs will be assigned to project: <strong>${currentProject?.name||'—'}</strong></p>
     <div style="overflow-x:auto">
@@ -6665,7 +6722,7 @@ async function confirmImport() {
   if (success > 0) {
     const summary = `${currentUser.name} imported ${success} bug${success!==1?'s':''} into ${currentProject?.name||'project'} from Excel`;
     // Show in own notif list too
-    notifications.unshift({ id: Date.now(), to: currentUser.role, icon: '📥',
+    notifications.unshift({ id: Date.now(), to: currentUser.role, icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
       msg: summary, time: new Date().toISOString(), read: false });
     renderNotifBadge(); renderNotifList();
   }
@@ -6795,7 +6852,7 @@ async function renderMessages() {
       </div>
       <div class="msg-main" id="msg-main">
         <div class="msg-empty">
-          <div style="font-size:36px">💬</div>
+          <div style="display:flex;justify-content:center"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
           <div style="font-size:15px;font-weight:500">Your Messages</div>
           <div style="font-size:13px">Select a conversation or start a new one</div>
           <button class="btn btn-primary" style="margin-top:8px" onclick="openNewConvModal()">+ New Message</button>
@@ -6887,9 +6944,9 @@ async function openConversation(id) {
       </div>
       <div id="mention-dropdown"></div>
       <div class="msg-input-area">
-        <button class="color-btn" onclick="toggleColorPicker(event)" title="Change bubble color">🎨</button>
-        <label class="color-btn" title="Attach file" style="cursor:pointer">📎<input type="file" id="msg-file-input" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" onchange="handleFileAttach(this,'${id}')"></label>
-        <button id="msg-urgent-btn" class="color-btn" onclick="toggleUrgent()" title="Mark as urgent" style="opacity:.4;font-size:17px">🚨</button>
+        <button class="color-btn" onclick="toggleColorPicker(event)" title="Change bubble color"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20c1.4 0 2-.9 2-1.9 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H16.5a3.5 3.5 0 0 0 3.5-3.5C20 6.5 16.4 2 12 2z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg></button>
+        <label class="color-btn" title="Attach file" style="cursor:pointer"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg><input type="file" id="msg-file-input" style="display:none" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" onchange="handleFileAttach(this,'${id}')"></label>
+        <button id="msg-urgent-btn" class="color-btn" onclick="toggleUrgent()" title="Mark as urgent" style="opacity:.4"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
         <textarea class="msg-input" id="msg-input" placeholder="Type a message… (@name to mention)" rows="1"
           onkeydown="handleMsgKeydown(event,'${id}')"
           oninput="handleTyping('${id}')"></textarea>
@@ -6962,8 +7019,8 @@ function aidaReportActionsHtml(m){
 }
 function aidaFixMessageActionsHtml(m,jobId,fix){
   const links=[
-    fix.preview?`<a href="${esc(fix.preview)}" target="_blank" rel="noopener" class="btn-sm btn-ghost" style="text-decoration:none;display:inline-block">🔗 Preview</a>`:'',
-    fix.pr?`<a href="${esc(fix.pr)}" target="_blank" rel="noopener" class="btn-sm btn-ghost" style="text-decoration:none;display:inline-block">📄 View PR</a>`:'',
+    fix.preview?`<a href="${esc(fix.preview)}" target="_blank" rel="noopener" class="btn-sm btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Preview</a>`:'',
+    fix.pr?`<a href="${esc(fix.pr)}" target="_blank" rel="noopener" class="btn-sm btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> View PR</a>`:'',
   ].filter(Boolean).join('');
   const linksRow=links?`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">${links}</div>`:'';
   // No PR at all → a terminal informational message (nothing was ever
@@ -8649,7 +8706,7 @@ async function renderAccDashboard(){
     <div class="stat-card"><div class="label">Time Today</div><div class="value grey">${fmtDuration(totalSecs)}</div></div>
     <div class="stat-card${running?' clickable active':''}" onclick="${running?"showView('acc_timer')":"''"}">
       <div class="label">Active Timer</div>
-      <div class="value ${running?'red':'grey'}">${running?'⏱ '+running.clientName:'—'}</div>
+      <div class="value ${running?'red':'grey'}">${running?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 2h6"/></svg> '+running.clientName:'—'}</div>
     </div>
   </div>`;
   if(myClients.length){
@@ -8666,7 +8723,7 @@ async function renderAccDashboard(){
   }
   if(running){
     html+=`<div class="acc-running-banner" onclick="showView('acc_timer')">
-      <span>⏱ Timer running: <strong>${running.clientName}</strong></span>
+      <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 2h6"/></svg> Timer running: <strong>${running.clientName}</strong></span>
       <span id="live-timer-display" style="font-size:20px;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums">—</span>
       <span style="font-size:12px;color:var(--g3)">Started ${fmtTime(running.startTime)} · tap to open Timer</span>
     </div>`;
@@ -8716,10 +8773,10 @@ async function renderAccClients(){
       ${c.industry?`<span class="acc-client-badge">${c.industry}</span>`:''}
     </div>
     ${c.description?`<div class="acc-client-desc">${c.description}</div>`:''}
-    <div class="acc-client-meta">👤 ${(c.assignedTo||[]).join(', ')||'Unassigned'}</div>
+    <div class="acc-client-meta" style="display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg> ${(c.assignedTo||[]).join(', ')||'Unassigned'}</div>
     <div class="acc-client-actions">
       ${isMine?`
-        <button class="action-btn" onclick="openStartTimerModal('${c.id}','${c.name.replace(/'/g,'\\'+'\'').replace(/"/g,'&quot;')}')">⏱ Start Timer</button>
+        <button class="action-btn" onclick="openStartTimerModal('${c.id}','${c.name.replace(/'/g,'\\'+'\'').replace(/"/g,'&quot;')}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 2h6"/></svg> Start Timer</button>
         <button class="action-btn" onclick="removeFromClient('${c.id}')">✕ Remove Me</button>
       `:`<button class="action-btn" style="color:var(--red);border-color:var(--red)" onclick="pickClient('${c.id}')">+ Pick Up</button>`}
       ${isSenior?`
@@ -8798,7 +8855,7 @@ async function renderAccTimer(){
         <select id="timer-client-sel" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
           <option value="">— Pick client —</option>${clientOpts}
         </select>
-        <button class="btn-primary" onclick="startTimer()">▶ Start</button>
+        <button class="btn-primary" onclick="startTimer()"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-1px;margin-right:3px"><path d="M6 4l14 8-14 8V4z"/></svg>Start</button>
       </div>`:''}
     </div>
     ${running?`<div class="acc-running-card">
@@ -8811,11 +8868,11 @@ async function renderAccTimer(){
             <div id="live-timer-display" style="font-size:28px;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums">—</div>
           </div>
         </div>
-        ${running.note?`<div style="font-size:13px;padding:8px 10px;background:rgba(0,0,0,.04);border-radius:7px;color:var(--g2);margin-bottom:10px">📝 ${running.note}</div>`:''}
-        <button class="btn-primary" style="background:var(--g2)" onclick="stopTimer('${running.id}')">⏹ Stop Timer</button>
+        ${running.note?`<div style="font-size:13px;padding:8px 10px;background:rgba(0,0,0,.04);border-radius:7px;color:var(--g2);margin-bottom:10px;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> ${running.note}</div>`:''}
+        <button class="btn-primary" style="background:var(--g2)" onclick="stopTimer('${running.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-1px;margin-right:3px"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>Stop Timer</button>
       </div>
     </div>`:`<div class="acc-no-timer">
-      <span style="font-size:32px">⏱</span>
+      <span style="font-size:32px;display:inline-flex"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 2h6"/></svg></span>
       <span>${availClients.length?'Select a client above and start tracking':'Pick a client first to start a timer'}</span>
     </div>`}
     <h3 style="font-size:12px;font-weight:600;color:var(--g3);margin:20px 0 8px;text-transform:uppercase;letter-spacing:.5px">TODAY'S SESSIONS (${todayDone.length})</h3>
@@ -8880,7 +8937,7 @@ function renderAccountantEod(){
   const total=Object.values(byClient).reduce((s,c)=>s+c.duration,0);
   const statusTag=report?(report.status==='reviewed'?
     `<span style="background:#27AE60;color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600">✓ Reviewed</span>`:
-    `<span style="background:#F39C12;color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600">⏳ Pending Review</span>`
+    `<span style="background:#F39C12;color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h14M5 22h14M6 2c0 6 5 7 5 10s-5 4-5 10M18 2c0 6-5 7-5 10s5 4 5 10"/></svg> Pending Review</span>`
   ):'';
   document.getElementById('content-area').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:8px">
@@ -8889,7 +8946,7 @@ function renderAccountantEod(){
       ${statusTag}
     </div>
     ${!submitted&&groups.length?`<div style="font-size:13px;color:var(--g3);margin-bottom:14px;padding:10px 12px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
-      ✏️ Review and edit your session notes below before submitting. Changes save automatically when you click away.
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Review and edit your session notes below before submitting. Changes save automatically when you click away.
     </div>`:''}
     ${!groups.length?`<div class="empty-state"><p>No completed sessions today.<br>Start &amp; stop timers on the Timer page to log your work.</p></div>`:`
       <div class="acc-eod-list">
@@ -8927,7 +8984,7 @@ function renderAccountantEod(){
       </div>`:`<div style="padding:12px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
           <div style="font-size:12px;color:var(--g3)">Submitted at ${fmtTime(report.submittedAt)}</div>
-          ${report.status!=='reviewed'?`<button class="action-btn" style="font-size:12px;padding:4px 10px" onclick="recallEodReport('${report.id}')">↩ Recall & Edit</button>`:''}
+          ${report.status!=='reviewed'?`<button class="action-btn" style="font-size:12px;padding:4px 10px" onclick="recallEodReport('${report.id}')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:2px"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg> Recall & Edit</button>`:''}
         </div>
         ${report.reviewNote?`<div style="margin-top:6px;font-size:13px"><strong>Senior's note:</strong> ${report.reviewNote}</div>`:''}
       </div>`}
@@ -9144,7 +9201,7 @@ function renderCompanies(){
           <div style="margin-left:auto;font-size:11px;color:var(--g3);align-self:center">${(c.modules||[]).length||'All'} modules</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="action-btn" onclick="window.open('/${c.slug}','_blank')" title="Open tenant URL">🔗 Open</button>
+          <button class="action-btn" onclick="window.open('/${c.slug}','_blank')" title="Open tenant URL" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Open</button>
           <button class="action-btn" onclick="openCompanyModal('${c.id}')">Edit</button>
           <button class="action-btn" style="color:#8E44AD;border-color:#8E44AD" onclick="_editingCompanyId='${c.id}';showView('company_modules')">Modules</button>
           <button class="action-btn" style="color:var(--red);border-color:var(--red)" onclick="deleteCompany('${c.id}','${c.name}')">Delete</button>
@@ -9159,7 +9216,7 @@ function renderCompanies(){
         <div class="field"><label>Company Name *</label><input id="cm-cname" placeholder="e.g. Kayo Technologies" class="input"></div>
         <div class="field"><label>URL Slug * <span style="font-size:11px;color:var(--g3)">(e.g. "kayo" → /kayo)</span></label><input id="cm-slug" placeholder="kayo" class="input" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'');checkSlugChangeWarning()"></div>
         <div class="field" id="cm-slug-warning" style="display:none;background:#fff3cd;border:1px solid #ffe69c;border-radius:6px;padding:8px 10px;font-size:12px;color:#664d03;margin-top:-6px">
-          ⚠️ Changing the slug changes this company's login URL. Anyone with the old link (e.g. bookmarks) will need the new one — it will not redirect automatically.
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Changing the slug changes this company's login URL. Anyone with the old link (e.g. bookmarks) will need the new one — it will not redirect automatically.
         </div>
         <div class="field"><label>Company Logo <span style="font-size:11px;color:var(--g3)">(Upload image)</span></label>
           <input type="file" id="cm-logo-file" accept="image/*" onchange="previewCompanyLogo(this)" style="display:block;margin-bottom:6px">
@@ -9317,7 +9374,7 @@ function renderCompanyModules(){
       <button class="action-btn" onclick="showView('companies')">← Back to Companies</button>
     </div>
     <div style="background:var(--bg);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--g2)">
-      ℹ️  Disabled modules are hidden from all users of <strong>${company.name}</strong>. Enabling them restores access immediately.
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="16" x2="12" y2="11"/><circle cx="12" cy="7.5" r=".6" fill="currentColor" stroke="none"/></svg> Disabled modules are hidden from all users of <strong>${company.name}</strong>. Enabling them restores access immediately.
     </div>
     <h3 style="font-size:13px;font-weight:600;color:var(--g2);margin:0 0 12px;text-transform:uppercase;letter-spacing:.5px">Built-in Modules</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:28px">
@@ -9704,7 +9761,7 @@ async function renderSubTickets(){
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap">
               <span style="font-size:11px;font-weight:700;color:var(--g3)">${t.ticketId}</span>
-              <span class="req-badge ${t.status}">${t.status==='pending'?'⏳ Pending':t.status==='approved'?'✓ Approved':t.status==='paid'?'✅ Paid':'✕ Rejected'}</span>
+              <span class="req-badge ${t.status}">${t.status==='pending'?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h14M5 22h14M6 2c0 6 5 7 5 10s-5 4-5 10M18 2c0 6-5 7-5 10s5 4 5 10"/></svg> Pending':t.status==='approved'?'✓ Approved':t.status==='paid'?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg> Paid':'✕ Rejected'}</span>
               <span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${catClr}20;color:${catClr};font-weight:600">${t.category}</span>
             </div>
             <div style="font-weight:600;font-size:14px;margin-bottom:3px">${t.name}</div>
@@ -9938,7 +9995,7 @@ function viewSubTicket(id){
   document.getElementById('subtd-body').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <span class="req-badge ${t.status}">${t.status==='pending'?'⏳ Pending':t.status==='approved'?'✓ Approved':t.status==='paid'?'✅ Paid':'✕ Rejected'}</span>
+        <span class="req-badge ${t.status}">${t.status==='pending'?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2h14M5 22h14M6 2c0 6 5 7 5 10s-5 4-5 10M18 2c0 6-5 7-5 10s5 4 5 10"/></svg> Pending':t.status==='approved'?'✓ Approved':t.status==='paid'?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg> Paid':'✕ Rejected'}</span>
         <span style="background:var(--bg);color:var(--g2);font-size:12px;padding:3px 10px;border-radius:10px;font-weight:600">${t.category}</span>
         <span style="background:var(--bg);color:var(--g2);font-size:12px;padding:3px 10px;border-radius:10px">${t.billingCycle||'monthly'}</span>
       </div>
@@ -10036,7 +10093,7 @@ function _renderSprintList(){
         </div>
         <button class="btn" style="background:#fff;color:#C0392B;font-weight:700;padding:8px 18px" onclick="_boardSprintId='${active.id}';_sprintSubview='board';renderSprints()">View Board →</button>
       </div>
-      ${active.goal?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25);font-size:13px;opacity:.85">🎯 ${active.goal}</div>`:''}
+      ${active.goal?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25);font-size:13px;opacity:.85;display:flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> ${active.goal}</div>`:''}
       ${(()=>{const {done,total,pct,clr}=_sprintProgress(active.id);return total>0?`<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;font-size:12px;opacity:.8;margin-bottom:5px"><span>${done}/${total} items done</span><span>${pct}%</span></div><div class="sprint-progress-bar" style="background:rgba(255,255,255,.2)"><div class="sprint-progress-fill" style="width:${pct}%;background:#fff"></div></div></div>`:'';})()}
     </div>`:''}
     <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -10052,11 +10109,11 @@ function _renderSprintList(){
             <div>
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
                 <span class="sprint-badge ${sp.status}">${sp.status==='active'?'● Active':sp.status==='planned'?'○ Planned':'✓ Completed'}</span>
-                ${sp.devEditEnabled?`<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:#3498DB18;color:#3498DB;font-weight:600;border:1px solid #3498DB40">✏ Dev edit</span>`:''}
+                ${sp.devEditEnabled?`<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:#3498DB18;color:#3498DB;font-weight:600;border:1px solid #3498DB40"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg> Dev edit</span>`:''}
               </div>
               <div style="font-size:16px;font-weight:700">${sp.name}</div>
               <div style="font-size:12px;color:var(--g3);margin-top:2px">${sp.startDate} → ${sp.endDate}</div>
-              ${sp.goal?`<div style="font-size:12px;color:var(--g3);margin-top:4px">🎯 ${sp.goal}</div>`:''}
+              ${sp.goal?`<div style="font-size:12px;color:var(--g3);margin-top:4px;display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> ${sp.goal}</div>`:''}
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="_boardSprintId='${sp.id}';_sprintSubview='board';renderSprints()">View Board</button>
@@ -10085,7 +10142,7 @@ function _bugCard(b,isManager){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
       <span style="font-size:11px;color:var(--g3)">${b.assignee||'Unassigned'}</span>
       <div style="display:flex;gap:4px">
-        <button onclick="currentView='bugs';currentBug='${b.id}';renderView()" class="story-move-btn" title="View bug">👁</button>
+        <button onclick="currentView='bugs';currentBug='${b.id}';renderView()" class="story-move-btn" title="View bug"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
         ${isManager?`<button onclick="unlinkBugFromSprint('${b.id}')" class="story-move-btn" style="color:var(--red)" title="Remove from sprint">✕</button>`:''}
       </div>
     </div>
@@ -10109,14 +10166,14 @@ function _renderBoard(){
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px">
           <div style="font-size:17px;font-weight:700">${sprint.name}</div>
-          ${sprint.devEditEnabled&&!isManager?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#3498DB18;color:#3498DB;font-weight:600;border:1px solid #3498DB40">✏ Edit access granted</span>`:''}
-          ${sprint.devEditEnabled&&isManager?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#27AE6018;color:#27AE60;font-weight:600;border:1px solid #27AE6040">✏ Dev edit on</span>`:''}
+          ${sprint.devEditEnabled&&!isManager?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#3498DB18;color:#3498DB;font-weight:600;border:1px solid #3498DB40"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit access granted</span>`:''}
+          ${sprint.devEditEnabled&&isManager?`<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#27AE6018;color:#27AE60;font-weight:600;border:1px solid #27AE6040"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg> Dev edit on</span>`:''}
         </div>
         <div style="font-size:12px;color:var(--g3)">${sprint.startDate} → ${sprint.endDate}</div>
       </div>
       ${canEditContent?`<button class="btn btn-primary btn-sm" onclick="openStoryModal('${_boardSprintId}')">+ Add Story</button>`:''}
     </div>
-    ${sprint.goal?`<div style="font-size:13px;color:var(--g3);margin-bottom:8px">🎯 ${sprint.goal}</div>`:''}
+    ${sprint.goal?`<div style="font-size:13px;color:var(--g3);margin-bottom:8px;display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> ${sprint.goal}</div>`:''}
     ${total>0?`<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--g3);margin-bottom:4px"><span>${done}/${total} items done</span><span style="color:${clr};font-weight:600">${pct}%</span></div><div class="sprint-progress-bar"><div class="sprint-progress-fill" style="width:${pct}%;background:${clr}"></div></div></div>`:''}
     <div class="sprint-board">
       ${cols.map(col=>{
@@ -10530,13 +10587,13 @@ function renderHrJobs(){
         </div>
       </div>
       <div class="hr-job-meta">
-        <span class="hr-tag">📁 ${j.department}</span>
-        <span class="hr-tag">⏱ ${j.employmentType}</span>
-        <span class="hr-tag">📍 ${j.location}</span>
-        <span class="hr-tag">💻 ${j.workMode}</span>
-        ${j.experience?`<span class="hr-tag">🏆 ${j.experience}</span>`:''}
-        ${j.salaryRange?`<span class="hr-tag">💰 ${j.salaryRange}</span>`:''}
-        ${j.vacancies?`<span class="hr-tag">📌 ${j.vacancies} opening${j.vacancies>1?'s':''}</span>`:''}
+        <span class="hr-tag" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> ${j.department}</span>
+        <span class="hr-tag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 2h6"/></svg> ${j.employmentType}</span>
+        <span class="hr-tag" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8c0 4.5-6 11-6 11S6 12.5 6 8a6 6 0 0 1 12 0z"/><circle cx="12" cy="8" r="2.2"/></svg> ${j.location}</span>
+        <span class="hr-tag" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M2 20h20"/></svg> ${j.workMode}</span>
+        ${j.experience?`<span class="hr-tag" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5.5"/><path d="M9 13l-1.5 7L12 18l4.5 2L15 13"/></svg> ${j.experience}</span>`:''}
+        ${j.salaryRange?`<span class="hr-tag" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5.5a4.5 4.5 0 0 0-4.5-2H10a3.5 3.5 0 0 0 0 7h4a3.5 3.5 0 0 1 0 7h-2.5a4.5 4.5 0 0 1-4.5-2"/></svg> ${j.salaryRange}</span>`:''}
+        ${j.vacancies?`<span class="hr-tag" style="display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8c0 4.5-6 11-6 11S6 12.5 6 8a6 6 0 0 1 12 0z"/><circle cx="12" cy="8" r="2.2"/></svg> ${j.vacancies} opening${j.vacancies>1?'s':''}</span>`:''}
       </div>
       ${skills.length?`<div style="margin-bottom:8px">${skills.slice(0,6).map(s=>`<span class="hr-tag" style="font-size:11px;margin:2px">${s}</span>`).join('')}</div>`:''}
       <div style="display:flex;gap:8px;align-items:center">
@@ -10544,7 +10601,7 @@ function renderHrJobs(){
         ${j.lastDate?`<span style="font-size:12px;color:var(--g3)">· Apply by ${j.lastDate}</span>`:''}
         <div style="margin-left:auto;display:flex;gap:6px">
           ${j.status==='draft'?`<button class="btn-sm" onclick="changeJobStatus('${j.id}','published')">Publish</button>`:''}
-          ${j.status==='published'?`<button class="btn-sm" onclick="changeJobStatus('${j.id}','closed')">Close</button><a href="${window.COMPANY_CONTEXT?'/'+window.COMPANY_CONTEXT.slug+'/careers':'/careers'}/${j.id}" target="_blank" class="btn-sm" style="text-decoration:none">View Page ↗</a>`:''}
+          ${j.status==='published'?`<button class="btn-sm" onclick="changeJobStatus('${j.id}','closed')">Close</button><a href="${window.COMPANY_CONTEXT?'/'+window.COMPANY_CONTEXT.slug+'/careers':'/careers'}/${j.id}" target="_blank" class="btn-sm" style="text-decoration:none">View Page <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-left:2px"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>`:''}
           ${j.status==='closed'?`<button class="btn-sm" onclick="changeJobStatus('${j.id}','published')">Reopen</button>`:''}
         </div>
       </div>
@@ -10554,13 +10611,13 @@ function renderHrJobs(){
   document.getElementById('content-area').innerHTML=`
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
       <input type="text" value="${_hrJobFilter}" placeholder="Search jobs..." oninput="_hrJobFilter=this.value;renderHrJobs()" style="flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white);color:var(--dark);font-family:inherit">
-      <a href="${window.COMPANY_CONTEXT?'/'+window.COMPANY_CONTEXT.slug+'/careers':'/careers'}" target="_blank" class="btn-sm" style="text-decoration:none;white-space:nowrap">View Career Page ↗</a>
+      <a href="${window.COMPANY_CONTEXT?'/'+window.COMPANY_CONTEXT.slug+'/careers':'/careers'}" target="_blank" class="btn-sm" style="text-decoration:none;white-space:nowrap">View Career Page <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-left:2px"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>
       <button class="btn-primary" onclick="openJobModal(null)">+ Post Job</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       ${['all','draft','published','closed'].map(s=>`<button class="hr-section-tab ${_hrJobFilter===s||(!_hrJobFilter&&s==='all')?'active':''}" onclick="_hrJobFilter=this.dataset.v;renderHrJobs()" data-v="${s==='all'?'':s}">${s==='all'?'All Jobs':s.charAt(0).toUpperCase()+s.slice(1)}</button>`).join('')}
     </div>
-    ${cards||'<div style="text-align:center;padding:60px 20px;color:var(--g3)"><div style="font-size:40px;margin-bottom:12px">📋</div><p>No jobs found.</p><button class="btn-primary" style="margin-top:12px" onclick="openJobModal(null)">Post Your First Job</button></div>'}`;
+    ${cards||'<div style="text-align:center;padding:60px 20px;color:var(--g3)"><div style="display:flex;justify-content:center;margin-bottom:12px"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg></div><p>No jobs found.</p><button class="btn-primary" style="margin-top:12px" onclick="openJobModal(null)">Post Your First Job</button></div>'}`;
 }
 
 function viewJobCandidates(jobId){
@@ -10788,7 +10845,7 @@ async function viewCandidate(id){
         <span class="hr-status-badge ${i.status||'scheduled'}">${i.status||'Scheduled'}</span>
       </div>
       ${i.interviewers?`<div style="font-size:12px;color:var(--g2);margin-bottom:4px">Interviewers: ${i.interviewers}</div>`:''}
-      ${i.meetingLink?`<a href="${i.meetingLink}" target="_blank" style="font-size:12px;color:var(--red)">Meeting Link ↗</a>`:''}
+      ${i.meetingLink?`<a href="${i.meetingLink}" target="_blank" style="font-size:12px;color:var(--red)">Meeting Link <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-left:2px"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a>`:''}
       ${i.rating?`<div style="font-size:12px;margin-top:6px">Rating: ${'★'.repeat(i.rating)}${'☆'.repeat(5-i.rating)} (${i.rating}/5)</div>`:''}
       ${i.feedback?`<div style="font-size:12px;color:var(--g2);margin-top:4px;background:var(--bg);padding:8px;border-radius:6px">${i.feedback}</div>`:''}
     </div>`).join('');
@@ -10815,8 +10872,8 @@ async function viewCandidate(id){
           </div>
         </div>
         ${c.skills?`<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--g3);font-weight:600;margin-bottom:6px">SKILLS</div><div>${c.skills.split(',').map(s=>`<span class="hr-tag" style="font-size:11px;margin:2px">${s.trim()}</span>`).join('')}</div></div>`:''}
-        ${c.portfolio?`<div style="margin-bottom:10px"><a href="${c.portfolio}" target="_blank" style="color:var(--red);font-size:13px">Portfolio / LinkedIn ↗</a></div>`:''}
-        ${c.resumeUrl?`<div style="margin-bottom:10px"><a href="${c.resumeUrl}" target="_blank" style="color:var(--red);font-size:13px">📎 Download Resume</a></div>`:''}
+        ${c.portfolio?`<div style="margin-bottom:10px"><a href="${c.portfolio}" target="_blank" style="color:var(--red);font-size:13px">Portfolio / LinkedIn <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-left:2px"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a></div>`:''}
+        ${c.resumeUrl?`<div style="margin-bottom:10px"><a href="${c.resumeUrl}" target="_blank" style="color:var(--red);font-size:13px;display:inline-flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Download Resume</a></div>`:''}
         <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--g3);font-weight:600;margin-bottom:6px">JOB APPLIED FOR</div><div style="font-size:13px;font-weight:600">${job?job.title:'Unknown Job'}</div>${job?`<div style="font-size:12px;color:var(--g3)">${job.department} · ${job.location}</div>`:''}</div>
         ${c.coverLetter?`<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--g3);font-weight:600;margin-bottom:6px">COVER LETTER</div><div style="font-size:13px;color:var(--g2);line-height:1.6;background:var(--bg);padding:10px;border-radius:8px;max-height:150px;overflow-y:auto">${c.coverLetter}</div></div>`:''}
         <div style="margin-top:12px">
@@ -10902,8 +10959,8 @@ function renderHrInterviews(){
           ${i.rating?`<span style="font-size:12px">${'★'.repeat(i.rating)}${'☆'.repeat(5-i.rating)}</span>`:''}
         </div>
       </div>
-      ${i.interviewers?`<div style="font-size:12px;color:var(--g2)">👤 ${i.interviewers}</div>`:''}
-      ${i.meetingLink?`<a href="${i.meetingLink}" target="_blank" style="font-size:12px;color:var(--red);display:block;margin-top:4px">🔗 Join Meeting ↗</a>`:''}
+      ${i.interviewers?`<div style="font-size:12px;color:var(--g2);display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg> ${i.interviewers}</div>`:''}
+      ${i.meetingLink?`<a href="${i.meetingLink}" target="_blank" style="font-size:12px;color:var(--red);display:flex;align-items:center;gap:4px;margin-top:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Join Meeting</a>`:''}
       ${i.feedback?`<div style="font-size:12px;color:var(--g2);margin-top:8px;background:var(--bg);padding:8px;border-radius:6px">${i.feedback}</div>`:''}
       <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
         ${i.status==='scheduled'?`<button class="btn-sm" onclick="markInterviewComplete('${i.id}')">Mark Complete</button><button class="btn-sm" onclick="openInterviewFeedback('${i.id}')">Add Feedback</button>`:''}
@@ -11390,18 +11447,18 @@ async function renderCeoDashboard(){
 <!-- KPI Cards -->
 <div class="ceo-section-title">Key Performance Indicators</div>
 <div class="ceo-kpi-grid">
-  <div class="ceo-kpi-card green"><span class="ceo-kpi-icon">👥</span><div class="ceo-kpi-label">Total Employees</div><div class="ceo-kpi-num">${totalEmp}</div><div class="ceo-kpi-sub">Active workforce</div></div>
-  <div class="ceo-kpi-card green"><span class="ceo-kpi-icon">✅</span><div class="ceo-kpi-label">Present Today</div><div class="ceo-kpi-num">${presentToday}</div><div class="ceo-kpi-sub">${totalEmp?Math.round(presentToday/totalEmp*100):0}% attendance</div></div>
-  <div class="ceo-kpi-card red"><span class="ceo-kpi-icon">❌</span><div class="ceo-kpi-label">Absent Today</div><div class="ceo-kpi-num">${absentToday}</div><div class="ceo-kpi-sub">Not checked in</div></div>
-  <div class="ceo-kpi-card orange"><span class="ceo-kpi-icon">🏖️</span><div class="ceo-kpi-label">On Leave</div><div class="ceo-kpi-num">${onLeaveToday}</div><div class="ceo-kpi-sub">Approved leave</div></div>
-  <div class="ceo-kpi-card orange"><span class="ceo-kpi-icon">⏰</span><div class="ceo-kpi-label">Late Check-ins</div><div class="ceo-kpi-num">${lateArrivals}</div><div class="ceo-kpi-sub">After 9:30 AM</div></div>
-  <div class="ceo-kpi-card teal"><span class="ceo-kpi-icon">🏠</span><div class="ceo-kpi-label">Remote Workers</div><div class="ceo-kpi-num">${remoteToday}</div><div class="ceo-kpi-sub">Working remotely</div></div>
-  <div class="ceo-kpi-card purple"><span class="ceo-kpi-icon">💼</span><div class="ceo-kpi-label">Open Positions</div><div class="ceo-kpi-num">${openJobs}</div><div class="ceo-kpi-sub">Active job openings</div></div>
-  <div class="ceo-kpi-card blue"><span class="ceo-kpi-icon">🔄</span><div class="ceo-kpi-label">In Pipeline</div><div class="ceo-kpi-num">${pipelineCandidates}</div><div class="ceo-kpi-sub">Active candidates</div></div>
-  <div class="ceo-kpi-card blue"><span class="ceo-kpi-icon">🗓️</span><div class="ceo-kpi-label">Interviews Today</div><div class="ceo-kpi-num">${todayInterviews}</div><div class="ceo-kpi-sub">Scheduled</div></div>
-  <div class="ceo-kpi-card teal"><span class="ceo-kpi-icon">📨</span><div class="ceo-kpi-label">Offers Released</div><div class="ceo-kpi-num">${offersReleased}</div><div class="ceo-kpi-sub">Pending acceptance</div></div>
-  <div class="ceo-kpi-card red"><span class="ceo-kpi-icon">⚠️</span><div class="ceo-kpi-label">Pending Approvals</div><div class="ceo-kpi-num">${pendingTotal}</div><div class="ceo-kpi-sub">${pendLeave}L · ${pendReg}R · ${pendST}T</div></div>
-  <div class="ceo-kpi-card indigo"><span class="ceo-kpi-icon">🚀</span><div class="ceo-kpi-label">Active Projects</div><div class="ceo-kpi-num">${activeProjects}</div><div class="ceo-kpi-sub">${deptCount} departments</div></div>
+  <div class="ceo-kpi-card green"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><path d="M16 14.5c2.8.3 5 2.7 5 5.5"/><circle cx="17" cy="7.5" r="2.6"/></svg></span><div class="ceo-kpi-label">Total Employees</div><div class="ceo-kpi-num">${totalEmp}</div><div class="ceo-kpi-sub">Active workforce</div></div>
+  <div class="ceo-kpi-card green"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg></span><div class="ceo-kpi-label">Present Today</div><div class="ceo-kpi-num">${presentToday}</div><div class="ceo-kpi-sub">${totalEmp?Math.round(presentToday/totalEmp*100):0}% attendance</div></div>
+  <div class="ceo-kpi-card red"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></span><div class="ceo-kpi-label">Absent Today</div><div class="ceo-kpi-num">${absentToday}</div><div class="ceo-kpi-sub">Not checked in</div></div>
+  <div class="ceo-kpi-card orange"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12A10 10 0 0 0 2 12z"/><path d="M12 12v8a2 2 0 0 1-4 0"/><path d="M12 4v1"/></svg></span><div class="ceo-kpi-label">On Leave</div><div class="ceo-kpi-num">${onLeaveToday}</div><div class="ceo-kpi-sub">Approved leave</div></div>
+  <div class="ceo-kpi-card orange"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 14.5"/><path d="M5 3 2 6M19 3l3 3"/></svg></span><div class="ceo-kpi-label">Late Check-ins</div><div class="ceo-kpi-num">${lateArrivals}</div><div class="ceo-kpi-sub">After 9:30 AM</div></div>
+  <div class="ceo-kpi-card teal"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg></span><div class="ceo-kpi-label">Remote Workers</div><div class="ceo-kpi-num">${remoteToday}</div><div class="ceo-kpi-sub">Working remotely</div></div>
+  <div class="ceo-kpi-card purple"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span><div class="ceo-kpi-label">Open Positions</div><div class="ceo-kpi-num">${openJobs}</div><div class="ceo-kpi-sub">Active job openings</div></div>
+  <div class="ceo-kpi-card blue"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span><div class="ceo-kpi-label">In Pipeline</div><div class="ceo-kpi-num">${pipelineCandidates}</div><div class="ceo-kpi-sub">Active candidates</div></div>
+  <div class="ceo-kpi-card blue"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><div class="ceo-kpi-label">Interviews Today</div><div class="ceo-kpi-num">${todayInterviews}</div><div class="ceo-kpi-sub">Scheduled</div></div>
+  <div class="ceo-kpi-card teal"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg></span><div class="ceo-kpi-label">Offers Released</div><div class="ceo-kpi-num">${offersReleased}</div><div class="ceo-kpi-sub">Pending acceptance</div></div>
+  <div class="ceo-kpi-card red"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><div class="ceo-kpi-label">Pending Approvals</div><div class="ceo-kpi-num">${pendingTotal}</div><div class="ceo-kpi-sub">${pendLeave}L · ${pendReg}R · ${pendST}T</div></div>
+  <div class="ceo-kpi-card indigo"><span class="ceo-kpi-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></span><div class="ceo-kpi-label">Active Projects</div><div class="ceo-kpi-num">${activeProjects}</div><div class="ceo-kpi-sub">${deptCount} departments</div></div>
 </div>
 
 <!-- Charts Row 1 -->
@@ -11441,31 +11498,31 @@ async function renderCeoDashboard(){
 <div class="ceo-section-title">Live Feeds</div>
 <div class="ceo-widget-grid">
   <div class="ceo-widget-card">
-    <div class="ceo-widget-title">🗓️ Today's Interviews <span style="font-size:11px;font-weight:400;color:var(--g3)">${todayInterviews} scheduled</span></div>
+    <div class="ceo-widget-title" style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Today's Interviews <span style="font-size:11px;font-weight:400;color:var(--g3)">${todayInterviews} scheduled</span></div>
     ${todayIntList.length?todayIntList.map(i=>`<div class="ceo-widget-row"><div style="flex:1"><strong>${i.candidateName||'Candidate'}</strong><div style="font-size:11px;color:var(--g3)">${(jobs.find(j=>j.id===i.jobId)||{}).title||'–'}</div></div><div style="font-size:11px;color:var(--g3)">${i.time||'TBD'}</div></div>`).join(''):'<div style="color:var(--g3);font-size:12px;padding:8px 0">No interviews today</div>'}
   </div>
   <div class="ceo-widget-card">
-    <div class="ceo-widget-title">⚠️ Pending Approvals <span style="font-size:11px;font-weight:400;color:var(--g3)">${pendingTotal}</span></div>
+    <div class="ceo-widget-title" style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Pending Approvals <span style="font-size:11px;font-weight:400;color:var(--g3)">${pendingTotal}</span></div>
     ${pendLeaveList.length?pendLeaveList.map(l=>`<div class="ceo-widget-row"><div style="flex:1"><strong>${l.userName||l.userId||'Employee'}</strong><div style="font-size:11px;color:var(--g3)">${l.type||'Leave'} · ${l.date||l.startDate||''}</div></div><span style="font-size:11px;padding:2px 7px;background:#FEF9E7;color:#F39C12;border-radius:10px">Pending</span></div>`).join(''):'<div style="color:var(--g3);font-size:12px;padding:8px 0">No pending leave approvals</div>'}
     ${pendST>0?`<div class="ceo-widget-row"><div style="flex:1;color:var(--g3);font-size:12px">${pendST} open support ticket${pendST>1?'s':''}</div></div>`:''}
   </div>
   <div class="ceo-widget-card">
-    <div class="ceo-widget-title">📥 Recent Applications <span style="font-size:11px;font-weight:400;color:var(--g3)">${candidates.length} total</span></div>
+    <div class="ceo-widget-title" style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Recent Applications <span style="font-size:11px;font-weight:400;color:var(--g3)">${candidates.length} total</span></div>
     ${recentApps.length?recentApps.map(c=>`<div class="ceo-widget-row"><div style="flex:1"><strong>${c.name||c.email||'Candidate'}</strong><div style="font-size:11px;color:var(--g3)">${(jobs.find(j=>j.id===c.jobId)||{}).title||'Unknown position'}</div></div>${c.aiScore!=null?`<span style="font-size:11px;padding:2px 7px;background:#EBF5FB;color:#3498DB;border-radius:10px">${c.aiScore}%</span>`:''}</div>`).join(''):'<div style="color:var(--g3);font-size:12px;padding:8px 0">No applications yet</div>'}
   </div>
   <div class="ceo-widget-card">
-    <div class="ceo-widget-title">🎂 Birthdays &amp; Anniversaries</div>
-    ${birthdays.length?birthdays.map(n=>`<div class="ceo-widget-row">🎂 <span>${n}</span></div>`).join(''):''}
-    ${anniversaries.length?anniversaries.map(n=>`<div class="ceo-widget-row">🎉 <span>${n} — Work Anniversary</span></div>`).join(''):''}
+    <div class="ceo-widget-title" style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="20" height="4"/><rect x="4" y="13" width="16" height="8"/><path d="M12 9v12"/><path d="M12 9c-1.5-5-6-5-6-2.5S9 9 12 9z"/><path d="M12 9c1.5-5 6-5 6-2.5S15 9 12 9z"/></svg> Birthdays &amp; Anniversaries</div>
+    ${birthdays.length?birthdays.map(n=>`<div class="ceo-widget-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="20" height="4"/><rect x="4" y="13" width="16" height="8"/><path d="M12 9v12"/><path d="M12 9c-1.5-5-6-5-6-2.5S9 9 12 9z"/><path d="M12 9c1.5-5 6-5 6-2.5S15 9 12 9z"/></svg> <span>${n}</span></div>`).join(''):''}
+    ${anniversaries.length?anniversaries.map(n=>`<div class="ceo-widget-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="17" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="14" r="1.2" fill="currentColor" stroke="none"/><path d="M3 21l6-15 12 9-15 6z"/></svg> <span>${n} — Work Anniversary</span></div>`).join(''):''}
     ${!birthdays.length&&!anniversaries.length?'<div style="color:var(--g3);font-size:12px;padding:8px 0">No birthdays or anniversaries today</div>':''}
   </div>
   <div class="ceo-widget-card">
-    <div class="ceo-widget-title">🆕 New Joiners <span style="font-size:11px;font-weight:400;color:var(--g3)">last 30 days</span></div>
-    ${newJoiners.length?newJoiners.slice(0,5).map(n=>`<div class="ceo-widget-row">👤 <span>${n}</span></div>`).join(''):'<div style="color:var(--g3);font-size:12px;padding:8px 0">No new joiners recently</div>'}
+    <div class="ceo-widget-title" style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><text x="12" y="16" font-size="9" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">N</text></svg> New Joiners <span style="font-size:11px;font-weight:400;color:var(--g3)">last 30 days</span></div>
+    ${newJoiners.length?newJoiners.slice(0,5).map(n=>`<div class="ceo-widget-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg> <span>${n}</span></div>`).join(''):'<div style="color:var(--g3);font-size:12px;padding:8px 0">No new joiners recently</div>'}
     ${newJoiners.length>5?`<div style="font-size:11px;color:var(--g3);padding-top:6px">+${newJoiners.length-5} more</div>`:''}
   </div>
   <div class="ceo-widget-card">
-    <div class="ceo-widget-title">🔔 CEO Notifications</div>
+    <div class="ceo-widget-title" style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> CEO Notifications</div>
     ${ceoNotifs.map(n=>`<div class="ceo-notif-row"><div class="ceo-notif-dot" style="background:${n.dot}"></div><div>${n.text}</div></div>`).join('')}
   </div>
 </div>
@@ -11634,6 +11691,7 @@ const CRM_ICONS={
   convert:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M2 9h12M10 5l4 4-4 4"/></svg>`,
   purchase:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M2 3h2l2 9h8l2-6H5"/><circle cx="7" cy="15" r="1"/><circle cx="13" cy="15" r="1"/></svg>`,
   sale:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M2 9.5L7 4l3 3 4.5-5.5M11 1.5h3.5V5"/></svg>`,
+  delivery:`<svg width="16" height="16" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="1" y="5" width="10" height="8" rx="1"/><path d="M11 7h3l2.5 3v3H11z"/><circle cx="4.5" cy="14.5" r="1.3"/><circle cx="13" cy="14.5" r="1.3"/></svg>`,
   chevronDown:`<svg width="14" height="14" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="5,7 9,11 13,7"/></svg>`,
   chevronRight:`<svg width="14" height="14" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="7,5 11,9 7,13"/></svg>`,
 };
@@ -12424,7 +12482,7 @@ function crmOrderDetailHtml(po){
         </tr>`).join('')}</tbody></table>`)}
     </div>
     <div>
-      <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">🚚 Delivery History</div>
+      <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px">${CRM_ICONS.delivery} Delivery History</div>
       ${!cached ? '<div style="font-size:13px;color:var(--g3)">Loading…</div>' : (!cached.deliveries.length ? '<div style="font-size:13px;color:var(--g3)">No deliveries found for this PO.</div>' : `
         <table style="width:100%;font-size:13px"><tbody>${cached.deliveries.map(d=>`<tr><td>${esc(d.deliveryNumber)}</td><td>${d.scheduledDate?new Date(d.scheduledDate).toLocaleDateString():'—'}</td><td>${d.delivered?'Delivered':'Pending'}</td></tr>`).join('')}</tbody></table>`)}
     </div>`;
@@ -12767,7 +12825,7 @@ function invItemsTableHtml(){
     }
     return true;
   });
-  const alertLabel={critical:'⚠ Below Min',reorder:'⚠ Reorder'};
+  const alertLabel={critical:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Below Min',reorder:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Reorder'};
   return !list.length
     ? `<tr><td colspan="8" class="empty-state">${invItems.length?'No items match your filters.':'No items yet.'}</td></tr>`
     : list.map(i=>{
@@ -13864,7 +13922,7 @@ function mfgAssemblyDetailHtml(assembly){
   if(!cached) return '<div style="font-size:13px;color:var(--g3)">Loading…</div>';
   const rows=cached.componentsUsed||[];
   return `
-    <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">📦 Components Used</div>
+    <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V7l-9-4-9 4v1"/><path d="M3 8l9 4 9-4"/><path d="M3 8v9l9 4 9-4V8"/><line x1="12" y1="12" x2="12" y2="21"/></svg> Components Used</div>
     ${!rows.length ? '<div style="font-size:13px;color:var(--g3)">No component consumption recorded.</div>' : `
       <table style="width:100%;font-size:13px">
         <thead><tr><th style="text-align:left">Item ID</th><th style="text-align:left">Item Name</th><th>Qty per Unit</th><th>Total Used</th><th>Source</th></tr></thead>
@@ -14691,7 +14749,7 @@ function zohoSyncBadgeHtml(s){
     return `<div style="font-size:11px;color:#16A085;margin-top:2px" title="${s.zohoInvoiceId?'Zoho invoice '+esc(s.zohoInvoiceId):''}">✓ Synced to Zoho</div>`;
   }
   if(s.zohoSyncStatus==='failed'){
-    return `<div style="font-size:11px;color:var(--red);margin-top:2px;cursor:help" title="${esc(s.zohoSyncError||'Zoho sync failed')}">⚠ Zoho sync failed</div>`;
+    return `<div style="font-size:11px;color:var(--red);margin-top:2px;cursor:help" title="${esc(s.zohoSyncError||'Zoho sync failed')}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Zoho sync failed</div>`;
   }
   return '';
 }
@@ -15098,7 +15156,7 @@ function renderDeliveryItemsChecklist(){
     : deliveryModalItems.map((item,idx)=>`
       <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid ${item.checked?'var(--red2)':'var(--border)'};border-radius:8px;margin-bottom:6px;cursor:pointer;background:${item.checked?'var(--red2)11':'transparent'}">
         <input type="checkbox" ${item.checked?'checked':''} onchange="toggleDeliveryItem(${idx},this.checked)">
-        <span>📦</span>
+        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V7l-9-4-9 4v1"/><path d="M3 8l9 4 9-4"/><path d="M3 8v9l9 4 9-4V8"/><line x1="12" y1="12" x2="12" y2="21"/></svg></span>
         <span>${esc(item.label)}</span>
       </label>`).join('');
   const countLabel=document.getElementById('delivery-primary-btn-hint');
@@ -15313,7 +15371,7 @@ async function renderSitaraDashboard(){
       <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Total</th><th>Date</th></tr></thead>
       <tbody>
         ${recent.length?recent.map(o=>`<tr${o.isStale?' style="background:#C0392B0d"':''}>
-          <td>${esc(o.orderNumber||o.id||'—')}${o.isStale?' <span title="Status hasn\'t changed in a while — needs attention" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#C0392B22;color:#C0392B;vertical-align:middle">⚠ STALE</span>':''}</td>
+          <td>${esc(o.orderNumber||o.id||'—')}${o.isStale?' <span title="Status hasn\'t changed in a while — needs attention" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#C0392B22;color:#C0392B;vertical-align:middle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> STALE</span>':''}</td>
           <td>${esc(o.customerName||'—')}</td>
           <td><span style="text-transform:capitalize">${esc((o.status||'—').replace(/_/g,' '))}</span></td>
           <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
@@ -15671,7 +15729,7 @@ async function sendSitaraOrderConfirmationEmail(id){
 }
 function sitaraSendConfirmationBtnHtml(o,small){
   const sending=!!sitaraOrderSendingEmail[o.id];
-  return `<button class="${small?'btn-sm':'btn'} btn-primary" ${sending?'disabled':''} onclick="sendSitaraOrderConfirmationEmail('${o.id}')">${sending?'Sending…':'✉ Send Confirmation Email'}</button>`;
+  return `<button class="${small?'btn-sm':'btn'} btn-primary" ${sending?'disabled':''} onclick="sendSitaraOrderConfirmationEmail('${o.id}')">${sending?'Sending…':'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:2px"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg> Send Confirmation Email'}</button>`;
 }
 // All nullable — a cart-recovered or manually-entered order may genuinely
 // have no address/email on file yet, so this shows that plainly rather than
@@ -15866,7 +15924,7 @@ function sitaraOrdersTbodyHtml(list){
     const syncWarning=sitaraOrderSyncWarnings[o.id];
     const mainRow=`<tr${o.isStale?' style="background:#C0392B0d"':''}>
       <td><button onclick="toggleSitaraOrderExpand('${o.id}')" style="background:none;border:none;cursor:pointer;color:var(--g3);font-size:14px">${isOpen?'▾':'▸'}</button></td>
-      <td><strong>${esc(o.orderNumber||o.id)}</strong>${o.isStale?' <span title="Status hasn\'t changed in a while — needs attention" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#C0392B22;color:#C0392B;vertical-align:middle">⚠ STALE</span>':''}</td>
+      <td><strong>${esc(o.orderNumber||o.id)}</strong>${o.isStale?' <span title="Status hasn\'t changed in a while — needs attention" style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;background:#C0392B22;color:#C0392B;vertical-align:middle"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> STALE</span>':''}</td>
       <td>
         <div>${esc(o.customerName||'—')}</div>
         ${o.customerCity?`<div style="font-size:11px;color:var(--g3)">${esc(o.customerCity)}</div>`:''}
@@ -15876,7 +15934,7 @@ function sitaraOrdersTbodyHtml(list){
           ${!statusKnown&&o.status?`<option value="${esc(o.status)}" selected>${esc(o.status)} (unrecognized)</option>`:''}
           ${SITARA_ORDER_STATUSES.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`).join('')}
         </select>
-        ${syncWarning?`<div style="margin-top:4px;font-size:11px;color:#C0392B;display:flex;align-items:center;gap:6px">⚠ ${esc(syncWarning)} <button onclick="dismissSitaraSyncWarning('${o.id}')" style="background:none;border:none;cursor:pointer;color:#C0392B;font-size:11px;text-decoration:underline;padding:0">dismiss</button></div>`:''}
+        ${syncWarning?`<div style="margin-top:4px;font-size:11px;color:#C0392B;display:flex;align-items:center;gap:6px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ${esc(syncWarning)} <button onclick="dismissSitaraSyncWarning('${o.id}')" style="background:none;border:none;cursor:pointer;color:#C0392B;font-size:11px;text-decoration:underline;padding:0">dismiss</button></div>`:''}
       </td>
       <td>${o.total!=null?sitaraInr(o.total):'—'}</td>
       <td>${sitaraTimeInStatus(o.statusChangedAt||o.createdAt)}</td>
@@ -15917,7 +15975,7 @@ function renderSitaraOrders(){
       </select>
       <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid ${sitaraOrderFilters.staleOnly?'#C0392B':'var(--border)'};border-radius:6px;font-size:12.5px;color:#C0392B;cursor:pointer;background:${sitaraOrderFilters.staleOnly?'#C0392B15':'none'}">
         <input type="checkbox" ${sitaraOrderFilters.staleOnly?'checked':''} onchange="setSitaraOrderFilter('staleOnly',this.checked)">
-        ⚠ Stale only (${staleCount})
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Stale only (${staleCount})
       </label>
     </div>
     <div class="table-wrap"><table>
@@ -16063,7 +16121,7 @@ function renderSitaraRazorpay(){
     .sort((a,b)=>(a.matched===b.matched)?0:(a.matched?1:-1));
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:13px;color:var(--g3)">${unmatchedCount?`<span style="color:#C0392B;font-weight:600">⚠ ${unmatchedCount} unmatched payment${unmatchedCount===1?'':'s'}</span>`:'All payments matched to an order.'}</div>
+      <div style="font-size:13px;color:var(--g3)">${unmatchedCount?`<span style="color:#C0392B;font-weight:600"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ${unmatchedCount} unmatched payment${unmatchedCount===1?'':'s'}</span>`:'All payments matched to an order.'}</div>
       <button class="btn-sm ${sitaraRazorpayUnmatchedOnly?'btn-primary':'btn-ghost'}" onclick="toggleSitaraRazorpayUnmatchedOnly()">${sitaraRazorpayUnmatchedOnly?'Show all payments':'Show unmatched only'}</button>
     </div>
     <div class="table-wrap"><table>
@@ -16078,7 +16136,7 @@ function renderSitaraRazorpay(){
             <td>${p.capturedAt?new Date(p.capturedAt).toLocaleString('en-GB'):(p.createdAt?new Date(p.createdAt).toLocaleString('en-GB'):'—')}</td>
             <td>${p.matched
               ? `<strong>${esc(p.orderNumber||'—')}</strong><div style="font-size:12px;color:var(--g3)">${esc(p.customerName||p.customerEmail||'')}</div>`
-              : `<span style="color:#C0392B;font-weight:600">⚠ No matching order found</span>`}
+              : `<span style="color:#C0392B;font-weight:600"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> No matching order found</span>`}
             </td>
           </tr>`;
         }).join(''):`<tr><td colspan="5" class="empty-state">${sitaraRazorpayUnmatchedOnly?'No unmatched payments.':'No Razorpay payments yet.'}</td></tr>`}
@@ -17705,7 +17763,7 @@ var AidaFaceFlow=(function(){
         modal=document.createElement('div');
         modal.id='aidaUrlPreviewModal';
         modal.className='aida-url-preview-modal';
-        modal.innerHTML='<div class="aida-url-preview-modal-bar"><span id="aidaUrlPreviewModalLink"></span><a id="aidaUrlPreviewModalOpen" target="_blank" rel="noopener">Open in new tab ↗</a><button type="button" onclick="closeAidaUrlPreview()">✕</button></div><iframe id="aidaUrlPreviewModalFrame" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>';
+        modal.innerHTML='<div class="aida-url-preview-modal-bar"><span id="aidaUrlPreviewModalLink"></span><a id="aidaUrlPreviewModalOpen" target="_blank" rel="noopener">Open in new tab <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-left:2px"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg></a><button type="button" onclick="closeAidaUrlPreview()">✕</button></div><iframe id="aidaUrlPreviewModalFrame" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>';
         document.body.appendChild(modal);
       }
       document.getElementById('aidaUrlPreviewModalFrame').src=url;
@@ -17862,10 +17920,10 @@ var AidaFaceFlow=(function(){
     // degrades to a clear toast if the endpoint doesn't exist yet, rather
     // than a silent failure. ──
     const AIDA_CONNECTOR_CATALOG=[
-      {provider:'google_drive',label:'Google Drive',icon:'📁'},
-      {provider:'github',label:'GitHub',icon:'🐙'},
-      {provider:'notion',label:'Notion',icon:'📝'},
-      {provider:'slack',label:'Slack',icon:'💬'},
+      {provider:'google_drive',label:'Google Drive',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'},
+      {provider:'github',label:'GitHub',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 3 12 9 6"/><polyline points="15 6 21 12 15 18"/></svg>'},
+      {provider:'notion',label:'Notion',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'},
+      {provider:'slack',label:'Slack',icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>'},
     ];
     window.openAidaConnectorsPanel=function(){
       openFloatingModal(connectorsModal,document.getElementById('aidaAttachBtn'));

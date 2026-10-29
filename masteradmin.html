@@ -2055,6 +2055,7 @@ const ALL_MODULES = [
 const SITARA_MODULE_KEYS = ['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'];
 
 let token = localStorage.getItem('ma_token') || null;
+let refreshToken = localStorage.getItem('ma_refresh_token') || null;
 let adminInfo = null;
 let companies = [];
 let editingCompanyId = null;
@@ -2084,8 +2085,10 @@ async function doLogin() {
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Login failed');
     token = data.token;
+    refreshToken = data.refreshToken;
     adminInfo = data.admin;
     localStorage.setItem('ma_token', token);
+    localStorage.setItem('ma_refresh_token', refreshToken);
     localStorage.setItem('ma_admin', JSON.stringify(adminInfo));
     showMain();
   } catch(e) {
@@ -2100,18 +2103,70 @@ document.addEventListener('keydown', e => {
 
 function signOut() {
   clearAidaSessionOnLogout(); // fire-and-forget, needs the still-valid token — call before clearing it below
-  token = null; adminInfo = null;
+  token = null; refreshToken = null; adminInfo = null;
   localStorage.removeItem('ma_token');
+  localStorage.removeItem('ma_refresh_token');
   localStorage.removeItem('ma_admin');
   document.getElementById('main-screen').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
 }
 
-async function authFetch(path, opts={}) {
+// Single-flight refresh — several requests can 401 around the same moment
+// right when the access token expires (12h lifetime); they all await this
+// SAME in-flight call instead of each firing their own /refresh request.
+let _maRefreshInFlight = null;
+function maRefreshAccessToken() {
+  if (_maRefreshInFlight) return _maRefreshInFlight;
+  _maRefreshInFlight = (async () => {
+    const r = await fetch(`${API}/api/masteradmin/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!r.ok) throw new Error('refresh failed');
+    const data = await r.json();
+    token = data.token;
+    refreshToken = data.refreshToken;
+    localStorage.setItem('ma_token', token);
+    localStorage.setItem('ma_refresh_token', refreshToken);
+  })();
+  return _maRefreshInFlight.finally(() => { _maRefreshInFlight = null; });
+}
+
+async function authFetch(path, opts={}, _isRetry=false) {
   const r = await fetch(`${API}${path}`, {
     ...opts,
     headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${token}`, ...(opts.headers||{}) },
   });
+  if (r.status === 401 && !_isRetry && refreshToken) {
+    try {
+      await maRefreshAccessToken();
+    } catch (e) {
+      signOut();
+      throw new Error('Session expired');
+    }
+    return authFetch(path, opts, true); // retry once, with the fresh token — the user never sees this happen
+  }
+  if (r.status === 401) { signOut(); throw new Error('Session expired'); }
+  return r;
+}
+
+// Same refresh-then-retry-once as authFetch, for the handful of raw (non-
+// authFetch) requests — multipart uploads can't go through authFetch since
+// it forces Content-Type: application/json, stripping the browser's own
+// multipart boundary. doRequest must read the CURRENT `token` value each
+// call (via a closure), so the retry after a refresh picks up the new one.
+async function withTokenRefresh(doRequest) {
+  let r = await doRequest();
+  if (r.status === 401 && refreshToken) {
+    try {
+      await maRefreshAccessToken();
+    } catch (e) {
+      signOut();
+      throw new Error('Session expired');
+    }
+    r = await doRequest();
+  }
   if (r.status === 401) { signOut(); throw new Error('Session expired'); }
   return r;
 }
@@ -2653,12 +2708,11 @@ async function uploadCompanyLogo(input) {
     form.append('logo', file);
     // Deliberately not using authFetch here: it forces Content-Type: application/json,
     // which would strip the multipart boundary the browser sets for FormData.
-    const r = await fetch(`${API}/api/masteradmin/upload-logo`, {
+    const r = await withTokenRefresh(() => fetch(`${API}/api/masteradmin/upload-logo`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: form,
-    });
-    if (r.status === 401) { signOut(); throw new Error('Session expired'); }
+    }));
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Upload failed');
     document.getElementById('cm-logo').value = d.url;
@@ -4639,8 +4693,7 @@ var AidaFaceFlow=(function(){
           form.append('file',file);
           if(aidaSelectedProvider&&aidaSelectedModel){ form.append('provider',aidaSelectedProvider); form.append('model',aidaSelectedModel); }
           if(aidaActiveConversationId) form.append('conversationId',aidaActiveConversationId);
-          r=await fetch(`${API}/api/masteradmin/aida/chat`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:form});
-          if(r.status===401){ signOut(); throw new Error('Session expired'); }
+          r=await withTokenRefresh(()=>fetch(`${API}/api/masteradmin/aida/chat`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:form}));
         }else{
           var body={message:text,pageContext:buildAidaPageContext()};
           if(aidaSelectedProvider&&aidaSelectedModel){ body.provider=aidaSelectedProvider; body.model=aidaSelectedModel; }
@@ -4863,8 +4916,7 @@ var AidaFaceFlow=(function(){
         form.append('pageContext',JSON.stringify(buildAidaPageContext()));
         if(aidaSelectedProvider&&aidaSelectedModel){ form.append('provider',aidaSelectedProvider); form.append('model',aidaSelectedModel); }
         if(aidaActiveConversationId) form.append('conversationId',aidaActiveConversationId);
-        var r=await fetch(`${API}/api/masteradmin/aida/voice-input`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:form});
-        if(r.status===401){ signOut(); throw new Error('Session expired'); }
+        var r=await withTokenRefresh(()=>fetch(`${API}/api/masteradmin/aida/voice-input`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:form}));
         var data=await r.json();
         if(!r.ok){
           if(r.status===400){ AidaFaceFlow.failed(); showAidaModelError(data.error||'Invalid model selection.'); return; }
@@ -6447,7 +6499,7 @@ function aidaFlowStepConfigFormHtml(node,step,stepIdx){
             return '<option value="'+pi+'" '+(ref.stepIndex===pi?'selected':'')+'>'+esc(aidaFlowStepLabel(pi))+'</option>';
           }).join('')+
         '</select>'+
-        '<input id="'+fid+'_path" type="text" placeholder="field.path" value="'+esc(ref.path)+'" onchange="setAidaFlowFieldRef('+stepIdx+',\''+safeField+'\')">'+
+        '<input id="'+fid+'_path" type="text" placeholder="field.path" value="'+esc(ref.path)+'" oninput="setAidaFlowFieldRef('+stepIdx+',\''+safeField+'\')">'+
       '</div>';
     }else{
       row+=aidaFlowLiteralInputHtml(schema,fieldName,stepIdx,cur,ancestorIdxs,fid);
@@ -6506,6 +6558,18 @@ window.saveAidaFlowCanvas=async function(){
   var d=aidaFlowsDraft;
   var nameInput=document.getElementById('afcNameInput'); if(nameInput) d.name=nameInput.value;
   var descInput=document.getElementById('afcDescInput'); if(descInput) d.description=descInput.value;
+  // Belt-and-suspenders flush for the currently-open step panel's "From
+  // earlier step" controls — same reasoning as the name/desc flush above:
+  // don't rely solely on the select/input having already fired their event
+  // by the time Save is clicked, or a ref field can end up missing from the
+  // saved config entirely.
+  if(aidaFlowCanvasSelected!=null&&aidaFlowCanvasSelected!=='trigger'){
+    var refPrefix='flowstep'+aidaFlowCanvasSelected+'_';
+    document.querySelectorAll('input[id^="'+refPrefix+'"][id$="_path"]').forEach(function(inp){
+      var fieldName=inp.id.slice(refPrefix.length,inp.id.length-'_path'.length);
+      setAidaFlowFieldRef(aidaFlowCanvasSelected,fieldName);
+    });
+  }
   var name=(d.name||'').trim();
   if(!name){ showToast('Give this flow a name','error'); return; }
   // Paused steps are a client-side-only concept (the backend has no "step
