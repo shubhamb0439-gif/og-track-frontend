@@ -2096,6 +2096,11 @@ async function doLogin() {
     localStorage.setItem('ma_refresh_token', refreshToken);
     localStorage.setItem('ma_admin', JSON.stringify(adminInfo));
     showMain();
+    // Land on AIDA right after signing in — not on a token-restored page
+    // refresh (see the init() IIFE below), only on an actual login action.
+    // Pushes /master-admin/aida so closing AIDA (or hitting back) returns
+    // the admin to the dashboard themselves, same as any other AIDA entry.
+    openAidaOverlay();
   } catch(e) {
     err.textContent = e.message;
   } finally {
