@@ -617,13 +617,26 @@
    Options/CSP) — nothing fixes that from here, so the caption always
    offers "open in a new tab" as the fallback. ── */
 .aida-url-preview{ margin-top:10px; border:1px solid var(--fcard-border,var(--line)); border-radius:10px; overflow:hidden; }
-.aida-url-preview-frame{ height:360px; background:#fff; }
+.aida-url-preview-frame{ height:360px; min-height:160px; background:#fff; position:relative; overflow:hidden; }
 /* A card holding a preview needs more room than a plain text reply to
    actually show something like a dashboard, not just its top-left corner —
    widened via this modifier (added in appendAidaUrlPreview()) rather than
-   changing every card's default size. */
+   changing every card's default size. Also makes the preview area itself
+   (not just the bar below it) grow/shrink when the card is resized via its
+   native corner handle (.fcard{resize:both}) — fcard-body becomes a column
+   flex so the preview wrapper can claim the extra room instead of leaving
+   blank scrollable space under it. */
 .fcard.has-url-preview{ width:min(640px, calc(100vw - 24px)); }
-.aida-url-preview-frame iframe{ width:100%; height:100%; border:none; display:block; }
+.fcard.has-url-preview .fcard-body{ display:flex; flex-direction:column; }
+.fcard.has-url-preview .aida-url-preview{ flex:1 1 auto; min-height:0; display:flex; flex-direction:column; margin-bottom:0; }
+.fcard.has-url-preview .aida-url-preview-frame{ flex:1 1 auto; min-height:160px; }
+/* The iframe always renders the page at a fixed "desktop" size (1440x900)
+   regardless of how small the card actually is, then gets scaled down as a
+   whole via a CSS transform (applied by aidaFitUrlPreviewFrame(), which a
+   ResizeObserver re-runs on every resize of the box above) — a true
+   zoomed-OUT thumbnail of the real desktop layout, not a cramped mobile
+   reflow of it or a cropped corner of a full-size viewport. */
+.aida-url-preview-frame iframe{ width:1440px; height:900px; border:none; display:block; position:absolute; top:0; left:0; transform-origin:0 0; }
 .aida-url-preview-bar{
     display:flex; align-items:center; gap:8px; padding:6px 10px;
     background:rgba(0,0,0,.04); font-size:11px;
@@ -4331,6 +4344,23 @@ var AidaFaceFlow=(function(){
       const raw=md?md[1]:(text.match(AIDA_URL_RE)||[])[0];
       return raw?raw.replace(/[.,;:!?]+$/,''):null;
     }
+    // The inline preview always renders the page at this fixed "desktop"
+    // size, then scales the whole iframe down (never cropped, never
+    // reflowed into a cramped mobile layout) to fit whatever box the card
+    // actually has — width AND height, so the ENTIRE page is visible at
+    // once, just smaller. aidaFitUrlPreviewFrame() computes that scale;
+    // a ResizeObserver re-runs it on every resize of the box (dragging the
+    // card's own corner handle included), so it stays uniform automatically.
+    const AIDA_URL_PREVIEW_VW=1440, AIDA_URL_PREVIEW_VH=900;
+    function aidaFitUrlPreviewFrame(frameEl){
+      const iframe=frameEl&&frameEl.querySelector('iframe');
+      if(!iframe) return;
+      const cw=frameEl.clientWidth, ch=frameEl.clientHeight;
+      if(!cw||!ch) return;
+      const scale=Math.min(cw/AIDA_URL_PREVIEW_VW, ch/AIDA_URL_PREVIEW_VH);
+      const offX=(cw-AIDA_URL_PREVIEW_VW*scale)/2, offY=(ch-AIDA_URL_PREVIEW_VH*scale)/2;
+      iframe.style.transform='translate('+offX+'px,'+offY+'px) scale('+scale+')';
+    }
     function appendAidaUrlPreview(cardHandle,url){
       if(!cardHandle||!cardHandle.el) return;
       const body=cardHandle.el.querySelector('.fcard-body');
@@ -4341,6 +4371,11 @@ var AidaFaceFlow=(function(){
       wrap.innerHTML='<div class="aida-url-preview-frame"><iframe src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>'+
         '<div class="aida-url-preview-bar"><span title="'+esc(url)+'">'+esc(url)+'</span><button type="button" onclick="expandAidaUrlPreview(\''+url.replace(/'/g,"\\'")+'\')">⤢ Expand</button></div>';
       body.appendChild(wrap);
+      const frameEl=wrap.querySelector('.aida-url-preview-frame');
+      aidaFitUrlPreviewFrame(frameEl);
+      if(window.ResizeObserver){
+        new ResizeObserver(function(){ aidaFitUrlPreviewFrame(frameEl); }).observe(frameEl);
+      }
       // FloatingCard doesn't expose its own layout() directly, and
       // card.setText()/appendText() would wipe out the HTML just appended
       // (it replaces the body with a single text node) — a synthetic resize
