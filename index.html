@@ -17827,16 +17827,14 @@ var AidaFaceFlow=(function(){
     if(window.Chart&&window.ChartDataLabels) Chart.register(ChartDataLabels);
     const AIDA_CHART_FENCE_RE=/```aida-chart\s*\n([\s\S]*?)```/;
     let _aidaChartSeq=0;
-    // A small palette built outward from AIDA's own brand red (hue ~357°)
-    // rather than Chart.js's default rainbow, so a multi-slice pie still
-    // reads as "AIDA's own" — rotates hue, cycles lightness.
+    // AIDA's fixed 4-color chart theme (red/orange/green/blue), always in
+    // this order, so every chart reads as "AIDA's own" rather than Chart.js's
+    // default rainbow. Repeats from the top for a 5th+ series/slice — these
+    // 4 are a deliberate brand set, not an open-ended generated scale.
+    const AIDA_CHART_COLORS=['#E74C3C','#F39C12','#2ECC71','#3498DB'];
     function aidaChartPalette(n){
       const colors=[];
-      for(let i=0;i<n;i++){
-        const hue=((357-i*27)%360+360)%360;
-        const light=i===0?42:[48,58,66,36,52][i%5];
-        colors.push('hsl('+hue+',62%,'+light+'%)');
-      }
+      for(let i=0;i<n;i++) colors.push(AIDA_CHART_COLORS[i%AIDA_CHART_COLORS.length]);
       return colors;
     }
     function aidaChartIsDark(){ return document.documentElement.getAttribute('data-theme')==='dark'; }
