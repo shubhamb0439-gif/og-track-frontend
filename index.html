@@ -1115,9 +1115,9 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
    none of these class names or @keyframes can collide with the rest of
    this file) from the exact dashboard.css/logo.js the user supplied. ── */
 #aida-overlay {
-    --bg:#ebe7be;
-    --panel:#ebe7be;
-    --line:#d8d4a8;
+    --bg:#ebe7de;
+    --panel:#ebe7de;
+    --line:#d7d3c6;
     --charcoal:#424242;
     --red:#B7252D;
     --readbadge:#F3E9EA;
@@ -1133,6 +1133,14 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
     --chat-assistant-text:#fff;
     --chat-code-tint:rgba(255,255,255,.08);
     --input-bg:#fff;
+    /* Logo mark's 3 layers (outer bubble / inner circle / plus-or-x-or-wave
+       icon) — the inner circle matches --bg rather than being plain white,
+       and in dark mode the icon glyph stays this same light cream (not
+       dynamic, not pure white) so it reads clearly against either the dark
+       outer ring or the black middle circle. */
+    --logo-outer:#2b2b2b;
+    --logo-middle:#ebe7de;
+    --logo-icon:#111111;
     --logo-size: clamp(190px, 30vmin, 300px);
     background:var(--bg); color:var(--text);
   }
@@ -1155,6 +1163,9 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
     --chat-assistant-text:#1a1a1a;
     --chat-code-tint:rgba(0,0,0,.06);
     --input-bg:#2a2930;
+    --logo-outer:#17161a;
+    --logo-middle:#000000;
+    --logo-icon:#ebe7de;
   }
 
 /* Hint lines step aside while the particle face is up (AidaFaceFlow). */
@@ -1661,10 +1672,14 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
     50%{ opacity:.35; }
   }
 
-#aida-overlay .logo-btn .middle-layer {
-    fill:#ffffff; opacity:1;
+#aida-overlay .logo-btn .middle-layer, #aida-overlay .logo-btn .middle-layer-alt {
+    fill:var(--logo-middle); opacity:1;
     transition:fill .9s ease, opacity .45s ease, transform .6s ease;
     transform-box:view-box; transform-origin:84.7197px 84.287px;
+  }
+#aida-overlay .logo-btn .logo-outer{ fill:var(--logo-outer); transition:fill .3s ease; }
+#aida-overlay .logo-btn .icon-x rect, #aida-overlay .logo-btn .icon-plus path, #aida-overlay .logo-btn .icon-wave rect{
+    fill:var(--logo-icon); transition:fill .3s ease;
   }
 
 
@@ -16274,7 +16289,7 @@ let aidaSelectedModel=null;
 function logoMarkup() {
   return `<button class="logo-btn" id="logoBtn" aria-label="Hold to open menu" aria-haspopup="true" aria-expanded="false">
       <svg viewBox="0 0 179 173" xmlns="http://www.w3.org/2000/svg">
-        <path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#2b2b2b"/>
+        <path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#2b2b2b" class="logo-outer"/>
         <path class="middle-layer" id="middleLayer" d="M84.7197 25.3936C117.725 25.3936 144.481 51.7607 144.481 84.2861C144.481 116.812 117.725 143.18 84.7197 143.18C73.4569 143.18 62.9223 140.108 53.9297 134.771L54.8389 135.703L22.8389 142.867L32.5322 113.006C27.7074 104.51 24.958 94.7142 24.958 84.2861C24.9583 51.7607 51.7142 25.3936 84.7197 25.3936Z"/>
         <path class="middle-layer-alt" id="middleLayerAlt" transform="translate(24.958,25.394)" d="M59.7617 0C26.7562 2.0319e-06 0.000248955 26.3671 0 58.8926C0 91.4182 26.756 117.786 59.7617 117.786C71.0246 117.786 81.5591 114.715 90.5518 109.377L89.6426 110.31L121.643 117.474L111.949 87.6123C116.774 79.1163 119.523 69.3206 119.523 58.8926C119.523 26.3671 92.7673 0 59.7617 0Z"/>
         <g class="icon-x" id="iconX">
