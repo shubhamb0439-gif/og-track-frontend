@@ -6755,6 +6755,21 @@ window.setAidaFlowStepRawConfig=function(stepIdx,raw){
 };
 
 // ── Save ──
+// Every "From earlier step" control writes its composed {{step_<id>...}}
+// token straight into the real field name (setAidaFlowFieldRef,
+// setAidaFlowCompareStep/Field above) — never a shadow `<field>_picker` key.
+// This is a pure safety net on top of that, not a fix for a currently-live
+// write path: it strips any `_picker`-suffixed key before every save, so (a)
+// a flow saved by a now-superseded version of this picker (stray keys with
+// an unresolved, empty path — exactly what an old deploy would still be
+// running until this build goes out) gets cleaned up the next time it's
+// edited, and (b) that class of bug can never reach the backend again even
+// if some future change reintroduces it.
+function aidaFlowStripPickerKeys(cfg){
+  var out={};
+  Object.keys(cfg||{}).forEach(function(k){ if(!/_picker$/.test(k)) out[k]=cfg[k]; });
+  return out;
+}
 window.saveAidaFlowCanvas=async function(){
   var d=aidaFlowsDraft;
   var nameInput=document.getElementById('afcNameInput'); if(nameInput) d.name=nameInput.value;
@@ -6788,7 +6803,7 @@ window.saveAidaFlowCanvas=async function(){
   if(!liveSteps.length){ showToast('Add at least one connected (non-paused) step','error'); return; }
   var stepsPayload=liveSteps.map(function(s){
     var deps=(Array.isArray(s.dependsOn)?s.dependsOn:[]).filter(function(dep){ return oldToNew.hasOwnProperty(dep); }).map(function(dep){ return oldToNew[dep]; });
-    return {toolName:s.toolName,config:s.config||{},dependsOn:deps};
+    return {toolName:s.toolName,config:aidaFlowStripPickerKeys(s.config||{}),dependsOn:deps};
   });
   var isEdit=!!aidaFlowsEditingId;
   try{
