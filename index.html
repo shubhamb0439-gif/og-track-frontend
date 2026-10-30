@@ -4117,6 +4117,27 @@ body { transition: background .3s ease, color .3s ease; }
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('testcase-detail-modal')">Close</button></div>
   </div>
 </div>
+<!-- Tester Bug Tracker Modal -->
+<div class="modal-overlay" id="tbug-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h2 id="tbug-modal-title">New Bug</h2><button class="modal-close" onclick="closeModal('tbug-modal')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Title *</label><input id="tbug-title" placeholder="e.g. Checkout button unresponsive on mobile"></div>
+      <div class="form-group"><label>Description</label><textarea id="tbug-description" style="min-height:90px" placeholder="Steps to reproduce, expected vs actual behavior..."></textarea></div>
+      <div class="form-group"><label>Priority</label>
+        <select id="tbug-priority" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
+          <option value="Low">Low</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="High">High</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('tbug-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTesterBug()">Save Bug</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="edit-entry-modal">
   <div class="modal" style="max-width:420px">
@@ -4807,6 +4828,7 @@ function buildSidebar(){
       (window.COMPANY_CONTEXT.customModules||[]).forEach(m=>{
         navItems.push([m.id||m.label,m.label,'#8E44AD',m.url]);
       });
+      if(role==='tester' && allowed.includes('tester_bug_tracker')) navItems.push(['tester_bug_tracker','Bug Tracker','#E74C3C']);
     }
   } else {
     // Custom role — build nav from permissions
@@ -4857,6 +4879,7 @@ function buildSidebar(){
     if(perms.includes('bugs')) navItems.push(['bugs','All Bugs','#7F7F7F']);
     if(perms.includes('mybugs')) navItems.push(['mybugs','My Bugs','#D0D0D0']);
     if(perms.includes('test_cases')) navItems.push(['test_cases','Test Cases','#2980B9']);
+    if(perms.includes('tester_bug_tracker')) navItems.push(['tester_bug_tracker','Bug Tracker','#E74C3C']);
     if(perms.includes('hr_dashboard')) navItems.push(['hr_dashboard','HR Dashboard','#C0392B']);
     if(perms.includes('hr_jobs')) navItems.push(['hr_jobs','Job Openings','#8E44AD']);
     if(perms.includes('hr_candidates')) navItems.push(['hr_candidates','Candidates','#2980B9']);
@@ -4907,6 +4930,7 @@ function buildSidebar(){
     bugs:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><ellipse cx="9" cy="10" rx="4" ry="5"/><line x1="5" y1="10" x2="2" y2="10"/><line x1="13" y1="10" x2="16" y2="10"/><line x1="5" y1="13" x2="2" y2="15"/><line x1="13" y1="13" x2="16" y2="15"/><line x1="5" y1="7" x2="2" y2="5"/><line x1="13" y1="7" x2="16" y2="5"/><path d="M6 5.5c0-1.7 1.3-3 3-3s3 1.3 3 3"/></svg>`,
     mybugs:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="7.5" cy="7.5" r="5"/><line x1="11.5" y1="11.5" x2="16" y2="16"/></svg>`,
     test_cases:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="3" y="2.5" width="12" height="13" rx="1.5"/><path d="M6.5 2V1a.5.5 0 01.5-.5h4a.5.5 0 01.5.5v1"/><polyline points="6,9 7.5,10.5 11,7"/></svg>`,
+    tester_bug_tracker:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><ellipse cx="9" cy="10" rx="4" ry="5"/><line x1="5" y1="10" x2="2" y2="10"/><line x1="13" y1="10" x2="16" y2="10"/><line x1="9" y1="5" x2="9" y2="3"/></svg>`,
     acc_clients:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="5.5" r="3"/><path d="M3 17c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>`,
     acc_timer:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><circle cx="9" cy="10.5" r="5.5"/><polyline points="9,8 9,10.5 11,12"/><line x1="7" y1="2" x2="11" y2="2"/><line x1="9" y1="2" x2="9" y2="5"/></svg>`,
     acc_eod:`<svg width="18" height="18" viewBox="0 0 18 18" ${_si}><rect x="3.5" y="2.5" width="11" height="13" rx="1"/><line x1="3.5" y1="6.5" x2="14.5" y2="6.5"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="12" y1="1" x2="12" y2="4"/><line x1="6" y1="10" x2="12" y2="10"/><line x1="6" y1="13" x2="10" y2="13"/></svg>`,
@@ -5018,6 +5042,9 @@ function connectSocket(){
   });
   socket.on('testcase:updated',tc=>{testCases=testCases.map(t=>t.id===tc.id?tc:t);if(currentView==='test_cases') renderView();});
   socket.on('testcase:deleted',({id})=>{testCases=testCases.filter(t=>t.id!==id);if(currentView==='test_cases') renderView();});
+  socket.on('tester_bug:created',b=>{if(!testerBugs.find(x=>x.id===b.id))testerBugs.push(b);if(currentView==='tester_bug_tracker') renderView();});
+  socket.on('tester_bug:updated',b=>{testerBugs=testerBugs.map(x=>x.id===b.id?b:x);if(currentView==='tester_bug_tracker') renderView();});
+  socket.on('tester_bug:deleted',({id})=>{testerBugs=testerBugs.filter(x=>x.id!==id);if(currentView==='tester_bug_tracker') renderView();});
   socket.on('project:created',p=>{if(!allProjects.find(x=>x.id===p.id))allProjects.unshift(p);if(currentView==='projects')renderView();});
   socket.on('project:updated',p=>{allProjects=allProjects.map(x=>x.id===p.id?p:x);if(currentView==='projects')renderView();});
   socket.on('project:deleted',({id})=>{allProjects=allProjects.filter(p=>p.id!==id);if(currentView==='projects')renderView();});
@@ -5259,6 +5286,7 @@ function showView(v){
   if(v!=='sub_tickets'){_subTicketsLoaded=false;_subFilter='all';}
   if(v!=='sprints'){_sprintsLoaded=false;}
   if(v!=='test_cases'){_testCasesLoaded=false;}
+  if(v!=='tester_bug_tracker'){_testerBugsLoaded=false;}
   currentView=v;dashFilter=null;searchQuery='';tableSearch='';dashSeverity='';dashStatus='';dashComponent='';
   // Reset content area padding when leaving messages
   if (v !== 'messages') {
@@ -5272,6 +5300,7 @@ function showView(v){
     if(g.querySelector('#nav-'+v)) g.classList.add('open');
   });
   document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',admin_bugs:'All Bugs',bugs:'All Bugs',mybugs:'My Bugs',test_cases:'Test Cases',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries',sitara_dashboard:'Sitara Drapes Dashboard',sitara_people_weavers:'Weavers',sitara_people_vendors:'Vendors',sitara_people_customers:'Customers',sitara_stocks_inventory:'Inventory',sitara_stocks_purchases:'Purchases',sitara_business_orders:'Orders',sitara_business_razorpay:'Razorpay',sitara_business_expenses:'Expenses'}[v]||v;
+  if(v==='tester_bug_tracker') document.getElementById('view-title').textContent='Tester Bug Tracker';
   document.getElementById('filter-bar').style.display=(v==='bugs'||v==='mybugs')?'flex':'none';
   // Animate content area on tab switch
   const ca = document.getElementById('content-area');
@@ -5335,6 +5364,7 @@ function renderView(){
   if(currentView==='sitara_business_razorpay') return renderSitaraRazorpay();
   if(currentView==='sitara_business_expenses') return renderSitaraExpenses();
   if(currentView==='zoho_books') return renderZohoBooks();
+  if(currentView==='tester_bug_tracker') return renderTesterBugTracker();
   renderBugTable();
 }
 
@@ -5768,6 +5798,133 @@ async function deleteTestCase(id){
   testCases=testCases.filter(t=>t.id!==id);
   showToast('Test case deleted','success');
   renderTestCases();
+}
+
+// ── Tester Bug Tracker ───────────────────────────────────────────────────────
+// Dedicated bug log for the tester role. Wired to /api/tester_bug_tracker (see
+// src/routes/tester_bug_tracker.js on the backend). Tenant-wide (not scoped to
+// a project) — a flat list of bugs each with a priority (Low/Medium/High) and
+// a simple open/in_progress/resolved status. High-priority bugs render with a
+// red highlight so they stand out in the list.
+let testerBugs=[];
+let _testerBugsLoaded=false;
+let _editTesterBugId=null;
+
+function _tbugPriorityColor(p){
+  return {'Low':'#27AE60','Medium':'#F39C12','High':'#E74C3C'}[p]||'#6c757d';
+}
+function _tbugStatusColor(s){
+  return {'open':'#E74C3C','in_progress':'#F39C12','resolved':'#27AE60'}[s]||'#6c757d';
+}
+
+async function loadTesterBugsData(){
+  try{
+    const r=await fetch('/api/tester_bug_tracker');
+    const data=await r.json();
+    testerBugs=Array.isArray(data)?data:[];
+  }catch(e){
+    console.error('[loadTesterBugsData] error:', e);
+    testerBugs=[];
+  }
+  _testerBugsLoaded=true;
+}
+
+async function renderTesterBugTracker(){
+  const ca=document.getElementById('content-area');
+  if(!ca)return;
+  if(!_testerBugsLoaded){
+    ca.innerHTML='<div class="empty-state"><p>Loading bugs…</p></div>';
+    await loadTesterBugsData();
+  }
+  if(currentView!=='tester_bug_tracker')return; // navigated away while the fetch was in flight
+  const list=[...testerBugs].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  const statusOptions=[['open','Open'],['in_progress','In Progress'],['resolved','Resolved']];
+  ca.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div><h2 style="margin:0;font-size:18px">Tester Bug Tracker</h2><div style="font-size:13px;color:var(--g3)">${list.length} bug${list.length===1?'':'s'} logged</div></div>
+      <button class="btn btn-primary btn-sm" onclick="openTesterBugModal(null)">+ Log Bug</button>
+    </div>
+    ${!list.length?`<div class="empty-state"><p>No bugs logged yet. Create your first bug report to start tracking.</p></div>`:`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${list.map(b=>`
+        <div style="border:1px solid ${b.priority==='High'?'#E74C3C':'var(--border)'};background:${b.priority==='High'?'#FDECEA':'var(--white)'};border-radius:10px;padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <div style="font-weight:600;font-size:14px;color:${b.priority==='High'?'#B03A2E':'var(--g1)'}">${esc(b.title)}</div>
+              ${b.description?`<div style="font-size:12.5px;color:var(--g3);margin-top:4px;white-space:pre-wrap">${esc(b.description)}</div>`:''}
+              <div style="font-size:11px;color:var(--g4);margin-top:6px">Logged by ${esc(b.createdByName||'—')} · ${fmt(b.createdAt)}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+              <span style="font-size:11px;padding:2px 9px;border-radius:10px;font-weight:700;background:${_tbugPriorityColor(b.priority)}22;color:${_tbugPriorityColor(b.priority)}">${b.priority}</span>
+              <select onchange="updateTesterBugStatus('${b.id}',this.value)" style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--white);color:${_tbugStatusColor(b.status)};font-weight:600">
+                ${statusOptions.map(([v,l])=>`<option value="${v}" ${b.status===v?'selected':''}>${l}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:6px;justify-content:flex-end">
+            <button class="icon-btn" onclick="openTesterBugModal('${b.id}')" title="Edit" aria-label="Edit bug">
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 2.5l3 3L6 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="icon-btn danger" onclick="deleteTesterBug('${b.id}')" title="Delete" aria-label="Delete bug">
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h12M7 5V3.5a1 1 0 011-1h2a1 1 0 011 1V5m-7 0v9a1 1 0 001 1h6a1 1 0 001-1V5"/><line x1="7.5" y1="8" x2="7.5" y2="12"/><line x1="10.5" y1="8" x2="10.5" y2="12"/></svg>
+            </button>
+          </div>
+        </div>`).join('')}
+    </div>`}
+  `;
+}
+
+function openTesterBugModal(id){
+  _editTesterBugId=id||null;
+  const b=id?testerBugs.find(x=>x.id===id):null;
+  document.getElementById('tbug-modal-title').textContent=b?'Edit Bug':'New Bug';
+  document.getElementById('tbug-title').value=b?.title||'';
+  document.getElementById('tbug-description').value=b?.description||'';
+  document.getElementById('tbug-priority').value=b?.priority||'Medium';
+  document.getElementById('tbug-modal').classList.add('open');
+}
+
+async function saveTesterBug(){
+  const title=document.getElementById('tbug-title').value.trim();
+  if(!title){showToast('Bug title is required','alert');return;}
+  const payload={
+    title,
+    description:document.getElementById('tbug-description').value.trim(),
+    priority:document.getElementById('tbug-priority').value,
+  };
+  if(_editTesterBugId){
+    const r=await fetch('/api/tester_bug_tracker/'+_editTesterBugId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const saved=await r.json();
+    testerBugs=testerBugs.map(b=>b.id===_editTesterBugId?saved:b);
+  } else {
+    payload.createdBy=currentUser.id;
+    payload.createdByName=currentUser.name;
+    const r=await fetch('/api/tester_bug_tracker',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const saved=await r.json();
+    if(!testerBugs.find(b=>b.id===saved.id)) testerBugs.push(saved);
+  }
+  closeModal('tbug-modal');
+  showToast(_editTesterBugId?'Bug updated ✓':'Bug logged ✓','success');
+  _editTesterBugId=null;
+  renderTesterBugTracker();
+}
+
+async function updateTesterBugStatus(id,status){
+  const b=testerBugs.find(x=>x.id===id);
+  if(b&&b.status===status)return;
+  const r=await fetch('/api/tester_bug_tracker/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+  const saved=await r.json();
+  testerBugs=testerBugs.map(x=>x.id===id?saved:x);
+  showToast('Status updated ✓','success');
+  renderTesterBugTracker();
+}
+
+async function deleteTesterBug(id){
+  if(!confirm('Delete this bug? This cannot be undone.'))return;
+  await fetch('/api/tester_bug_tracker/'+id,{method:'DELETE'});
+  testerBugs=testerBugs.filter(b=>b.id!==id);
+  showToast('Bug deleted','success');
+  renderTesterBugTracker();
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────────
@@ -8309,6 +8466,7 @@ const ALL_PERMISSIONS=[
   {key:'attendance',label:'Attendance'},
   {key:'history',label:'History'},
   {key:'messages',label:'Messages'},
+  {key:'tester_bug_tracker',label:'Tester Bug Tracker'},
 ];
 
 // Some pages are only meaningful/available if the company has the matching
