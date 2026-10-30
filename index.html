@@ -4738,7 +4738,7 @@ function buildSidebar(){
     const items={
       masteradmin:      [['companies','Companies','#C0392B'],['company_modules','Modules','#8E44AD'],['admin','User Management','#D0D0D0'],['messages','Messages','#E74C3C']],
       superadmin:       [['ceo_dashboard','Dashboard','#C0392B'],['admin_bugs','All Bugs','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},SITARA_GROUP_DEF,['zoho_books','Zoho Books','#1ABC9C'],['admin','User Management','#D0D0D0'],['roles','Role Manager','#9B59B6'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
-      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},SITARA_GROUP_DEF,['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
+      manager:          [['dashboard','Dashboard','var(--red2)'],['projects','Projects','#7F7F7F'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['ops_dashboard','Ops Dashboard','#16A085'],['module_x','Module X','#1ABC9C'],{group:'sales_crm',label:'Sales & CRM',color:'#2980B9',children:[['crm_leads','Leads'],['crm_prospects','Prospects'],['crm_customers','Customers'],['crm_orders','Orders'],['sales','Sales'],['deliveries','Deliveries']]},{group:'inventory_group',label:'Inventory',color:'#D35400',children:[['inv_vendors','Vendors'],['inv_items','Items'],['inv_purchases','Purchases']]},{group:'manufacturing_group',label:'Manufacturing',color:'#8E44AD',children:[['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability']]},SITARA_GROUP_DEF,['summary','Team Summary','#D0D0D0'],['bugs','All Bugs','#4A4A4A'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       tester:           [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['test_cases','Test Cases','#2980B9'],['sub_tickets','Requests','#16A085'],['bugs','All Bugs','#7F7F7F'],['mybugs','My Bugs','#D0D0D0'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       developer:        [['dashboard','Dashboard','var(--red2)'],['sprints','Sprints','#8E44AD'],['sub_tickets','Requests','#16A085'],['mybugs','My Bugs','#7F7F7F'],['attendance','Attendance','#27AE60'],['history','History','#4A4A4A'],['messages','Messages','#E74C3C']],
       accounts_manager: [['dashboard','Dashboard','var(--red2)'],['sub_tickets','Requests','#16A085'],['acc_clients','Clients','#8E44AD'],['acc_timer','Timer','#E74C3C'],['acc_eod','EOD Reports','#F39C12'],['zoho_books','Zoho Books','#1ABC9C'],['attendance','Attendance','#27AE60'],['messages','Messages','#E74C3C']],
@@ -5250,7 +5250,7 @@ function showView(v){
   document.querySelectorAll('.nav-group').forEach(g=>{
     if(g.querySelector('#nav-'+v)) g.classList.add('open');
   });
-  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',admin_bugs:'All Bugs',bugs:'All Bugs',mybugs:'My Bugs',test_cases:'Test Cases',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries',sitara_dashboard:'Sitara Drapes Dashboard',sitara_people_weavers:'Weavers',sitara_people_vendors:'Vendors',sitara_people_customers:'Customers',sitara_stocks_inventory:'Inventory',sitara_stocks_purchases:'Purchases',sitara_business_orders:'Orders',sitara_business_razorpay:'Razorpay',sitara_business_expenses:'Expenses'}[v]||v;
+  document.getElementById('view-title').textContent={ceo_dashboard:'Executive Dashboard',ops_dashboard:'Ops Dashboard',dashboard:'Dashboard',admin_bugs:'All Bugs',bugs:'All Bugs',mybugs:'My Bugs',test_cases:'Test Cases',summary:'Team Summary',admin:'User Management',projects:'Projects',history:'History',messages:'Messages',attendance:'Attendance',roles:'Role Manager',sub_tickets:'Requests',sprints:'Sprints',hr_dashboard:'HR Dashboard',hr_jobs:'Job Openings',hr_candidates:'Candidates',hr_interviews:'Interviews',hr_reports:'HR Reports',companies:'Companies',company_modules:'Module Manager',crm:'Sales & CRM',crm_leads:'Leads',crm_prospects:'Prospects',crm_customers:'Customers',crm_orders:'Orders',inventory:'Inventory',inv_vendors:'Vendors',inv_items:'Items',inv_purchases:'Purchases',manufacturing:'Manufacturing',mfg_bom:'BOM Builder',mfg_assembly:'Assembly',mfg_traceability:'Traceability',sales:'Sales',deliveries:'Deliveries',sitara_dashboard:'Sitara Drapes Dashboard',sitara_people_weavers:'Weavers',sitara_people_vendors:'Vendors',sitara_people_customers:'Customers',sitara_stocks_inventory:'Inventory',sitara_stocks_purchases:'Purchases',sitara_business_orders:'Orders',sitara_business_razorpay:'Razorpay',sitara_business_expenses:'Expenses',module_x:'Module X'}[v]||v;
   document.getElementById('filter-bar').style.display=(v==='bugs'||v==='mybugs')?'flex':'none';
   // Animate content area on tab switch
   const ca = document.getElementById('content-area');
@@ -5314,6 +5314,7 @@ function renderView(){
   if(currentView==='sitara_business_razorpay') return renderSitaraRazorpay();
   if(currentView==='sitara_business_expenses') return renderSitaraExpenses();
   if(currentView==='zoho_books') return renderZohoBooks();
+  if(currentView==='module_x') return renderModuleX();
   renderBugTable();
 }
 
@@ -14734,6 +14735,24 @@ function switchZohoBooksTab(tab){
   zohoBooksTab=tab;
   renderZohoBooks();
 }
+
+// ── Module X (manager-only) ───────────────────────────────────────────
+async function renderModuleX(){
+  if(currentUser.role!=='manager'){ showToast('Access denied','alert'); return; }
+  const area=document.getElementById('content-area');
+  area.innerHTML='<div class="empty-state"><p>Loading…</p></div>';
+  let msg='test';
+  try{
+    const r=await fetch('/api/module_x');
+    const d=await r.json();
+    if(r.ok && d && d.message) msg=d.message;
+  }catch(e){ /* fall back to the default message below */ }
+  area.innerHTML=`
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center">
+      <div style="font-size:18px;color:var(--g1)">${esc(msg)}</div>
+    </div>`;
+}
+
 function renderZohoBooks(){
   const ca=document.getElementById('content-area');
   ca.innerHTML=`
