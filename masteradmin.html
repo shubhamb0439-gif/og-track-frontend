@@ -1249,7 +1249,7 @@
     100%{ transform:translate(-50%, 10px) scale(.94); opacity:0; }
   }
 
-#aida-overlay .preview-ready-card {
+#aida-overlay .job-update-card {
     position:fixed;
     top:22px; right:22px;
     width:272px;
@@ -1265,19 +1265,19 @@
     pointer-events:none;
   }
 
-#aida-overlay .preview-ready-card.show { animation:aidaPreviewCardPop .35s cubic-bezier(.3,1.4,.4,1) forwards; pointer-events:auto; }
+#aida-overlay .job-update-card.show { animation:aidaPreviewCardPop .35s cubic-bezier(.3,1.4,.4,1) forwards; pointer-events:auto; }
 
-#aida-overlay .preview-ready-card.hide { animation:aidaPreviewCardAway .3s ease forwards; }
+#aida-overlay .job-update-card.hide { animation:aidaPreviewCardAway .3s ease forwards; }
 
-#aida-overlay .preview-ready-card .prc-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+#aida-overlay .job-update-card .juc-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
 
-#aida-overlay .preview-ready-card .prc-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.35; }
+#aida-overlay .job-update-card .juc-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.35; }
 
-#aida-overlay .preview-ready-card .prc-close { cursor:pointer; color:var(--text-dim); font-size:13px; line-height:1; flex-shrink:0; }
+#aida-overlay .job-update-card .juc-close { cursor:pointer; color:var(--text-dim); font-size:13px; line-height:1; flex-shrink:0; }
 
-#aida-overlay .preview-ready-card .prc-link { display:block; font-size:12.5px; font-weight:600; color:var(--red); text-decoration:none; margin-top:8px; }
+#aida-overlay .job-update-card .juc-link { display:block; font-size:12.5px; font-weight:600; color:var(--red); text-decoration:none; margin-top:8px; }
 
-#aida-overlay .preview-ready-card .prc-link:hover { text-decoration:underline; }
+#aida-overlay .job-update-card .juc-link:hover { text-decoration:underline; }
 
 @keyframes aidaPreviewCardPop{
     0%{ transform:translateY(-12px) scale(.95); opacity:0; }
@@ -4210,7 +4210,7 @@ var AidaFaceFlow=(function(){
       helpModal, helpModalClose, logoutToast, drNameBtn, logoutModal,
       logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems,
       aidaJobsModal, aidaJobsModalClose, aidaJobsBody,
-      aidaPreviewReadyCard, aidaPreviewReadyTitle, aidaPreviewReadyLinks, aidaPreviewReadyClose,
+      aidaJobUpdateCard, aidaJobUpdateTitle, aidaJobUpdateLinks, aidaJobUpdateClose,
       aidaConvToggleBtn, aidaConvSidebar, aidaConvNewBtn, aidaConvList,
       connectorsModal, connectorsModalClose, skillsModal, skillsModalClose;
   var msgSending=false;
@@ -4228,11 +4228,11 @@ var AidaFaceFlow=(function(){
   var aidaJobDetailLoading=false;
   var aidaJobDetailError=null;
   var aidaJobActionBusy=false; // true while an approve/reject POST is in flight
-  // Per job id + url kind ('previewUrl'|'backendUrl'|'frontendUrl'), set true
-  // the first time that URL is seen on an aida:job socket event, so a later
-  // event carrying the same already-known URL never re-announces it — only
-  // a real absent→present transition for THAT field does. See
-  // aidaCheckJobPreviewReady() below.
+  // Dedupe cache for the in-panel job-update card (see aidaCheckJobUpdate()
+  // below): keys are either '<jobId>::status::<status>' (so a given job+
+  // status combo is only ever announced once) or '<jobId>::<urlKind>' for
+  // urlKind in previewUrl/backendUrl/frontendUrl (so a given preview link is
+  // only ever announced once, independent of job status).
   var aidaJobPreviewAnnounced={};
 
   window._aidaHubInit=function(){
@@ -4266,10 +4266,10 @@ var AidaFaceFlow=(function(){
     aidaJobsModal=document.getElementById('aidaJobsModal');
     aidaJobsModalClose=document.getElementById('aidaJobsModalClose');
     aidaJobsBody=document.getElementById('aidaJobsBody');
-    aidaPreviewReadyCard=document.getElementById('aidaPreviewReadyCard');
-    aidaPreviewReadyTitle=document.getElementById('aidaPreviewReadyTitle');
-    aidaPreviewReadyLinks=document.getElementById('aidaPreviewReadyLinks');
-    aidaPreviewReadyClose=document.getElementById('aidaPreviewReadyClose');
+    aidaJobUpdateCard=document.getElementById('aidaJobUpdateCard');
+    aidaJobUpdateTitle=document.getElementById('aidaJobUpdateTitle');
+    aidaJobUpdateLinks=document.getElementById('aidaJobUpdateLinks');
+    aidaJobUpdateClose=document.getElementById('aidaJobUpdateClose');
     aidaConvToggleBtn=document.getElementById('aidaConvToggleBtn');
     aidaConvSidebar=document.getElementById('aidaConvSidebar');
     aidaConvNewBtn=document.getElementById('aidaConvNewBtn');
@@ -5167,28 +5167,32 @@ var AidaFaceFlow=(function(){
     }
 
     // Dismissible card (distinct from showAidaToast above — needs to hold
-    // clickable links and stay up longer) telling you a job's preview URL
-    // just resolved, while you're already in the AIDA panel watching the
-    // live job stream. See aidaCheckJobPreviewReady() below for when this
-    // fires.
-    var aidaPreviewReadyTimer=null;
-    function showAidaPreviewReadyCard(titleText,links){
-      clearTimeout(aidaPreviewReadyTimer);
-      aidaPreviewReadyTitle.textContent=titleText;
-      aidaPreviewReadyLinks.innerHTML=links.map(function(l){
-        return '<a class="prc-link" href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label)+' →</a>';
+    // clickable links and stay up longer) surfacing a job update right where
+    // you're already looking — the chat/panel — instead of only updating the
+    // separate Job Card panel you'd otherwise have to go open. See
+    // aidaCheckJobUpdate() below for when this fires.
+    var aidaJobUpdateTimer=null;
+    function showAidaJobUpdateCard(job,links){
+      clearTimeout(aidaJobUpdateTimer);
+      var statusColor=AIDA_JOB_STATUS_COLOR[job.status]||'#8A8886';
+      var statusLabel=AIDA_JOB_STATUS_LABEL[job.status]||job.status;
+      aidaJobUpdateTitle.innerHTML=
+        '<span style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;color:'+statusColor+'">'+esc(statusLabel)+'</span>'+
+        '<div style="margin-top:3px;font-size:13px;font-weight:700;color:var(--text);line-height:1.35">'+esc(aidaJobSummaryLabel(job))+'</div>';
+      aidaJobUpdateLinks.innerHTML=(links||[]).map(function(l){
+        return '<a class="juc-link" href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label)+' →</a>';
       }).join('');
-      aidaPreviewReadyCard.classList.remove('hide');
-      aidaPreviewReadyCard.classList.add('show');
-      aidaPreviewReadyTimer=setTimeout(function(){
-        aidaPreviewReadyCard.classList.remove('show');
-        aidaPreviewReadyCard.classList.add('hide');
+      aidaJobUpdateCard.classList.remove('hide');
+      aidaJobUpdateCard.classList.add('show');
+      aidaJobUpdateTimer=setTimeout(function(){
+        aidaJobUpdateCard.classList.remove('show');
+        aidaJobUpdateCard.classList.add('hide');
       },9000);
     }
-    aidaPreviewReadyClose.addEventListener('click',function(){
-      clearTimeout(aidaPreviewReadyTimer);
-      aidaPreviewReadyCard.classList.remove('show');
-      aidaPreviewReadyCard.classList.add('hide');
+    aidaJobUpdateClose.addEventListener('click',function(){
+      clearTimeout(aidaJobUpdateTimer);
+      aidaJobUpdateCard.classList.remove('show');
+      aidaJobUpdateCard.classList.add('hide');
     });
 
     function aidaJobSummaryLabel(job){
@@ -5196,34 +5200,52 @@ var AidaFaceFlow=(function(){
       return r.moduleName||r.agentSummary||AIDA_JOB_KIND_LABEL[job.kind]||job.kind||'Job';
     }
     // Fires on every aida:job socket event (not just while the Job Card
-    // panel is open) so the announced-state cache below stays accurate even
-    // if the user never opens the panel for a given job — only the actual
-    // on-screen card is gated on the AIDA overlay being open. Per field
-    // (previewUrl / backendUrl / frontendUrl) rather than per job, since a
-    // create_module job's backendUrl and frontendUrl typically resolve at
-    // different times and each should only ever be announced once, the
-    // moment IT individually goes from absent to present.
-    function aidaCheckJobPreviewReady(job){
-      if(!job||!job.result) return;
-      var r=job.result;
-      var ready=[];
+    // panel is open) so the announced-state cache stays accurate even if
+    // the user never opens the panel for a given job — only the actual
+    // on-screen card is gated on the AIDA overlay being open.
+    //
+    // Two things can each make a card worth showing, and either (or both at
+    // once) can happen on a given event:
+    //  1. The job just reached 'completed' or 'awaiting_approval' — shown
+    //     once per job+status, with whatever preview link(s) are already
+    //     available folded in (dev_repo_fix usually has its link the moment
+    //     it reaches awaiting_approval, so this is typically a single
+    //     combined card).
+    //  2. A preview link that wasn't there before just appeared — shown on
+    //     its own if the job's current status was already announced (e.g. a
+    //     create_module job's frontendUrl, which can resolve minutes after
+    //     the job already sat at awaiting_approval with only backendUrl
+    //     ready — see the frontendReady note above). Tracked per field
+    //     (previewUrl / backendUrl / frontendUrl), not per job, since the
+    //     two create_module URLs resolve independently.
+    function aidaCheckJobUpdate(job){
+      if(!job) return;
+      var r=job.result||{};
+      var links=[];
       if(job.kind==='create_module'){
-        if(r.previewUrls&&r.previewUrls.backendUrl) ready.push({kind:'backendUrl',label:'Backend',url:r.previewUrls.backendUrl});
-        if(r.previewUrls&&r.previewUrls.frontendUrl&&r.previewUrls.frontendReady!==false) ready.push({kind:'frontendUrl',label:'Frontend',url:r.previewUrls.frontendUrl});
+        if(r.previewUrls&&r.previewUrls.backendUrl) links.push({kind:'backendUrl',label:'Backend',url:r.previewUrls.backendUrl});
+        if(r.previewUrls&&r.previewUrls.frontendUrl&&r.previewUrls.frontendReady!==false) links.push({kind:'frontendUrl',label:'Frontend',url:r.previewUrls.frontendUrl});
       } else if(r.previewUrl){
-        ready.push({kind:'previewUrl',label:'Preview',url:r.previewUrl});
+        links.push({kind:'previewUrl',label:'Preview',url:r.previewUrl});
       }
-      if(!ready.length) return;
+
       var overlayEl=document.getElementById('aida-overlay');
       var overlayOpen=!!overlayEl&&overlayEl.classList.contains('open');
-      var toAnnounce=[];
-      ready.forEach(function(item){
-        var key=job.id+'::'+item.kind;
-        if(aidaJobPreviewAnnounced[key]) return;
-        aidaJobPreviewAnnounced[key]=true;
-        toAnnounce.push(item);
-      });
-      if(toAnnounce.length&&overlayOpen) showAidaPreviewReadyCard('🔗 Preview ready — '+aidaJobSummaryLabel(job),toAnnounce);
+
+      var statusKey=job.id+'::status::'+job.status;
+      var statusNotable=(job.status==='completed'||job.status==='awaiting_approval');
+      if(statusNotable&&!aidaJobPreviewAnnounced[statusKey]){
+        aidaJobPreviewAnnounced[statusKey]=true;
+        links.forEach(function(item){ aidaJobPreviewAnnounced[job.id+'::'+item.kind]=true; });
+        if(overlayOpen) showAidaJobUpdateCard(job,links);
+        return;
+      }
+
+      var newLinks=links.filter(function(item){ return !aidaJobPreviewAnnounced[job.id+'::'+item.kind]; });
+      if(newLinks.length){
+        newLinks.forEach(function(item){ aidaJobPreviewAnnounced[job.id+'::'+item.kind]=true; });
+        if(overlayOpen) showAidaJobUpdateCard(job,newLinks);
+      }
     }
 
     // "Messages" is the text alternative to the voice module — the same
@@ -5506,7 +5528,7 @@ var AidaFaceFlow=(function(){
     // Live updates — optional per the spec (polling GET /jobs also works),
     // but avoids needing to poll while the panel happens to be open.
     window._aidaHubOnJobEvent=function(payload){
-      if(payload&&payload.job) aidaCheckJobPreviewReady(payload.job);
+      if(payload&&payload.job) aidaCheckJobUpdate(payload.job);
       if(!aidaJobsModal||!aidaJobsModal.classList.contains('open')) return;
       var id=(payload&&(payload.jobId||(payload.job&&payload.job.id)||payload.id))||null;
       if(aidaJobDetailId&&id&&aidaJobDetailId===id) openAidaJobDetail(id);
@@ -7250,12 +7272,12 @@ function ensureAidaOverlay(){
         <span id="aidaToastText">Signed out securely</span>
       </div>
 
-      <div class="preview-ready-card" id="aidaPreviewReadyCard">
-        <div class="prc-head">
-          <div class="prc-title" id="aidaPreviewReadyTitle"></div>
-          <span class="prc-close" id="aidaPreviewReadyClose" role="button" aria-label="Dismiss">✕</span>
+      <div class="job-update-card" id="aidaJobUpdateCard">
+        <div class="juc-head">
+          <div class="juc-title" id="aidaJobUpdateTitle"></div>
+          <span class="juc-close" id="aidaJobUpdateClose" role="button" aria-label="Dismiss">✕</span>
         </div>
-        <div id="aidaPreviewReadyLinks"></div>
+        <div id="aidaJobUpdateLinks"></div>
       </div>
 
       <div class="floating-modal" id="logoutModal" role="dialog" aria-modal="true" aria-label="Log out">
