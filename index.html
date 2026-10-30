@@ -18815,10 +18815,35 @@ window.selectAidaModel=function(provider,modelId){
   toggleAidaModelMenu(false);
   renderAidaModelSelect();
 };
+// The menu is CSS-anchored to its button's right edge (right:0) and has a
+// fixed 270px width — fine on a wide screen, but on a narrow one the button
+// itself can sit close enough to the left edge that the menu opens mostly
+// off-screen to the left, with no way to reach the clipped portion (the
+// modal it lives in clips overflow). Rather than hand-rolling anchor math
+// against whichever ancestor it's positioned relative to, measure where it
+// actually landed (viewport coordinates) and nudge it back on screen with a
+// transform — works the same regardless of which side it's anchored to.
+function aidaClampMenuToViewport(menu){
+  var margin=12;
+  menu.style.transform='';
+  menu.style.maxWidth='';
+  var maxWidth=window.innerWidth-margin*2;
+  if(maxWidth<270) menu.style.maxWidth=maxWidth+'px';
+  var r=menu.getBoundingClientRect();
+  var dx=0;
+  if(r.left<margin) dx=margin-r.left;
+  else if(r.right>window.innerWidth-margin) dx=(window.innerWidth-margin)-r.right;
+  var dy=0;
+  if(r.top<margin) dy=margin-r.top;
+  else if(r.bottom>window.innerHeight-margin) dy=(window.innerHeight-margin)-r.bottom;
+  if(dx||dy) menu.style.transform='translate('+dx+'px,'+dy+'px)';
+}
 window.toggleAidaModelMenu=function(force){
   const menu=document.getElementById('aidaModelMenu');
   if(!menu) return;
-  menu.classList.toggle('open',force!=null?force:!menu.classList.contains('open'));
+  const willOpen=force!=null?force:!menu.classList.contains('open');
+  menu.classList.toggle('open',willOpen);
+  if(willOpen) aidaClampMenuToViewport(menu);
 };
 function showAidaModelError(msg){
   const el=document.getElementById('aidaModelErrorNote');
