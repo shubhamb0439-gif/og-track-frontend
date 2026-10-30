@@ -7043,7 +7043,18 @@ window.saveAidaFlowCanvas=async function(){
   // saved config entirely.
   if(aidaFlowCanvasSelected!=null&&aidaFlowCanvasSelected!=='trigger'){
     var refPrefix='flowstep'+aidaFlowCanvasSelected+'_';
-    document.querySelectorAll('input[id^="'+refPrefix+'"][id$="_path"]').forEach(function(inp){
+    // :not([id*="_picker_"]) matters: a literal-mode string field's "insert
+    // a reference" popover (aidaFlowLiteralInputHtml) has its own path input
+    // at <fid>_picker_path, which also starts with refPrefix and ends with
+    // "_path" — without this exclusion it falsely matches here too, and the
+    // field-name slice below then derives "<field>_picker" instead of
+    // "<field>", so this flush was writing a bogus "<field>_picker" key (the
+    // insert-picker's own, usually-empty step/path state) alongside — never
+    // instead of — the real field's own already-correct value. Harmless
+    // today only because aidaFlowStripPickerKeys() strips it back out before
+    // the payload is sent; this fixes the actual selector bug rather than
+    // continuing to rely on that cleanup to mask it.
+    document.querySelectorAll('input[id^="'+refPrefix+'"][id$="_path"]:not([id*="_picker_"])').forEach(function(inp){
       var fieldName=inp.id.slice(refPrefix.length,inp.id.length-'_path'.length);
       setAidaFlowFieldRef(aidaFlowCanvasSelected,fieldName);
     });
