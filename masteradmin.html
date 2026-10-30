@@ -4978,7 +4978,10 @@ var AidaFaceFlow=(function(){
         var r=await authFetch('/api/masteradmin/aida/conversations/'+encodeURIComponent(id)+'/messages');
         if(!r.ok) throw new Error('Could not load that conversation');
         var data=await r.json();
-        aidaMessages=(Array.isArray(data.messages)?data.messages:[]).map(function(m){ return {role:m.role,content:m.content}; });
+        // The backend returns a conversation's messages newest-first (same
+        // convention as the conversations list itself); reverse to the
+        // chronological, oldest-first order the chat body renders in.
+        aidaMessages=(Array.isArray(data.messages)?data.messages:[]).map(function(m){ return {role:m.role,content:m.content}; }).reverse();
         aidaActiveConversationId=id;
         renderAidaMsgRows();
         renderAidaConvList();
@@ -7650,7 +7653,12 @@ async function loadInitialAidaConversation(){
       const mr=await authFetch('/api/masteradmin/aida/conversations/'+encodeURIComponent(aidaConversations[0].id)+'/messages');
       if(mr.ok){
         const mdata=await mr.json();
-        aidaMessages=(Array.isArray(mdata.messages)?mdata.messages:[]).map(m=>({role:m.role,content:m.content}));
+        // Same newest-first → oldest-first reversal as openAidaConversation()
+        // above — this is the page-refresh/initial-load path, which is
+        // exactly where the unreversed order was visible (a live session
+        // builds aidaMessages by pushing new turns in chronological order as
+        // they happen, so it never hit this).
+        aidaMessages=(Array.isArray(mdata.messages)?mdata.messages:[]).map(m=>({role:m.role,content:m.content})).reverse();
         aidaActiveConversationId=aidaConversations[0].id;
       }
     }
