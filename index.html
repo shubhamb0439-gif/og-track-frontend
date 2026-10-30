@@ -1159,7 +1159,7 @@ tr:hover .badge { transform: scale(1.08); }
    beats any plain stylesheet rule regardless of selector specificity —
    this is the one place in this feature that actually needs !important to
    win against that. */
-body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
+body.aida-fullscreen-modal-open .aida-launcher-btn{display:none !important;}
 .aida-launcher-orb{width:56px;height:56px;object-fit:contain;display:block;}
 /* The QR fab (mobile only) sits at the same corner — stack AIDA's launcher above it there. */
 @media(max-width:768px){.aida-launcher-btn{bottom:94px;}}
@@ -1572,9 +1572,6 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
     background:rgba(0,0,0,.04); font-size:11px;
   }
 .aida-url-preview-bar span{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.75; }
-.aida-url-preview-bar button{
-    flex-shrink:0; border:none; background:none; cursor:pointer; font-size:11px; font-weight:600; color:var(--fcard-accent,#b0222c);
-  }
 .aida-url-preview-modal{
     display:none; position:fixed; inset:5vh 6vw; z-index:950;
     background:#fff; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35);
@@ -1589,6 +1586,22 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
 .aida-url-preview-modal-bar a{ font-size:13px; font-weight:600; color:var(--red); text-decoration:none; }
 .aida-url-preview-modal-bar button{ border:none; background:none; cursor:pointer; font-size:18px; color:var(--text); }
 .aida-url-preview-modal iframe{ flex:1; width:100%; border:none; }
+
+/* Generic "expand" overlay for a plain text reply card (no URL preview —
+   those use .aida-url-preview-modal above instead). Same positioning/look
+   as that modal for visual consistency between the two expand targets. */
+.fcard-text-expand{
+    display:none; position:fixed; inset:5vh 6vw; z-index:950;
+    background:#fff; border-radius:14px; box-shadow:0 20px 60px rgba(0,0,0,.35);
+    flex-direction:column; overflow:hidden;
+  }
+.fcard-text-expand.open{ display:flex; }
+.fcard-text-expand-bar{
+    display:flex; align-items:center; gap:14px; padding:12px 16px;
+    border-bottom:1px solid var(--line); flex-shrink:0;
+  }
+.fcard-text-expand-bar span{ flex:1; font-size:12.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); }
+.fcard-text-expand .fcard-body{ flex:1 1 auto; min-height:0; font-size:16px; padding:24px 28px; color:var(--text); }
 
 /* ── Connectors panel ── */
 .connector-row{
@@ -2302,7 +2315,11 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
 .fcard.is-dragging .fcard-header, .fcard-layer.is-dragging .fcard-header{cursor:grabbing;}
 .fcard-dot{width:8px;height:8px;border-radius:50%;background:var(--fcard-dot);flex-shrink:0;box-shadow:0 0 0 3px rgba(138,138,138,.18);}
 .fcard-label{flex:1;font-size:12.5px;font-weight:600;letter-spacing:.08em;color:var(--fcard-label);}
-.fcard-close{
+/* One shared look for every header icon button (new-tab / expand / close)
+   so they read as a single consistent control group, not a close button
+   plus two differently-styled add-ons. */
+.fcard-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.fcard-btn{
   width:26px;height:26px;border-radius:50%;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
   background:var(--fcard-close-bg);
@@ -2311,9 +2328,13 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
   font-size:16px;line-height:1;cursor:pointer;padding:0;
   transition:background .15s ease, color .15s ease, transform .12s ease;
 }
-.fcard-close:hover{background:var(--fcard-close-bg-hover);color:var(--fcard-accent);}
-.fcard-close:active{transform:scale(.9);}
-.fcard-close:focus-visible{outline:2px solid var(--fcard-accent);outline-offset:2px;}
+.fcard-btn svg{width:13px;height:13px;}
+.fcard-btn:hover{background:var(--fcard-close-bg-hover);color:var(--fcard-accent);}
+.fcard-btn:active{transform:scale(.9);}
+.fcard-btn:focus-visible{outline:2px solid var(--fcard-accent);outline-offset:2px;}
+/* Only a card with a live URL preview has anything to open in a new tab. */
+.fcard-newtab{display:none;}
+.fcard.has-url-preview .fcard-newtab{display:flex;}
 .fcard-body{
   padding:12px 16px 16px;
   overflow-y:auto;overscroll-behavior:contain;
@@ -2353,7 +2374,7 @@ body.aida-url-preview-open .aida-launcher-btn{display:none !important;}
 }
 @media (prefers-reduced-motion: reduce){
   .fcard, .fcard.is-hidden, .fcard.is-closing{transition:none !important;animation:none !important;}
-  .fcard-close{transition:none;}
+  .fcard-btn{transition:none;}
 }
 /* ── "Clear all" button + "Responses cleared · Undo" toast. Both sit in one
    dock at the bottom centre (JS centres it between the "Press space" hint
@@ -16474,6 +16495,44 @@ var FloatingCard=(function(){
   var dock=null, clearBtn=null, clearText=null, toast=null;
   var undoSnapshot=null, undoTimer=null;
   var CLEAR_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l1 12.5h9l1-12.5"/><path d="M10 11v5M14 11v5"/></svg>';
+  // Header icon buttons — no text labels (the expand icon in particular
+  // doesn't need to spell out "Expand"), just a consistent small icon-button
+  // group with fcard-close's existing "×".
+  var NEWTAB_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+  var EXPAND_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>';
+  // Plain-text cards (no URL preview) expand into this generic modal; a
+  // card WITH a preview routes to window.expandAidaUrlPreview() instead,
+  // which already has its own full iframe view — see the expand button's
+  // click handler in createCard() below. Only one of either can be open at
+  // a time, lazily built on first use.
+  var textExpandModal=null, textExpandLabel=null, textExpandBody=null;
+  function ensureTextExpandModal(){
+    if(textExpandModal) return;
+    textExpandModal=document.createElement('div');
+    textExpandModal.className='fcard-text-expand';
+    textExpandModal.innerHTML=
+      '<div class="fcard-text-expand-bar">'+
+        '<span></span>'+
+        '<button type="button" class="fcard-btn" aria-label="Close">&times;</button>'+
+      '</div>'+
+      '<div class="fcard-body"></div>';
+    textExpandLabel=textExpandModal.querySelector('span');
+    textExpandBody=textExpandModal.querySelector('.fcard-body');
+    textExpandModal.querySelector('.fcard-btn').addEventListener('click',closeTextExpand);
+    document.body.appendChild(textExpandModal);
+  }
+  function openTextExpand(card){
+    ensureTextExpandModal();
+    textExpandLabel.textContent=card.label;
+    textExpandBody.textContent=card.body.textContent;
+    textExpandModal.classList.add('open');
+    document.body.classList.add('aida-fullscreen-modal-open');
+  }
+  function closeTextExpand(){
+    if(!textExpandModal) return;
+    textExpandModal.classList.remove('open');
+    document.body.classList.remove('aida-fullscreen-modal-open');
+  }
 
   function readMode(){
     try{ return localStorage.getItem(C.storageKey)==='drift'?'drift':'deck'; }catch(e){ return 'deck'; }
@@ -16823,18 +16882,38 @@ var FloatingCard=(function(){
       '<div class="fcard-header">'+
         '<span class="fcard-dot" aria-hidden="true"></span>'+
         '<span class="fcard-label"></span>'+
-        '<button type="button" class="fcard-close" aria-label="Close">&times;</button>'+
+        '<div class="fcard-actions">'+
+          '<button type="button" class="fcard-btn fcard-newtab" aria-label="Open in new tab" title="Open in new tab">'+NEWTAB_ICON+'</button>'+
+          '<button type="button" class="fcard-btn fcard-expand" aria-label="Expand" title="Expand">'+EXPAND_ICON+'</button>'+
+          '<button type="button" class="fcard-btn fcard-close" aria-label="Close" title="Close">&times;</button>'+
+        '</div>'+
       '</div>'+
       '<div class="fcard-body" aria-live="polite"></div>';
     var header=el.querySelector('.fcard-header');
     var body=el.querySelector('.fcard-body');
     var closeBtn=el.querySelector('.fcard-close');
+    var expandBtn=el.querySelector('.fcard-expand');
+    var newtabBtn=el.querySelector('.fcard-newtab');
     el.querySelector('.fcard-label').textContent=opts.label||'AIDA';
     body.textContent=opts.text||'';
     var id=nextId++;
     el.style.setProperty('--fc-float-delay',(-(id*C.drift.floatDelayStepMs)%C.drift.floatMs)+'ms');
 
-    var card={ el:el, body:body, label:opts.label||'AIDA', id:id, closed:false, entering:true, origin:opts.origin||null, slot:null, spot:null, cx:0, cy:0, s:1 };
+    var card={ el:el, body:body, label:opts.label||'AIDA', id:id, closed:false, entering:true, origin:opts.origin||null, slot:null, spot:null, cx:0, cy:0, s:1, previewUrl:null };
+    // Expand: a card with a resolved preview URL (appendAidaUrlPreview() set
+    // card.previewUrl) opens the existing full iframe modal; a plain text
+    // card opens the generic text-expand modal instead. New-tab only ever
+    // does anything on a preview card — it's hidden otherwise (.fcard-newtab
+    // CSS above), but the guard here is cheap insurance either way.
+    expandBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(card.previewUrl) window.expandAidaUrlPreview(card.previewUrl);
+      else openTextExpand(card);
+    });
+    newtabBtn.addEventListener('click',function(e){
+      e.stopPropagation();
+      if(card.previewUrl) window.open(card.previewUrl,'_blank','noopener');
+    });
     layer.insertBefore(el,dock);
 
     function nearBottom(){ return body.scrollHeight-body.scrollTop-body.clientHeight<24; }
@@ -16863,10 +16942,10 @@ var FloatingCard=(function(){
       setTimeout(card.remove,C.closeMs);
     };
 
-    // Any press on an older card brings it to the front (not its close
-    // button — that should just close it).
+    // Any press on an older card brings it to the front (not one of its
+    // header buttons — those should just do their own thing).
     el.addEventListener('pointerdown',function(e){
-      if(e.target.closest('.fcard-close')) return;
+      if(e.target.closest('.fcard-btn')) return;
       promote(card);
     });
     closeBtn.addEventListener('click',function(e){ e.stopPropagation(); card.close(); });
@@ -16876,7 +16955,7 @@ var FloatingCard=(function(){
     // Drifting: any card drags; where it's dropped becomes its spot.
     var start=null;
     header.addEventListener('pointerdown',function(e){
-      if(e.target.closest('.fcard-close')) return;
+      if(e.target.closest('.fcard-btn')) return;
       if(e.pointerType==='mouse'&&e.button!==0) return;
       var deck=activeMode()==='deck';
       if(deck&&ageOf(card)!==0) return; // an older deck card: the click just brings it forward
@@ -17777,10 +17856,15 @@ var AidaFaceFlow=(function(){
       const body=cardHandle.el.querySelector('.fcard-body');
       if(!body) return;
       cardHandle.el.classList.add('has-url-preview');
+      // Drives the header's "open in new tab" button (only shown on cards
+      // that actually have a URL — see .fcard.has-url-preview .fcard-newtab)
+      // and its "expand" button, which now routes to expandAidaUrlPreview()
+      // below instead of the old button that used to live in the bar.
+      cardHandle.previewUrl=url;
       const wrap=document.createElement('div');
       wrap.className='aida-url-preview';
       wrap.innerHTML='<div class="aida-url-preview-frame"><iframe src="'+esc(url)+'" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div>'+
-        '<div class="aida-url-preview-bar"><span title="'+esc(url)+'">'+esc(url)+'</span><button type="button" onclick="expandAidaUrlPreview(\''+url.replace(/'/g,"\\'")+'\')">⤢ Expand</button></div>';
+        '<div class="aida-url-preview-bar"><span title="'+esc(url)+'">'+esc(url)+'</span></div>';
       body.appendChild(wrap);
       const frameEl=wrap.querySelector('.aida-url-preview-frame');
       aidaFitUrlPreviewFrame(frameEl);
@@ -17812,12 +17896,12 @@ var AidaFaceFlow=(function(){
       // out over the real page content in that margin. Only needed here,
       // not on the main card/orb view, so it's a body class scoped to just
       // this modal's lifetime rather than a permanent CSS change.
-      document.body.classList.add('aida-url-preview-open');
+      document.body.classList.add('aida-fullscreen-modal-open');
     };
     window.closeAidaUrlPreview=function(){
       const modal=document.getElementById('aidaUrlPreviewModal');
       if(modal) modal.classList.remove('open');
-      document.body.classList.remove('aida-url-preview-open');
+      document.body.classList.remove('aida-fullscreen-modal-open');
     };
 
     // ── AIDA charts — a ```aida-chart fenced block in a reply renders as a
