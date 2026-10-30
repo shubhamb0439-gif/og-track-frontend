@@ -1249,6 +1249,47 @@
     100%{ transform:translate(-50%, 10px) scale(.94); opacity:0; }
   }
 
+#aida-overlay .preview-ready-card {
+    position:fixed;
+    top:22px; right:22px;
+    width:272px;
+    max-width:calc(100vw - 44px);
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:0 16px 40px rgba(0,0,0,.2);
+    padding:14px 16px;
+    z-index:110;
+    opacity:0;
+    transform:translateY(-12px) scale(.95);
+    pointer-events:none;
+  }
+
+#aida-overlay .preview-ready-card.show { animation:aidaPreviewCardPop .35s cubic-bezier(.3,1.4,.4,1) forwards; pointer-events:auto; }
+
+#aida-overlay .preview-ready-card.hide { animation:aidaPreviewCardAway .3s ease forwards; }
+
+#aida-overlay .preview-ready-card .prc-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+
+#aida-overlay .preview-ready-card .prc-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.35; }
+
+#aida-overlay .preview-ready-card .prc-close { cursor:pointer; color:var(--text-dim); font-size:13px; line-height:1; flex-shrink:0; }
+
+#aida-overlay .preview-ready-card .prc-link { display:block; font-size:12.5px; font-weight:600; color:var(--red); text-decoration:none; margin-top:8px; }
+
+#aida-overlay .preview-ready-card .prc-link:hover { text-decoration:underline; }
+
+@keyframes aidaPreviewCardPop{
+    0%{ transform:translateY(-12px) scale(.95); opacity:0; }
+    60%{ transform:translateY(3px) scale(1.02); opacity:1; }
+    100%{ transform:translateY(0) scale(1); opacity:1; }
+  }
+
+@keyframes aidaPreviewCardAway{
+    0%{ transform:translateY(0) scale(1); opacity:1; }
+    100%{ transform:translateY(-10px) scale(.95); opacity:0; }
+  }
+
 #aida-overlay .page-enter-fade {
     position:fixed; inset:0;
     background:#fff;
@@ -4169,6 +4210,7 @@ var AidaFaceFlow=(function(){
       helpModal, helpModalClose, logoutToast, drNameBtn, logoutModal,
       logoutModalCancel, logoutModalCancelBtn, logoutModalConfirm, menuItems,
       aidaJobsModal, aidaJobsModalClose, aidaJobsBody,
+      aidaPreviewReadyCard, aidaPreviewReadyTitle, aidaPreviewReadyLinks, aidaPreviewReadyClose,
       aidaConvToggleBtn, aidaConvSidebar, aidaConvNewBtn, aidaConvList,
       connectorsModal, connectorsModalClose, skillsModal, skillsModalClose;
   var msgSending=false;
@@ -4186,6 +4228,12 @@ var AidaFaceFlow=(function(){
   var aidaJobDetailLoading=false;
   var aidaJobDetailError=null;
   var aidaJobActionBusy=false; // true while an approve/reject POST is in flight
+  // Per job id + url kind ('previewUrl'|'backendUrl'|'frontendUrl'), set true
+  // the first time that URL is seen on an aida:job socket event, so a later
+  // event carrying the same already-known URL never re-announces it — only
+  // a real absent→present transition for THAT field does. See
+  // aidaCheckJobPreviewReady() below.
+  var aidaJobPreviewAnnounced={};
 
   window._aidaHubInit=function(){
     if(inited) return;
@@ -4218,6 +4266,10 @@ var AidaFaceFlow=(function(){
     aidaJobsModal=document.getElementById('aidaJobsModal');
     aidaJobsModalClose=document.getElementById('aidaJobsModalClose');
     aidaJobsBody=document.getElementById('aidaJobsBody');
+    aidaPreviewReadyCard=document.getElementById('aidaPreviewReadyCard');
+    aidaPreviewReadyTitle=document.getElementById('aidaPreviewReadyTitle');
+    aidaPreviewReadyLinks=document.getElementById('aidaPreviewReadyLinks');
+    aidaPreviewReadyClose=document.getElementById('aidaPreviewReadyClose');
     aidaConvToggleBtn=document.getElementById('aidaConvToggleBtn');
     aidaConvSidebar=document.getElementById('aidaConvSidebar');
     aidaConvNewBtn=document.getElementById('aidaConvNewBtn');
@@ -5114,6 +5166,66 @@ var AidaFaceFlow=(function(){
       setTimeout(function(){ signOut(); },900);
     }
 
+    // Dismissible card (distinct from showAidaToast above — needs to hold
+    // clickable links and stay up longer) telling you a job's preview URL
+    // just resolved, while you're already in the AIDA panel watching the
+    // live job stream. See aidaCheckJobPreviewReady() below for when this
+    // fires.
+    var aidaPreviewReadyTimer=null;
+    function showAidaPreviewReadyCard(titleText,links){
+      clearTimeout(aidaPreviewReadyTimer);
+      aidaPreviewReadyTitle.textContent=titleText;
+      aidaPreviewReadyLinks.innerHTML=links.map(function(l){
+        return '<a class="prc-link" href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label)+' →</a>';
+      }).join('');
+      aidaPreviewReadyCard.classList.remove('hide');
+      aidaPreviewReadyCard.classList.add('show');
+      aidaPreviewReadyTimer=setTimeout(function(){
+        aidaPreviewReadyCard.classList.remove('show');
+        aidaPreviewReadyCard.classList.add('hide');
+      },9000);
+    }
+    aidaPreviewReadyClose.addEventListener('click',function(){
+      clearTimeout(aidaPreviewReadyTimer);
+      aidaPreviewReadyCard.classList.remove('show');
+      aidaPreviewReadyCard.classList.add('hide');
+    });
+
+    function aidaJobSummaryLabel(job){
+      var r=job.result||{};
+      return r.moduleName||r.agentSummary||AIDA_JOB_KIND_LABEL[job.kind]||job.kind||'Job';
+    }
+    // Fires on every aida:job socket event (not just while the Job Card
+    // panel is open) so the announced-state cache below stays accurate even
+    // if the user never opens the panel for a given job — only the actual
+    // on-screen card is gated on the AIDA overlay being open. Per field
+    // (previewUrl / backendUrl / frontendUrl) rather than per job, since a
+    // create_module job's backendUrl and frontendUrl typically resolve at
+    // different times and each should only ever be announced once, the
+    // moment IT individually goes from absent to present.
+    function aidaCheckJobPreviewReady(job){
+      if(!job||!job.result) return;
+      var r=job.result;
+      var ready=[];
+      if(job.kind==='create_module'){
+        if(r.previewUrls&&r.previewUrls.backendUrl) ready.push({kind:'backendUrl',label:'Backend',url:r.previewUrls.backendUrl});
+        if(r.previewUrls&&r.previewUrls.frontendUrl&&r.previewUrls.frontendReady!==false) ready.push({kind:'frontendUrl',label:'Frontend',url:r.previewUrls.frontendUrl});
+      } else if(r.previewUrl){
+        ready.push({kind:'previewUrl',label:'Preview',url:r.previewUrl});
+      }
+      if(!ready.length) return;
+      var overlayEl=document.getElementById('aida-overlay');
+      var overlayOpen=!!overlayEl&&overlayEl.classList.contains('open');
+      var toAnnounce=[];
+      ready.forEach(function(item){
+        var key=job.id+'::'+item.kind;
+        if(aidaJobPreviewAnnounced[key]) return;
+        aidaJobPreviewAnnounced[key]=true;
+        toAnnounce.push(item);
+      });
+      if(toAnnounce.length&&overlayOpen) showAidaPreviewReadyCard('🔗 Preview ready — '+aidaJobSummaryLabel(job),toAnnounce);
+    }
+
     // "Messages" is the text alternative to the voice module — the same
     // AIDA conversation, typed instead of spoken. Renders the real turn
     // history (aidaMessages), not a preview of anything else.
@@ -5394,6 +5506,7 @@ var AidaFaceFlow=(function(){
     // Live updates — optional per the spec (polling GET /jobs also works),
     // but avoids needing to poll while the panel happens to be open.
     window._aidaHubOnJobEvent=function(payload){
+      if(payload&&payload.job) aidaCheckJobPreviewReady(payload.job);
       if(!aidaJobsModal||!aidaJobsModal.classList.contains('open')) return;
       var id=(payload&&(payload.jobId||(payload.job&&payload.job.id)||payload.id))||null;
       if(aidaJobDetailId&&id&&aidaJobDetailId===id) openAidaJobDetail(id);
@@ -7135,6 +7248,14 @@ function ensureAidaOverlay(){
       <div class="toast" id="logoutToast">
         <span class="toast-icon" id="aidaToastIcon"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path d="M5 12l4.5 4.5L19 7"/></svg></span>
         <span id="aidaToastText">Signed out securely</span>
+      </div>
+
+      <div class="preview-ready-card" id="aidaPreviewReadyCard">
+        <div class="prc-head">
+          <div class="prc-title" id="aidaPreviewReadyTitle"></div>
+          <span class="prc-close" id="aidaPreviewReadyClose" role="button" aria-label="Dismiss">✕</span>
+        </div>
+        <div id="aidaPreviewReadyLinks"></div>
       </div>
 
       <div class="floating-modal" id="logoutModal" role="dialog" aria-modal="true" aria-label="Log out">
