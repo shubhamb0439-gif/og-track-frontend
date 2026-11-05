@@ -36,6 +36,11 @@
   .btn-primary:hover{opacity:.9}
   .btn-primary:disabled{opacity:.5;cursor:not-allowed}
   .error-msg{color:var(--red);font-size:13px;margin-top:10px;text-align:center;min-height:18px}
+  .auth-divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--g3);font-size:12px}
+  .auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+  .btn-ms{width:100%;padding:11px;background:#fff;color:#2b2b2b;border:1px solid var(--border);border-radius:8px;
+    font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .15s}
+  .btn-ms:hover{background:#f6f6f6}
 
   /* ── Main layout ── */
   #main-screen{display:none;min-height:100vh}
@@ -1835,6 +1840,11 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
     </div>
     <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
     <div class="error-msg" id="login-error"></div>
+    <div class="auth-divider"><span>or</span></div>
+    <button type="button" class="btn-ms" id="ms-login-btn" onclick="signInWithMicrosoft()">
+      <svg width="18" height="18" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Sign in with Microsoft
+    </button>
   </div>
 </div>
 
@@ -2170,7 +2180,15 @@ async function doLogin() {
       body: JSON.stringify({ email, password }),
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Login failed');
+    if (!r.ok) {
+      // Account's been switched to Microsoft-only sign-in — point at the
+      // button instead of implying the password itself was wrong.
+      if (r.status === 403 && data.ssoOnly) {
+        err.innerHTML = 'This account signs in with Microsoft only. <a href="javascript:void(0)" onclick="signInWithMicrosoft()" style="color:inherit;text-decoration:underline;font-weight:700">Sign in with Microsoft</a> instead.';
+        return;
+      }
+      throw new Error(data.error || 'Login failed');
+    }
     token = data.token;
     refreshToken = data.refreshToken;
     adminInfo = data.admin;
@@ -2188,6 +2206,11 @@ async function doLogin() {
   } finally {
     btn.disabled = false; btn.textContent = 'Sign In';
   }
+}
+// Full-page redirect (not fetch) — the backend owns the whole round trip to
+// Microsoft and back to masteradmin-sso-callback.html (see that file).
+function signInWithMicrosoft(){
+  location.href = `${API}/api/masteradmin/sso/login`;
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') doLogin();
@@ -7998,6 +8021,17 @@ async function clearAidaSessionOnLogout(){
     localStorage.removeItem('ma_token'); token = null;
   }
   document.getElementById('login-screen').style.display = 'flex';
+  // masteradmin-sso-callback.html redirects a failed SSO attempt back here
+  // as ?error=<message> instead of rendering its own error UI, so it shows
+  // in the exact same place/style as a wrong-password error. Strip it from
+  // the URL immediately so refreshing the page doesn't re-show it.
+  try {
+    var _ssoErr = new URLSearchParams(location.search).get('error');
+    if (_ssoErr) {
+      document.getElementById('login-error').textContent = _ssoErr;
+      history.replaceState(null, '', location.pathname);
+    }
+  } catch(_e) {}
 })();
 </script>
 </body>

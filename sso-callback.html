@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signing in — OGTrack</title>
+<style>
+  :root{--red:#C0392B;--dark:#1A1A1A;--g3:#7F7F7F;--border:#D8D8D8;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  body{background:#F2F2F2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:32px 36px;width:100%;max-width:400px;text-align:center}
+  h1{font-size:17px;font-weight:700;color:var(--dark);margin-bottom:8px}
+  p{font-size:13.5px;color:var(--g3);line-height:1.5}
+  .spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;margin:0 auto 18px;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  a.back{display:inline-block;margin-top:18px;font-size:13.5px;color:var(--red);font-weight:600;text-decoration:none}
+  a.back:hover{text-decoration:underline}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="state-working">
+    <div class="spinner"></div>
+    <h1>Signing you in…</h1>
+    <p>Finishing your Microsoft sign-in.</p>
+  </div>
+  <div id="state-retry" class="hidden">
+    <h1>Please sign in again</h1>
+    <p id="retry-msg">That sign-in link already expired or was already used.</p>
+    <a class="back" id="back-link" href="/">← Back to sign in</a>
+  </div>
+</div>
+<script>
+// This one page is shared by every company's tenant login — there's no
+// slug in ITS OWN url to detect a backend from, so the backend location
+// logic is copied from index.html's own adapter rather than derived from
+// this page's path.
+window.OGTRACK_API_BASE =
+  (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+    ? 'http://localhost:3000'
+    : (location.hostname.endsWith('.azurestaticapps.net') && location.hostname !== 'polite-ground-0d0cadb00.azurestaticapps.net')
+      ? 'https://og-track-backend-preview-guanf2ggc8ctgmbe.centralindia-01.azurewebsites.net'
+      : 'https://og-track-backend-c9ergsc8fchygmez.centralindia-01.azurewebsites.net';
+
+const params = new URLSearchParams(location.search);
+const slug = params.get('slug');
+const backHref = slug ? '/' + encodeURIComponent(slug) : '/';
+document.getElementById('back-link').href = backHref;
+
+function showRetry(msg){
+  document.getElementById('state-working').classList.add('hidden');
+  if(msg) document.getElementById('retry-msg').textContent = msg;
+  document.getElementById('state-retry').classList.remove('hidden');
+}
+
+(async function(){
+  const error = params.get('error');
+  const code = params.get('code');
+
+  // The backend itself decided this sign-in failed (e.g. no active user at
+  // that company matching the Microsoft identity) before ever handing us a
+  // code — bounce straight back to that company's own login page, which
+  // shows it in the exact same place/style as a wrong-password error.
+  if (error) {
+    location.replace(backHref + '?error=' + encodeURIComponent(error));
+    return;
+  }
+
+  if (!code) {
+    showRetry();
+    return;
+  }
+
+  try {
+    // Not slug-scoped — this one callback page serves every company, and
+    // the exchange endpoint itself is a single shared route (the code
+    // already encodes which company it belongs to).
+    const r = await fetch(`${window.OGTRACK_API_BASE}/api/tenant-sso/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!r.ok) {
+      // 400 = the code was already used or has expired (e.g. this page got
+      // reloaded) — don't retry automatically, the code is single-use.
+      showRetry();
+      return;
+    }
+    const data = await r.json();
+    // Store exactly the way the existing per-company password /login
+    // response is stored (doLogin() in index.html), so the rest of the app
+    // sees a completely normal session either way.
+    if (data.token) localStorage.setItem('og_token', data.token);
+    if (data.refreshToken) localStorage.setItem('og_refresh_token', data.refreshToken);
+    localStorage.setItem('bt_user', JSON.stringify(data.user));
+    // This callback page has no tenant slug of its own — it only knows
+    // where to send the browser next from this query param, unlike the
+    // normal password-login flow, which already knows the slug from the
+    // URL the person started on.
+    location.replace(backHref);
+  } catch (e) {
+    showRetry('Could not reach the server. Check your connection and try again.');
+  }
+})();
+</script>
+</body>
+</html>

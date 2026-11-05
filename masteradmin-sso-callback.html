@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Signing in — OGTrack Master Admin</title>
+<style>
+  :root{--red:#C0392B;--g2:#2C3E50;--g3:#7F8C8D;--border:#E8E8E8;}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+  body{background:#F5F6FA;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .card{background:#fff;border-radius:16px;padding:40px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08);text-align:center}
+  h1{font-size:17px;font-weight:700;color:var(--g2);margin-bottom:8px}
+  p{font-size:13.5px;color:var(--g3);line-height:1.5}
+  .spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;margin:0 auto 18px;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  a.back{display:inline-block;margin-top:18px;font-size:13.5px;color:var(--red);font-weight:600;text-decoration:none}
+  a.back:hover{text-decoration:underline}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="state-working">
+    <div class="spinner"></div>
+    <h1>Signing you in…</h1>
+    <p>Finishing your Microsoft sign-in.</p>
+  </div>
+  <div id="state-retry" class="hidden">
+    <h1>Please sign in again</h1>
+    <p id="retry-msg">That sign-in link already expired or was already used.</p>
+    <a class="back" href="/master-admin">← Back to sign in</a>
+  </div>
+</div>
+<script>
+// Same backend-location logic as masteradmin.html's own API const — kept in
+// sync by hand since this is a separate static page with nothing to share
+// it from.
+const API = (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+  ? 'http://localhost:3000'
+  : (location.hostname.endsWith('.azurestaticapps.net') && location.hostname !== 'polite-ground-0d0cadb00.azurestaticapps.net')
+    ? 'https://og-track-backend-preview-guanf2ggc8ctgmbe.centralindia-01.azurewebsites.net'
+    : 'https://og-track-backend-c9ergsc8fchygmez.centralindia-01.azurewebsites.net';
+
+function showRetry(msg){
+  document.getElementById('state-working').classList.add('hidden');
+  if(msg) document.getElementById('retry-msg').textContent = msg;
+  document.getElementById('state-retry').classList.remove('hidden');
+}
+
+(async function(){
+  const params = new URLSearchParams(location.search);
+  const error = params.get('error');
+  const code = params.get('code');
+
+  // The backend itself decided this sign-in failed (e.g. no matching master
+  // admin account for that Microsoft identity) before ever handing us a
+  // code — bounce straight back to the real login page's own error UI
+  // rather than building a second one here.
+  if (error) {
+    location.replace('/master-admin?error=' + encodeURIComponent(error));
+    return;
+  }
+
+  if (!code) {
+    showRetry();
+    return;
+  }
+
+  try {
+    const r = await fetch(`${API}/api/masteradmin/sso/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!r.ok) {
+      // 400 = the code was already used or has expired (e.g. this page got
+      // reloaded) — don't retry automatically, the code is single-use.
+      showRetry();
+      return;
+    }
+    const data = await r.json();
+    // Store exactly the way the existing password /login response is
+    // stored (doLogin() in masteradmin.html), so every other part of the
+    // app sees a completely normal session either way.
+    localStorage.setItem('ma_token', data.token);
+    localStorage.setItem('ma_refresh_token', data.refreshToken);
+    localStorage.setItem('ma_admin', JSON.stringify(data.admin));
+    // /master-admin/aida (not just /master-admin) — showMain() auto-opens
+    // AIDA for that exact path (MA_WANTS_AIDA), which is also where doLogin()
+    // itself sends a fresh password sign-in, so both paths land the same way.
+    location.replace('/master-admin/aida');
+  } catch (e) {
+    showRetry('Could not reach the server. Check your connection and try again.');
+  }
+})();
+</script>
+</body>
+</html>
