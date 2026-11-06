@@ -15479,7 +15479,12 @@ let sitaraPeopleSearch={weavers:'',vendors:'',customers:''};
 let sitaraCustomerSourceFilter='';
 let sitaraProductSearch='';
 let sitaraPoFilters={search:'',status:'',weaverId:''};
-let sitaraOrderFilters={status:'',source:'',search:'',sort:'latest',staleOnly:false};
+let sitaraOrderFilters={status:'',source:'',search:'',sort:'latest',staleOnly:false,dateFrom:'',dateTo:'',productId:''};
+// Order IDs matching the current productId filter — resolved from the
+// backend (an order's items aren't in the list payload, only its own
+// fields are, so this can't be filtered client-side like status/source).
+// null = no product filter active (don't restrict).
+let sitaraProductFilterIds=null;
 let sitaraExpandedPoId=null;
 let sitaraExpandedOrderId=null;
 let sitaraPoDetailCache={};
@@ -16118,10 +16123,17 @@ function sitaraTimeInStatus(iso){
 }
 function sitaraOrdersFilteredList(){
   const oq=sitaraOrderFilters.search.trim().toLowerCase();
+  // dateTo is inclusive of the whole picked day — compare against the start
+  // of the next day, same convention as the backend's createdTo filter.
+  const fromTs=sitaraOrderFilters.dateFrom?new Date(sitaraOrderFilters.dateFrom).getTime():null;
+  const toTs=sitaraOrderFilters.dateTo?new Date(sitaraOrderFilters.dateTo+'T00:00:00').getTime()+86400000:null;
   const list=sitaraOrders.filter(o=>
     (!sitaraOrderFilters.status||o.status===sitaraOrderFilters.status) &&
     (!sitaraOrderFilters.source||o.source===sitaraOrderFilters.source) &&
     (!sitaraOrderFilters.staleOnly||o.isStale) &&
+    (!sitaraOrderFilters.productId||!sitaraProductFilterIds||sitaraProductFilterIds.has(o.id)) &&
+    (fromTs==null||new Date(o.createdAt||0).getTime()>=fromTs) &&
+    (toTs==null||new Date(o.createdAt||0).getTime()<toTs) &&
     (!oq||(o.orderNumber||'').toLowerCase().includes(oq)||(o.customerName||'').toLowerCase().includes(oq)||(o.customerEmail||'').toLowerCase().includes(oq))
   );
   const dateVal=o=>new Date(o.createdAt||0).getTime();
@@ -16197,6 +16209,16 @@ function renderSitaraOrders(){
         <option value="latest" ${sitaraOrderFilters.sort==='latest'?'selected':''}>Latest first</option>
         <option value="oldest" ${sitaraOrderFilters.sort==='oldest'?'selected':''}>Oldest first</option>
       </select>
+      <select onchange="setSitaraOrderFilter('productId',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px">
+        <option value="">All Products</option>
+        ${sitaraProducts.map(p=>`<option value="${p.id}" ${sitaraOrderFilters.productId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="font-size:11px;color:var(--g3)">From</label>
+        <input type="date" value="${esc(sitaraOrderFilters.dateFrom)}" onchange="setSitaraOrderFilter('dateFrom',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px">
+        <label style="font-size:11px;color:var(--g3)">To</label>
+        <input type="date" value="${esc(sitaraOrderFilters.dateTo)}" onchange="setSitaraOrderFilter('dateTo',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px">
+      </div>
       <label style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid ${sitaraOrderFilters.staleOnly?'#C0392B':'var(--border)'};border-radius:6px;font-size:12.5px;color:#C0392B;cursor:pointer;background:${sitaraOrderFilters.staleOnly?'#C0392B15':'none'}">
         <input type="checkbox" ${sitaraOrderFilters.staleOnly?'checked':''} onchange="setSitaraOrderFilter('staleOnly',this.checked)">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:2px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Stale only (${staleCount})
@@ -16209,7 +16231,19 @@ function renderSitaraOrders(){
 }
 function setSitaraOrderFilter(key,val){
   sitaraOrderFilters[key]=val;
-  if(key==='search'){
+  if(key==='productId'){
+    // An order's items aren't in the already-loaded list, so this one
+    // filter needs a round trip — resolve the matching order ids first,
+    // then render like any other filter change.
+    sitaraProductFilterIds=null;
+    if(!val){ renderSitaraOrders(); return; }
+    fetch(`/api/sitara/orders?productId=${encodeURIComponent(val)}`).then(r=>r.json()).then(rows=>{
+      sitaraProductFilterIds=new Set((rows||[]).map(o=>o.id));
+      if(currentView==='sitara_business_orders') renderSitaraOrders();
+    }).catch(()=>{ sitaraProductFilterIds=new Set(); if(currentView==='sitara_business_orders') renderSitaraOrders(); });
+    return;
+  }
+  if(key==='search'||key==='dateFrom'||key==='dateTo'){
     const list=sitaraOrdersFilteredList();
     const tbody=document.getElementById('sitara-orders-tbody');
     if(tbody) tbody.innerHTML=sitaraOrdersTbodyHtml(list);
