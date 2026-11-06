@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROI Calculator | OG Track</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #15171a;
+    --panel: #1d2023;
+    --panel-2: #22262a;
+    --border: #2d3135;
+    --lime: #c6ff00;
+    --lime-dim: #9ed900;
+    --text: #e8ebee;
+    --text-dim: #9aa1a8;
+    --error: #ff5c5c;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 18px 28px;
+    background: linear-gradient(180deg, #1a1d20, #15171a);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top:0; z-index:50;
+  }
+  header .brand{ display:flex; align-items:center; gap:12px; }
+  header .brand .dot{
+    width:14px; height:14px; border-radius:4px; background: var(--lime);
+    box-shadow: 0 0 12px var(--lime);
+  }
+  header h1{
+    font-size: 19px; margin:0; letter-spacing:.3px;
+  }
+  header h1 span{ color: var(--lime); }
+  header .sub{ font-size:12px; color: var(--text-dim); margin-top:2px; }
+  .container{
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .top-controls{
+    display:flex; flex-wrap:wrap; gap:12px; align-items:center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .currency-select{
+    display:flex; align-items:center; gap:8px;
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 14px;
+  }
+  .currency-select label{ font-size:13px; color:var(--text-dim); }
+  .currency-select select{
+    background: var(--panel-2);
+    color: var(--text);
+    border:1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size:14px;
+  }
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; }
+  .btn{
+    cursor:pointer;
+    border:none;
+    border-radius: 9px;
+    padding: 10px 16px;
+    font-size: 13.5px;
+    font-weight:600;
+    display:flex; align-items:center; gap:8px;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn-primary{
+    background: var(--lime);
+    color: #11140f;
+    box-shadow: 0 0 0 rgba(198,255,0,0);
+  }
+  .btn-primary:hover{ transform: translateY(-1px); box-shadow: 0 6px 18px rgba(198,255,0,.25); }
+  .btn-outline{
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover{ border-color: var(--lime); color: var(--lime); }
+
+  .layout{
+    display:grid;
+    grid-template-columns: 420px 1fr;
+    gap: 22px;
+    align-items:start;
+  }
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .panel h2{
+    margin:0 0 4px 0;
+    font-size: 16px;
+  }
+  .panel .desc{
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+  }
+  .field{
+    margin-bottom: 20px;
+  }
+  .field-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 6px;
+  }
+  .field-label{
+    font-size: 13.5px;
+    display:flex; align-items:center; gap:6px;
+    color: var(--text);
+  }
+  .field-value{
+    font-size: 13.5px;
+    font-weight:700;
+    color: var(--lime);
+    background: var(--panel-2);
+    padding: 2px 9px;
+    border-radius: 6px;
+    min-width: 70px;
+    text-align:center;
+  }
+  input[type=range]{
+    width:100%;
+    -webkit-appearance:none;
+    height:6px;
+    border-radius:4px;
+    background: var(--panel-2);
+    outline:none;
+    border: 1px solid var(--border);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:18px; height:18px;
+    border-radius:50%;
+    background: var(--lime);
+    cursor:pointer;
+    border: 3px solid #11140f;
+    box-shadow: 0 0 8px rgba(198,255,0,.6);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:18px; height:18px;
+    border-radius:50%;
+    background: var(--lime);
+    cursor:pointer;
+    border: 3px solid #11140f;
+    box-shadow: 0 0 8px rgba(198,255,0,.6);
+  }
+  .range-minmax{
+    display:flex; justify-content:space-between;
+    font-size:10.5px; color: var(--text-dim); margin-top:4px;
+  }
+
+  .tooltip{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:15px; height:15px;
+    border-radius:50%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 10.5px;
+    cursor: help;
+  }
+  .tooltip .tip-text{
+    visibility:hidden;
+    opacity:0;
+    position:absolute;
+    bottom: 140%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0d0f11;
+    color: var(--text);
+    border: 1px solid var(--lime);
+    padding: 9px 11px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height:1.4;
+    width: 220px;
+    z-index: 100;
+    transition: opacity .15s ease;
+    font-weight: 400;
+    pointer-events:none;
+  }
+  .tooltip:hover .tip-text{ visibility:visible; opacity:1; }
+
+  .results-grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .stat-card{
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .stat-card .label{
+    font-size: 11.5px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 8px;
+  }
+  .stat-card .value{
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--lime);
+  }
+  .stat-card .value.neg{ color: var(--error); }
+  .stat-card .sub{
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .charts-row{
+    display:grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .chart-box{
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    height: 280px;
+  }
+  .chart-box h3{
+    margin:0 0 10px 0;
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .chart-canvas-wrap{ height: 210px; position:relative; }
+
+  table.breakdown{
+    width:100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.breakdown th, table.breakdown td{
+    text-align:left;
+    padding: 9px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.breakdown th{ color: var(--text-dim); font-weight:600; font-size:11.5px; text-transform:uppercase; }
+  table.breakdown td.amount{ text-align:right; font-weight:600; }
+
+  .error-banner{
+    display:none;
+    background: rgba(255,92,92,.12);
+    border: 1px solid var(--error);
+    color: var(--error);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    margin-bottom: 18px;
+    align-items:center;
+    gap:10px;
+  }
+  .error-banner.show{ display:flex; }
+
+  .share-box{
+    display:flex; gap:8px; margin-top: 10px;
+  }
+  .share-box input{
+    flex:1;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .copied-msg{
+    font-size: 11.5px;
+    color: var(--lime);
+    margin-top: 6px;
+    height: 14px;
+  }
+
+  footer{
+    text-align:center;
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 30px 10px 40px;
+  }
+
+  @media (max-width: 980px){
+    .layout{ grid-template-columns: 1fr; }
+    .results-grid{ grid-template-columns: repeat(2,1fr); }
+    .charts-row{ grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px){
+    .results-grid{ grid-template-columns: 1fr; }
+    header{ flex-direction:column; align-items:flex-start; gap:10px; }
+    .container{ padding:14px; }
+    .panel{ padding:16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <h1>OG <span>Track</span> &mdash; ROI Calculator</h1>
+      <div class="sub">Financial &amp; sustainability return-on-investment modeling</div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="top-controls">
+    <div class="currency-select">
+      <label for="currencySelect">Currency</label>
+      <select id="currencySelect">
+        <option value="USD">USD ($)</option>
+        <option value="EUR">EUR (€)</option>
+        <option value="GBP">GBP (£)</option>
+        <option value="INR">INR (₹)</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline" id="resetBtn">Reset Defaults</button>
+      <button class="btn btn-outline" id="shareBtn">🔗 Share Results</button>
+      <button class="btn btn-primary" id="pdfBtn">⬇ Export PDF Report</button>
+    </div>
+  </div>
+
+  <div id="errorBanner" class="error-banner">
+    ⚠ <span id="errorText">Please enter valid, non-zero values for the highlighted parameters to calculate ROI.</span>
+  </div>
+
+  <div class="layout">
+
+    <!-- INPUT PANEL -->
+    <div class="panel">
+      <h2>Input Parameters</h2>
+      <div class="desc">Adjust the sliders to model your fleet / deployment scenario.</div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Number of Units
+            <span class="tooltip">i<span class="tip-text">Total number of devices, chargers, or assets being deployed in this investment.</span></span>
+          </span>
+          <span class="field-value" id="val-units">25</span>
+        </div>
+        <input type="range" id="units" min="0" max="500" step="1" value="25">
+        <div class="range-minmax"><span>0</span><span>500</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Cost per Unit
+            <span class="tooltip">i<span class="tip-text">Upfront purchase/hardware cost for a single unit, before installation.</span></span>
+          </span>
+          <span class="field-value" id="val-costPerUnit">1500</span>
+        </div>
+        <input type="range" id="costPerUnit" min="0" max="20000" step="50" value="1500">
+        <div class="range-minmax"><span>0</span><span>20,000</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Installation &amp; Setup Cost
+            <span class="tooltip">i<span class="tip-text">One-time total cost of installation, commissioning and setup across all units.</span></span>
+          </span>
+          <span class="field-value" id="val-installCost">8000</span>
+        </div>
+        <input type="range" id="installCost" min="0" max="100000" step="500" value="8000">
+        <div class="range-minmax"><span>0</span><span>100,000</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Annual Maintenance / Unit
+            <span class="tooltip">i<span class="tip-text">Recurring yearly maintenance, support and servicing cost per unit.</span></span>
+          </span>
+          <span class="field-value" id="val-maintenanceCost">120</span>
+        </div>
+        <input type="range" id="maintenanceCost" min="0" max="5000" step="10" value="120">
+        <div class="range-minmax"><span>0</span><span>5,000</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Expected Lifespan (years)
+            <span class="tooltip">i<span class="tip-text">Useful operating life of the deployment used for TCO and total ROI projections.</span></span>
+          </span>
+          <span class="field-value" id="val-lifespan">8</span>
+        </div>
+        <input type="range" id="lifespan" min="0" max="20" step="1" value="8">
+        <div class="range-minmax"><span>0</span><span>20</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Annual Energy Savings / Unit
+            <span class="tooltip">i<span class="tip-text">Yearly savings per unit from reduced energy/fuel consumption versus the previous solution.</span></span>
+          </span>
+          <span class="field-value" id="val-energySavings">900</span>
+        </div>
+        <input type="range" id="energySavings" min="0" max="10000" step="25" value="900">
+        <div class="range-minmax"><span>0</span><span>10,000</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Annual Operational Savings / Unit
+            <span class="tooltip">i<span class="tip-text">Yearly savings per unit from reduced labor, downtime, or operational overhead.</span></span>
+          </span>
+          <span class="field-value" id="val-operationalSavings">650</span>
+        </div>
+        <input type="range" id="operationalSavings" min="0" max="20000" step="25" value="650">
+        <div class="range-minmax"><span>0</span><span>20,000</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Discount Rate (%)
+            <span class="tooltip">i<span class="tip-text">Annual rate used to discount future cash flows to present value (reflects cost of capital).</span></span>
+          </span>
+          <span class="field-value" id="val-discountRate">6</span>
+        </div>
+        <input type="range" id="discountRate" min="0" max="20" step="0.5" value="6">
+        <div class="range-minmax"><span>0%</span><span>20%</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">CO₂ Reduction / Unit / Year (kg)
+            <span class="tooltip">i<span class="tip-text">Estimated annual greenhouse-gas emissions avoided per unit, in kilograms of CO₂e.</span></span>
+          </span>
+          <span class="field-value" id="val-co2PerUnit">450</span>
+        </div>
+        <input type="range" id="co2PerUnit" min="0" max="5000" step="10" value="450">
+        <div class="range-minmax"><span>0</span><span>5,000</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <span class="field-label">Carbon Price / Tonne
+            <span class="tooltip">i<span class="tip-text">Monetary value assigned to each tonne of CO₂e avoided (market or internal carbon price).</span></span>
+          </span>
+          <span class="field-value" id="val-carbonPrice">60</span>
+        </div>
+        <input type="range" id="carbonPrice" min="0" max="300" step="5" value="60">
+        <div class="range-minmax"><span>0</span><span>300</span></div>
+      </div>
+
+      <div class="share-box">
+        <input type="text" id="shareUrl" readonly value="">
+        <button class="btn btn-outline" id="copyShareBtn">Copy</button>
+      </div>
+      <div class="copied-msg" id="copiedMsg"></div>
+    </div>
+
+    <!-- RESULTS PANEL -->
+    <div class="panel">
+      <h2>Results Dashboard</h2>
+      <div class="desc">Live financial and sustainability impact based on your inputs.</div>
+
+      <div class="results-grid">
+        <div class="stat-card">
+          <div class="label">Total Investment</div>
+          <div class="value" id="out-investment">—</div>
+          <div class="sub">Upfront hardware + install</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total Cost of Ownership</div>
+          <div class="value" id="out-tco">—</div>
+          <div class="sub">Over full lifespan</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">ROI</div>
+          <div class="value" id="out-roi">—</div>
+          <div class="sub">Return over lifespan</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Payback Period</div>
+          <div class="value" id="out-payback">—</div>
+          <div class="sub">Years to break even</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Net Lifetime Savings</div>
+          <div class="value" id="out-savings">—</div>
+          <div class="sub">Financial + carbon value</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">CO₂ Avoided (lifetime)</div>
+          <div class="value" id="out-co2">—</div>
+          <div class="sub">Tonnes of CO₂e</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <h3>Cumulative Cash Flow Over Lifespan</h3>
+          <div class="chart-canvas-wrap"><canvas id="cashflowChart"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h3>Cost vs. Savings Breakdown</h3>
+          <div class="chart-canvas-wrap"><canvas id="breakdownChart"></canvas></div>
+        </div>
+      </div>
+
+      <table class="breakdown">
+        <thead>
+          <tr><th>Line Item</th><th style="text-align:right;">Amount</th></tr>
+        </thead>
+        <tbody id="breakdownTableBody">
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  ROI estimates are illustrative only and do not constitute financial advice. Built for OG Track.
+</footer>
+
+<script>
+(function(){
+  const RATES = { USD: 1, EUR: 0.92, GBP: 0.79, INR: 83.2 };
+  const SYMBOLS = { USD: '$', EUR: '€', GBP: '£', INR: '₹' };
+  const CURRENCY_FIELDS = ['costPerUnit','installCost','maintenanceCost','energySavings','operationalSavings','carbonPrice'];
+  const ALL_FIELDS = ['units','costPerUnit','installCost','maintenanceCost','lifespan','energySavings','operationalSavings','discountRate','co2PerUnit','carbonPrice'];
+
+  const DEFAULTS = {
+    units: 25, costPerUnit: 1500, installCost: 8000, maintenanceCost: 120,
+    lifespan: 8, energySavings: 900, operationalSavings: 650,
+    discountRate: 6, co2PerUnit: 450, carbonPrice: 60
+  };
+
+  let currentCurrency = 'USD';
+  let cashflowChart = null;
+  let breakdownChart = null;
+
+  function el(id){ return document.getElementById(id); }
+
+  function fmtMoney(value){
+    if (!isFinite(value) || isNaN(value)) return 'N/A';
+    const sym = SYMBOLS[currentCurrency];
+    const rounded = Math.round(value);
+    return sym + rounded.toLocaleString('en-US');
+  }
+
+  function readInputs(){
+    const vals = {};
+    ALL_FIELDS.forEach(f => vals[f] = parseFloat(el(f).value));
+    return vals;
+  }
+
+  function updateValueLabels(){
+    ALL_FIELDS.forEach(f => {
+      const v = el(f).value;
+      let display = v;
+      if (CURRENCY_FIELDS.includes(f)) {
+        display = SYMBOLS[currentCurrency] + Math.round(v).toLocaleString('en-US');
+      } else if (f === 'discountRate') {
+        display = v + '%';
+      } else {
+        display = Math.round(v).toLocaleString('en-US');
+      }
+      el('val-' + f).textContent = display;
+    });
+  }
+
+  function validate(vals){
+    const errors = [];
+    if (vals.units <= 0) errors.push('Number of Units must be greater than 0.');
+    if (vals.lifespan <= 0) errors.push('Expected Lifespan must be greater than 0.');
+    if ((vals.costPerUnit * vals.units + vals.installCost) <= 0) errors.push('Total Investment must be greater than 0.');
+    return errors;
+  }
+
+  function calculate(vals){
+    const investment = (vals.units * vals.costPerUnit) + vals.installCost;
+    const annualMaintenanceTotal = vals.units * vals.maintenanceCost;
+    const annualFinancialSavings = vals.units * (vals.energySavings + vals.operationalSavings);
+    const annualCo2Tonnes = (vals.units * vals.co2PerUnit) / 1000;
+    const annualCarbonSavings = annualCo2Tonnes * vals.carbonPrice;
+    const annualBenefit = annualFinancialSavings + annualCarbonSavings;
+    const annualNetCashFlow = annualBenefit - annualMaintenanceTotal;
+
+    const tco = investment + (annualMaintenanceTotal * vals.lifespan);
+    const totalSavingsLifetime = (annualBenefit * vals.lifespan);
+    const netLifetimeSavings = totalSavingsLifetime - tco;
+    const roiPct = tco > 0 ? (netLifetimeSavings / tco) * 100 : NaN;
+    const paybackYears = annualNetCashFlow > 0 ? investment / annualNetCashFlow : Infinity;
+    const totalCo2Lifetime = annualCo2Tonnes * vals.lifespan;
+
+    // discounted cumulative cash flow series for chart
+    const series = [];
+    let cumulative = -investment;
+    series.push(cumulative);
+    for (let y = 1; y <= vals.lifespan; y++) {
+      const discountFactor = Math.pow(1 + (vals.discountRate / 100), y);
+      const discountedCF = annualNetCashFlow / discountFactor;
+      cumulative += discountedCF;
+      series.push(cumulative);
+    }
+
+    return {
+      investment, annualMaintenanceTotal, annualFinancialSavings, annualCarbonSavings,
+      annualBenefit, annualNetCashFlow, tco, netLifetimeSavings, roiPct, paybackYears,
+      annualCo2Tonnes, totalCo2Lifetime, series
+    };
+  }
+
+  function renderCharts(result, vals){
+    const years = Array.from({length: vals.lifespan + 1}, (_, i) => 'Yr ' + i);
+
+    if (cashflowChart) cashflowChart.destroy();
+    const ctx1 = el('cashflowChart').getContext('2d');
+    cashflowChart = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: years,
+        datasets: [{
+          label: 'Cumulative Cash Flow',
+          data: result.series,
+          borderColor: '#c6ff00',
+          backgroundColor: 'rgba(198,255,0,0.12)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#9aa1a8', maxRotation: 0 }, grid: { color: '#2d3135' } },
+          y: { ticks: { color: '#9aa1a8' }, grid: { color: '#2d3135' } }
+        }
+      }
+    });
+
+    if (breakdownChart) breakdownChart.destroy();
+    const ctx2 = el('breakdownChart').getContext('2d');
+    breakdownChart = new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: ['Investment', 'Maintenance (lifetime)', 'Financial Savings (lifetime)', 'Carbon Savings (lifetime)'],
+        datasets: [{
+          data: [
+            Math.max(result.investment, 0),
+            Math.max(result.annualMaintenanceTotal * vals.lifespan, 0),
+            Math.max(result.annualFinancialSavings * vals.lifespan, 0),
+            Math.max(result.annualCarbonSavings * vals.lifespan, 0)
+          ],
+          backgroundColor: ['#ff5c5c', '#ff9f43', '#c6ff00', '#39d98a'],
+          borderColor: '#1d2023',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#9aa1a8', boxWidth: 10, font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  function renderTable(result, vals){
+    const rows = [
+      ['Upfront Investment', result.investment],
+      ['Annual Maintenance (fleet)', result.annualMaintenanceTotal],
+      ['Annual Financial Savings', result.annualFinancialSavings],
+      ['Annual Carbon Savings', result.annualCarbonSavings],
+      ['Total Cost of Ownership (lifetime)', result.tco],
+      ['Total Savings (lifetime)', result.annualBenefit * vals.lifespan],
+      ['Net Lifetime Savings', result.netLifetimeSavings]
+    ];
+    const body = el('breakdownTableBody');
+    body.innerHTML = '';
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const tdLabel = document.createElement('td');
+      tdLabel.textContent = r[0];
+      const tdAmount = document.createElement('td');
+      tdAmount.className = 'amount';
+      tdAmount.textContent = fmtMoney(r[1]);
+      if (r[1] < 0) tdAmount.style.color = '#ff5c5c';
+      tr.appendChild(tdLabel);
+      tr.appendChild(tdAmount);
+      body.appendChild(tr);
+    });
+  }
+
+  function recalc(){
+    updateValueLabels();
+    const vals = readInputs();
+    const errors = validate(vals);
+    const banner = el('errorBanner');
+    if (errors.length > 0) {
+      el('errorText').textContent = errors.join(' ');
+      banner.classList.add('show');
+      el('out-investment').textContent = 'N/A';
+      el('out-tco').textContent = 'N/A';
+      el('out-roi').textContent = 'N/A';
+      el('out-payback').textContent = 'N/A';
+      el('out-savings').textContent = 'N/A';
+      el('out-co2').textContent = 'N/A';
+      el('breakdownTableBody').innerHTML = '';
+      if (cashflowChart) { cashflowChart.destroy(); cashflowChart = null; }
+      if (breakdownChart) { breakdownChart.destroy(); breakdownChart = null; }
+      return;
+    }
+    banner.classList.remove('show');
+
+    const result = calculate(vals);
+
+    el('out-investment').textContent = fmtMoney(result.investment);
+    el('out-tco').textContent = fmtMoney(result.tco);
+
+    const roiEl = el('out-roi');
+    roiEl.textContent = isFinite(result.roiPct) ? result.roiPct.toFixed(1) + '%' : 'N/A';
+    roiEl.classList.toggle('neg', result.roiPct < 0);
+
+    const paybackEl = el('out-payback');
+    paybackEl.textContent = isFinite(result.paybackYears) ? result.paybackYears.toFixed(1) + ' yrs' : 'Never';
+    paybackEl.classList.toggle('neg', !isFinite(result.paybackYears));
+
+    const savingsEl = el('out-savings');
+    savingsEl.textContent = fmtMoney(result.netLifetimeSavings);
+    savingsEl.classList.toggle('neg', result.netLifetimeSavings < 0);
+
+    el('out-co2').textContent = result.totalCo2Lifetime.toFixed(1) + ' t';
+
+    renderCharts(result, vals);
+    renderTable(result, vals);
+    updateShareUrl();
+
+    window._roiLastResult = result;
+    window._roiLastVals = vals;
+  }
+
+  function convertCurrencyFields(oldCur, newCur){
+    const ratio = RATES[newCur] / RATES[oldCur];
+    CURRENCY_FIELDS.forEach(f => {
+      const input = el(f);
+      let newVal = parseFloat(input.value) * ratio;
+      newVal = Math.min(parseFloat(input.max), Math.max(parseFloat(input.min), newVal));
+      input.value = newVal;
+    });
+  }
+
+  function updateShareUrl(){
+    const vals = readInputs();
+    const state = Object.assign({ cur: currentCurrency }, vals);
+    const encoded = btoa(encodeURIComponent(JSON.stringify(state)));
+    const url = window.location.origin + window.location.pathname + '?state=' + encoded;
+    el('shareUrl').value = url;
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, '', '?state=' + encoded);
+    }
+  }
+
+  function loadFromUrl(){
+    const params = new URLSearchParams(window.location.search);
+    const state = params.get('state');
+    if (!state) return false;
+    try {
+      const decoded = JSON.parse(decodeURIComponent(atob(state)));
+      if (decoded.cur && RATES[decoded.cur]) {
+        currentCurrency = decoded.cur;
+        el('currencySelect').value = decoded.cur;
+      }
+      ALL_FIELDS.forEach(f => {
+        if (decoded[f] !== undefined) el(f).value = decoded[f];
+      });
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  function resetDefaults(){
+    currentCurrency = 'USD';
+    el('currencySelect').value = 'USD';
+    ALL_FIELDS.forEach(f => el(f).value = DEFAULTS[f]);
+    recalc();
+  }
+
+  function exportPdf(){
+    const vals = window._roiLastVals;
+    const result = window._roiLastResult;
+    if (!vals || !result) { alert('Please resolve input errors before exporting.'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 18;
+
+    doc.setFontSize(18);
+    doc.text('ROI Calculator Report', 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Generated by OG Track ROI Calculator — ' + new Date().toLocaleString(), 14, y);
+    y += 10;
+
+    doc.setTextColor(0);
+    doc.setFontSize(13);
+    doc.text('Input Parameters', 14, y);
+    y += 7;
+    doc.setFontSize(10);
+    const inputLines = [
+      ['Currency', currentCurrency],
+      ['Number of Units', vals.units],
+      ['Cost per Unit', fmtMoney(vals.costPerUnit)],
+      ['Installation & Setup Cost', fmtMoney(vals.installCost)],
+      ['Annual Maintenance / Unit', fmtMoney(vals.maintenanceCost)],
+      ['Expected Lifespan (years)', vals.lifespan],
+      ['Annual Energy Savings / Unit', fmtMoney(vals.energySavings)],
+      ['Annual Operational Savings / Unit', fmtMoney(vals.operationalSavings)],
+      ['Discount Rate', vals.discountRate + '%'],
+      ['CO2 Reduction / Unit / Year', vals.co2PerUnit + ' kg'],
+      ['Carbon Price / Tonne', fmtMoney(vals.carbonPrice)]
+    ];
+    inputLines.forEach(row => {
+      doc.text(String(row[0]) + ':', 14, y);
+      doc.text(String(row[1]), 110, y);
+      y += 6;
+    });
+
+    y += 4;
+    doc.setFontSize(13);
+    doc.text('Results', 14, y);
+    y += 7;
+    doc.setFontSize(10);
+    const resultLines = [
+      ['Total Investment', fmtMoney(result.investment)],
+      ['Total Cost of Ownership', fmtMoney(result.tco)],
+      ['ROI', isFinite(result.roiPct) ? result.roiPct.toFixed(1) + '%' : 'N/A'],
+      ['Payback Period', isFinite(result.paybackYears) ? result.paybackYears.toFixed(1) + ' years' : 'Never'],
+      ['Net Lifetime Savings', fmtMoney(result.netLifetimeSavings)],
+      ['Total CO2 Avoided (lifetime)', result.totalCo2Lifetime.toFixed(1) + ' tonnes'],
+      ['Annual Financial Savings', fmtMoney(result.annualFinancialSavings)],
+      ['Annual Carbon Savings', fmtMoney(result.annualCarbonSavings)]
+    ];
+    resultLines.forEach(row => {
+      doc.text(String(row[0]) + ':', 14, y);
+      doc.text(String(row[1]), 110, y);
+      y += 6;
+    });
+
+    y += 6;
+    doc.setFontSize(8);
+    doc.setTextColor(130);
+    doc.text('This report is illustrative and does not constitute financial advice.', 14, y);
+
+    doc.save('roi-report.pdf');
+  }
+
+  function wireEvents(){
+    ALL_FIELDS.forEach(f => el(f).addEventListener('input', recalc));
+
+    el('currencySelect').addEventListener('change', function(){
+      const newCur = this.value;
+      convertCurrencyFields(currentCurrency, newCur);
+      currentCurrency = newCur;
+      recalc();
+    });
+
+    el('resetBtn').addEventListener('click', resetDefaults);
+    el('pdfBtn').addEventListener('click', exportPdf);
+
+    el('shareBtn').addEventListener('click', function(){
+      updateShareUrl();
+      el('shareUrl').select();
+      document.getElementById('copiedMsg').textContent = 'Share link ready below — click Copy to copy it.';
+      setTimeout(() => { document.getElementById('copiedMsg').textContent=''; }, 3000);
+    });
+
+    el('copyShareBtn').addEventListener('click', function(){
+      const input = el('shareUrl');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      let copied = false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(input.value);
+          copied = true;
+        } else {
+          copied = document.execCommand('copy');
+        }
+      } catch(e) { copied = false; }
+      el('copiedMsg').textContent = copied ? 'Link copied to clipboard!' : 'Copy failed — select and copy manually.';
+      setTimeout(() => { el('copiedMsg').textContent=''; }, 3000);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    wireEvents();
+    const loaded = loadFromUrl();
+    if (!loaded) {
+      // ensure defaults are explicitly set
+      ALL_FIELDS.forEach(f => el(f).value = DEFAULTS[f]);
+    }
+    recalc();
+  });
+})();
+</script>
+
+</body>
+</html>
