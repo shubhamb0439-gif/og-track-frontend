@@ -7,7 +7,7 @@
 <link id="google-font-link" href="" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <link id="og-favicon" rel="icon" type="image/png" href="">
-<title>OGTrack — OGPlus</title>
+<title>OGTrack — OG Plus</title>
 <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.2/dist/socket.io.min.js"></script>
 <script>
 /* ============================================================================
@@ -2832,15 +2832,21 @@ body { transition: background .3s ease, color .3s ease; }
 }
 #hexagon-overlay.active{ opacity:var(--hex-overlay-opacity, 0.06); }
 </style>
+<!-- Premium UI layer — presentation only, loaded after the base styles above -->
+<link rel="stylesheet" href="/css/og-ui.css">
+<link rel="stylesheet" href="/css/og-app.css">
+<link rel="stylesheet" href="/css/og-public.css">
+<link rel="stylesheet" href="/css/og-aida-mini.css">
+<script src="/js/og-aida-mini.js"></script>
 </head>
 <body>
 <div id="hexagon-overlay"></div>
 
 <!-- SPLASH SCREEN -->
 <div id="splash-screen">
-  <img class="splash-logo" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23C0392B'/><path d='M9 16.8l4.3 4.2L23 11' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>" alt="OGPlus">
+  <img class="splash-logo" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23C0392B'/><path d='M9 16.8l4.3 4.2L23 11' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>" alt="OG Plus">
   <div class="splash-title">OGTrack</div>
-  <div class="splash-tagline">by OGPlus</div>
+  <div class="splash-tagline">by OG Plus</div>
   <div class="splash-words">
     <div class="splash-word" style="animation-delay:1.2s">Track every bug. Fix faster.</div>
   </div>
@@ -2856,7 +2862,7 @@ body { transition: background .3s ease, color .3s ease; }
   <!-- Slide 1: Welcome -->
   <div class="ob-slide active" id="ob-slide-0">
     <img class="ob-logo" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23C0392B'/><path d='M9 16.8l4.3 4.2L23 11' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>">
-    <div class="ob-tag">Welcome to OGPlus</div>
+    <div class="ob-tag">Welcome to OG Plus</div>
     <div class="ob-title">Meet <span>OGTrack</span></div>
     <div class="ob-body">Your team's bug tracking headquarters.<br>Raise bugs, fix faster, ship confidently.</div>
   </div>
@@ -2922,15 +2928,33 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 <!-- PUBLIC CAREERS PAGE — /slug/careers or /slug/careers/JOBID -->
-<div id="careers-screen" style="display:none;position:fixed;inset:0;background:#f4f5f7;z-index:9997;overflow-y:auto;">
-  <div id="careers-hero" style="background:linear-gradient(135deg,var(--red) 0%,#1a1a2e 100%);padding:56px 20px 64px;text-align:center;color:#fff">
-    <img id="careers-logo" src="" alt="" style="display:none;width:64px;height:64px;object-fit:contain;border-radius:14px;background:#fff;padding:6px;margin:0 auto 16px">
-    <div id="careers-company-name" style="font-size:28px;font-weight:800;letter-spacing:-0.5px">Careers</div>
-    <div style="font-size:15px;color:rgba(255,255,255,.8);margin-top:6px">Join our team — see what's open right now</div>
-  </div>
-  <div style="max-width:720px;margin:-32px auto 0;padding:0 20px 80px;position:relative">
-    <div id="careers-content"><div class="empty-state">Loading open positions…</div></div>
-  </div>
+<div id="careers-screen" class="cr" style="display:none">
+  <header class="cr-nav">
+    <div class="cr-wrap cr-nav-inner">
+      <div class="cr-brand">
+        <img id="careers-logo" src="" alt="" style="display:none">
+        <span class="cr-brand-mark" id="cr-brand-mark" aria-hidden="true"></span>
+        <span class="cr-brand-name" id="cr-brand-name"></span>
+      </div>
+      <span class="cr-nav-tag">Careers</span>
+    </div>
+  </header>
+  <section id="careers-hero" class="cr-hero">
+    <div class="cr-wrap">
+      <h1 id="careers-company-name">Careers</h1>
+      <p class="cr-hero-sub">Join our team — see what's open right now</p>
+    </div>
+  </section>
+  <main class="cr-wrap cr-main">
+    <div id="careers-content">
+      <div class="cr-skel-list" aria-label="Loading open positions…">
+        <div class="cr-card cr-skel-card"><span class="cr-skel w40"></span><span class="cr-skel w70"></span></div>
+        <div class="cr-card cr-skel-card"><span class="cr-skel w50"></span><span class="cr-skel w60"></span></div>
+        <div class="cr-card cr-skel-card"><span class="cr-skel w30"></span><span class="cr-skel w70"></span></div>
+      </div>
+    </div>
+  </main>
+  <footer class="cr-foot"><div class="cr-wrap">Powered by OGTrack</div></footer>
 </div>
 <!-- LOADING SCREEN (shows while checking auth state) -->
 <div id="loading-screen" style="position:fixed;inset:0;background:#111;z-index:9998;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
@@ -2938,7 +2962,7 @@ body { transition: background .3s ease, color .3s ease; }
     <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23C0392B'/><path d='M9 16.8l4.3 4.2L23 11' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>" style="width:80px;height:80px;border-radius:20px;animation:logoIn .6s cubic-bezier(.34,1.56,.64,1) both">
     <div style="text-align:center">
       <div style="font-size:42px;font-weight:700;color:#fff;letter-spacing:-2px;line-height:1" id="ls-title">OGTrack</div>
-      <div style="font-size:14px;color:#888;margin-top:6px;letter-spacing:1px;text-transform:uppercase" id="ls-sub">by OGPlus</div>
+      <div style="font-size:14px;color:#888;margin-top:6px;letter-spacing:1px;text-transform:uppercase" id="ls-sub">by OG Plus</div>
     </div>
   </div>
   <div style="font-size:13px;color:#6A6A6A" id="loading-msg">Checking session...</div>
@@ -3103,7 +3127,7 @@ body { transition: background .3s ease, color .3s ease; }
       <img class="auth-company-logo" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23C0392B'/><path d='M9 16.8l4.3 4.2L23 11' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>" style="width:40px;height:40px;border-radius:8px;object-fit:contain">
       <div>
         <div class="auth-company-name" style="font-size:22px;font-weight:700;color:var(--red);line-height:1.2">OGTrack</div>
-        <div style="font-size:11px;color:var(--g3)" id="auth-byline">by OGPlus</div>
+        <div style="font-size:11px;color:var(--g3)" id="auth-byline">by OG Plus</div>
       </div>
     </div>
     <p style="margin-bottom:20px;text-align:center">Sign in or create an account</p>
@@ -3166,7 +3190,7 @@ body { transition: background .3s ease, color .3s ease; }
       <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23C0392B'/><path d='M9 16.8l4.3 4.2L23 11' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></svg>" style="width:32px;height:32px;border-radius:6px;flex-shrink:0">
       <div class="sb-wordmark" style="margin-left:6px;flex:1;overflow:hidden;min-width:0">
         <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.2;white-space:nowrap" id="sidebar-logo-name">OGTrack</div>
-        <div style="font-size:10px;color:var(--g3);letter-spacing:.3px;white-space:nowrap" id="sidebar-logo-sub">by OGPlus</div>
+        <div style="font-size:10px;color:var(--g3);letter-spacing:.3px;white-space:nowrap" id="sidebar-logo-sub">by OG Plus</div>
       </div>
     </div>
     <div id="conn-status-wrap" style="padding:6px 14px 8px;border-bottom:1px solid #3a3a3a;">
@@ -3295,7 +3319,7 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
-<!-- Sitara Bespoke: Weaver/Vendor/Customer modal (shared — source dropdown shown only for Customers) -->
+<!-- Sitara Drapes: Weaver/Vendor/Customer modal (shared — source dropdown shown only for Customers) -->
 <div class="modal-overlay" id="sitara-person-modal">
   <div class="modal">
     <div class="modal-header"><h2 id="sitara-person-modal-title">Add</h2><button class="modal-close" onclick="closeModal('sitara-person-modal')">×</button></div>
@@ -3334,7 +3358,7 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
-<!-- Sitara Bespoke: Customer detail (read-only, fetched fresh from GET /customers/:id) -->
+<!-- Sitara Drapes: Customer detail (read-only, fetched fresh from GET /customers/:id) -->
 <div class="modal-overlay" id="sitara-customer-detail-modal">
   <div class="modal">
     <div class="modal-header"><h2 id="sitara-customer-detail-title">Customer</h2><button class="modal-close" onclick="closeModal('sitara-customer-detail-modal')">×</button></div>
@@ -3346,7 +3370,7 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
-<!-- Sitara Bespoke: Product modal -->
+<!-- Sitara Drapes: Product modal -->
 <div class="modal-overlay" id="sitara-product-modal">
   <div class="modal">
     <div class="modal-header"><h2 id="sitara-product-modal-title">Add Product</h2><button class="modal-close" onclick="closeModal('sitara-product-modal')">×</button></div>
@@ -3370,7 +3394,7 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
-<!-- Sitara Bespoke: Add Purchase modal -->
+<!-- Sitara Drapes: Add Purchase modal -->
 <div class="modal-overlay" id="sitara-po-modal">
   <div class="modal" style="max-width:560px">
     <div class="modal-header"><h2>Add Purchase</h2><button class="modal-close" onclick="closeModal('sitara-po-modal')">×</button></div>
@@ -3388,7 +3412,7 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
-<!-- Sitara Bespoke: Add Order modal (manual GPay/DM entry) -->
+<!-- Sitara Drapes: Add Order modal (manual GPay/DM entry) -->
 <div class="modal-overlay" id="sitara-order-modal">
   <div class="modal" style="max-width:560px">
     <div class="modal-header"><h2>Add Order</h2><button class="modal-close" onclick="closeModal('sitara-order-modal')">×</button></div>
@@ -3405,7 +3429,7 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
-<!-- Sitara Bespoke: Add/Edit Expense modal -->
+<!-- Sitara Drapes: Add/Edit Expense modal -->
 <div class="modal-overlay" id="sitara-expense-modal">
   <div class="modal" style="max-width:480px">
     <div class="modal-header"><h2 id="sitara-expense-modal-title">Add Expense</h2><button class="modal-close" onclick="closeModal('sitara-expense-modal')">×</button></div>
@@ -4785,7 +4809,7 @@ function buildSidebar(){
   // sidebar sub-item, nested one level deeper, same as every other group's
   // children. sitara_people/sitara_stocks remain the company-module keys
   // (see SITARA_MODULE_KEYS below); they're no longer used as view/route keys.
-  const SITARA_GROUP_DEF={group:'sitara_group',label:'Sitara Bespoke',color:'#B7472A',children:[
+  const SITARA_GROUP_DEF={group:'sitara_group',label:'Sitara Drapes',color:'#B7472A',children:[
     ['sitara_dashboard','Dashboard'],
     {group:'sitara_people_group',label:'People',children:[['sitara_people_weavers','Weavers'],['sitara_people_vendors','Vendors'],['sitara_people_customers','Customers']]},
     {group:'sitara_stocks_group',label:'Stocks',children:[['sitara_stocks_inventory','Inventory'],['sitara_stocks_purchases','Purchases']]},
@@ -4809,7 +4833,7 @@ function buildSidebar(){
     if(window.COMPANY_CONTEXT&&window.COMPANY_CONTEXT.modules&&role!=='masteradmin'){
       const allowed=window.COMPANY_CONTEXT.modules;
       const groupModuleKey={sales_crm:'crm',inventory_group:'inventory',manufacturing_group:'manufacturing'};
-      // Sitara Bespoke's 4 screens are 4 independent module keys (there's no
+      // Sitara Drapes's 4 screens are 4 independent module keys (there's no
       // single parent key like 'crm'/'inventory' to check) — the masteradmin
       // company modal only ever offers one combined checkbox for all 4 (see
       // SITARA_MODULE_KEYS in masteradmin.html), so in practice they're
@@ -4914,11 +4938,11 @@ function buildSidebar(){
         ['mfg_bom','BOM'],['mfg_assembly','Assembly'],['mfg_traceability','Traceability'],
       ]});
     }
-    // Sitara Bespoke — gated on BOTH the role's own 'sitara' permission
+    // Sitara Drapes — gated on BOTH the role's own 'sitara' permission
     // (see ALL_PERMISSIONS/visiblePermissions()) AND the company's
     // enabled_modules, same two-part check as crm/inventory/manufacturing
     // above. Previously this only checked enabled_modules, so any custom
-    // role saw Sitara Bespoke whenever the company had it enabled at all,
+    // role saw Sitara Drapes whenever the company had it enabled at all,
     // regardless of that role's actual permissions — a real bug.
     if(perms.includes('sitara') && (window.COMPANY_CONTEXT?.modules||[]).some(k=>['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'].includes(k))){
       navItems.push(SITARA_GROUP_DEF);
@@ -4988,7 +5012,7 @@ function buildSidebar(){
   document.getElementById('sidebar-nav').innerHTML=navItems.map(item=>renderNavNode(item,_si,_navIcons,0)).join('');
 }
 // A nav child can be a leaf ([view,label]) or, since People/Stocks became
-// sub-groups of Sitara Bespoke, itself a group with its own children — so
+// sub-groups of Sitara Drapes, itself a group with its own children — so
 // this renders recursively. depth 0 = top-level (no indent/no "-sub" class),
 // depth 1 = a group's direct child, depth 2 = a nested sub-group's child.
 function navNodeContainsView(item,view){
@@ -5076,7 +5100,7 @@ function connectSocket(){
   socket.on('client:created',c=>{if(!accClients.find(x=>x.id===c.id))accClients.push(c);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
   socket.on('client:updated',c=>{accClients=accClients.map(x=>x.id===c.id?c:x);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
   socket.on('client:deleted',({id})=>{accClients=accClients.filter(x=>x.id!==id);if(currentView==='acc_clients')renderAccClients();if(currentView==='dashboard')renderView();});
-  // Sitara Bespoke socket listeners — same room as every other module above,
+  // Sitara Drapes socket listeners — same room as every other module above,
   // no backend change needed, this is purely wiring the listeners. Weavers/
   // Vendors also affect what Stocks shows (product rows join their names),
   // so those two re-render sitara_stocks too, not just sitara_people.
@@ -5299,7 +5323,7 @@ function showView(v){
   // Reset content area padding when leaving messages
   if (v !== 'messages') {
     const ca = document.getElementById('content-area');
-    if (ca) ca.style.padding = '16px';
+    if (ca) ca.style.padding = ''; // fall back to .content padding in css/og-app.css
   }
   document.querySelectorAll('.nav-btn').forEach(b=>{
     b.classList.toggle('active', b.id === ('nav-'+v));
@@ -8216,6 +8240,15 @@ async function submitResetPassword(){
 }
 
 // ── QR Display Page (standalone — /slug/attendance/qr, for an office screen/tablet) ──
+// Public pages paint large areas in the company's own colour — this picks
+// dark text for light brand colours (white otherwise, incl. non-hex values).
+function _brandIsLight(color){
+  const h=String(color||'').replace('#','');
+  const f=h.length===3?h.split('').map(c=>c+c).join(''):h;
+  if(!/^[0-9a-f]{6}$/i.test(f)) return false;
+  const [r,g,b]=[0,2,4].map(i=>parseInt(f.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4));
+  return .2126*r+.7152*g+.0722*b>.45;
+}
 let _qrDisplayInterval=null;
 async function showQrDisplayPage(){
   ['splash-screen','onboarding-screen','loading-screen','auth-screen','directory-screen','careers-screen'].forEach(id=>{
@@ -8224,21 +8257,71 @@ async function showQrDisplayPage(){
   });
   const ctx=window.COMPANY_CONTEXT;
   const primary=ctx?.primaryColor||'#C0392B';
+  const name=ctx?.name||'OGTrack';
   const screen=document.createElement('div');
   screen.id='qr-display-screen';
-  screen.style.cssText=`position:fixed;inset:0;background:linear-gradient(160deg,${primary} 0%,#1a1a2e 100%);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;font-family:inherit;`;
+  screen.className='qrd';
+  screen.dataset.state='loading';
+  screen.style.setProperty('--qrd-accent',primary);
+  if(_brandIsLight(primary)) screen.classList.add('qrd-on-light');
   screen.innerHTML=`
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px">
-      ${ctx?.logo?`<img src="${ctx.logo}" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:12px;background:#fff;padding:4px">`:''}
-      <div style="color:#fff;font-size:24px;font-weight:700">${esc(ctx?.name||'OGTrack')}</div>
-    </div>
-    <div style="background:#fff;border-radius:20px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
-      <img id="qr-display-canvas" width="320" height="320" alt="QR code to scan" style="display:block">
-    </div>
-    <div style="color:#fff;font-size:18px;font-weight:600;text-align:center">Scan with your phone camera<br>to clock in or out</div>
-    <div style="color:rgba(255,255,255,.65);font-size:13px" id="qr-display-refresh">Refreshing…</div>
+    <aside class="qrd-panel">
+      <div class="qrd-brand">
+        ${ctx?.logo?`<img class="qrd-logo" src="${esc(ctx.logo)}" alt="">`:`<div class="qrd-logo qrd-logo-fallback">${esc(name.charAt(0).toUpperCase())}</div>`}
+        <div><div class="qrd-brand-name">${esc(name)}</div><div class="qrd-brand-sub">Attendance check-in</div></div>
+      </div>
+      <section class="qrd-info">
+        <div class="qrd-eyebrow"><span></span>Clock in / clock out</div>
+        <h1 class="qrd-title">Scan with your phone camera to clock in or out</h1>
+        <ol class="qrd-steps">
+          <li><b>1</b><div><strong>Open OGTrack on your phone</strong><span>Sign in with your work account.</span></div></li>
+          <li><b>2</b><div><strong>Tap “Scan QR” and point at this code</strong><span>Hold your phone steady until it reads.</span></div></li>
+          <li><b>3</b><div><strong>Your attendance is recorded</strong><span>Scanning again later clocks you out.</span></div></li>
+        </ol>
+      </section>
+      <div class="qrd-clock"><div class="qrd-time" id="qrd-time"></div><div class="qrd-date" id="qrd-date"></div></div>
+    </aside>
+    <main class="qrd-stage">
+      <section class="qrd-card" aria-live="polite">
+        <div class="qrd-frame">
+          <div class="qrd-skeleton" aria-hidden="true"></div>
+          <img id="qr-display-canvas" width="320" height="320" alt="QR code to scan">
+          <div class="qrd-error" role="alert">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <strong>Code unavailable</strong><span>Check the connection, then reload this page.</span>
+          </div>
+        </div>
+        <div class="qrd-progress" aria-hidden="true"><div id="qrd-progress-bar"></div></div>
+        <div class="qrd-status">
+          <span class="qrd-dot"></span><span id="qr-display-refresh">Refreshing…</span>
+        </div>
+        <div class="qrd-stale">This code may have expired — reload the page for a new one.</div>
+      </section>
+    </main>
   `;
   document.body.appendChild(screen);
+  // Presentation only: live clock, loaded/failed image state, and a countdown
+  // bar that restarts each time a new code image actually loads. Kept on
+  // window (not a later `let`) so it is safe to run this early in page init.
+  const img=screen.querySelector('#qr-display-canvas');
+  img.addEventListener('load',()=>{
+    if(!img.getAttribute('src')) return;
+    screen.dataset.state='ready'; screen.dataset.stale='';
+    window._qrdLoadedAt=Date.now();
+    const bar=document.getElementById('qrd-progress-bar');
+    if(bar){ bar.style.animation='none'; void bar.offsetWidth; bar.style.animation=''; }
+  });
+  img.addEventListener('error',()=>{ if(img.getAttribute('src')) screen.dataset.state='error'; });
+  const tick=()=>{
+    const now=new Date();
+    const t=document.getElementById('qrd-time'), d=document.getElementById('qrd-date');
+    if(t) t.textContent=now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    if(d) d.textContent=now.toLocaleDateString([], {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    if(screen.dataset.state==='ready'&&window._qrdLoadedAt&&Date.now()-window._qrdLoadedAt>26000) screen.dataset.stale='1';
+  };
+  tick();
+  clearInterval(window._qrdClockTimer);
+  window._qrdClockTimer=setInterval(tick,1000);
   _refreshQrDisplay();
   clearInterval(_qrDisplayInterval);
   _qrDisplayInterval=setInterval(_refreshQrDisplay,20000); // refresh well before the 30s token expiry
@@ -8257,6 +8340,8 @@ async function _refreshQrDisplay(){
     if(refreshEl) refreshEl.textContent='Code refreshes automatically every 30 seconds';
   }catch(e){
     if(refreshEl) refreshEl.textContent='Could not load a fresh code — '+e.message;
+    const screen=document.getElementById('qr-display-screen');
+    if(screen&&screen.dataset.state!=='ready') screen.dataset.state='error';
   }
 }
 
@@ -8334,7 +8419,7 @@ const ALL_PERMISSIONS=[
   {key:'crm',label:'Sales & CRM'},
   {key:'inventory',label:'Inventory'},
   {key:'manufacturing',label:'Manufacturing'},
-  {key:'sitara',label:'Sitara Bespoke'},
+  {key:'sitara',label:'Sitara Drapes'},
   {key:'sales',label:'Sales'},
   {key:'deliveries',label:'Deliveries'},
   {key:'hr_dashboard',label:'HR Dashboard'},
@@ -8491,7 +8576,8 @@ async function showCareersPage(){
     const el=document.getElementById(id);
     if(el) el.style.display='none';
   });
-  document.getElementById('careers-screen').style.display='block';
+  const screen=document.getElementById('careers-screen');
+  screen.style.display='block';
 
   const ctx=window.COMPANY_CONTEXT;
   document.getElementById('careers-company-name').textContent=(ctx?.name||'OGTrack')+' Careers';
@@ -8499,6 +8585,11 @@ async function showCareersPage(){
     const logoEl=document.getElementById('careers-logo');
     logoEl.src=ctx.logo; logoEl.style.display='inline-block';
   }
+  // Presentation: brand name/mark in the top bar, readable text on the brand hero
+  document.getElementById('cr-brand-name').textContent=ctx?.name||'OGTrack';
+  const mark=document.getElementById('cr-brand-mark');
+  if(ctx?.logo) mark.style.display='none'; else mark.textContent=(ctx?.name||'OGTrack').charAt(0).toUpperCase();
+  if(_brandIsLight(ctx?.primaryColor)) screen.classList.add('cr-on-light');
 
   if(window.OGTRACK_CAREERS_JOB_ID){
     renderCareersJobDetail(window.OGTRACK_CAREERS_JOB_ID);
@@ -8507,79 +8598,140 @@ async function showCareersPage(){
   }
 }
 
+// Careers presentation helpers — Lucide icons (ISC) as inline SVG, a de-duped
+// meta row, and empty/error panels.
+const CR_ICONS={
+  building:'<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>',
+  pin:'<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  briefcase:'<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  monitor:'<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  wallet:'<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  arrowRight:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  arrowLeft:'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+};
+function crIcon(n){ return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${CR_ICONS[n]||''}</svg>`; }
+function crMeta(j){
+  const seen=new Set();
+  return [['building',j.department],['pin',j.location],['briefcase',j.employmentType],['monitor',j.workMode]]
+    .filter(([,v])=>{ if(!v) return false; const k=String(v).trim().toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; })
+    .map(([i,v])=>`<span class="cr-meta-item">${crIcon(i)}${esc(v)}</span>`).join('');
+}
+function crState(icon,title,text,isError){
+  return `<div class="cr-card cr-state${isError?' is-error':''}"><div class="cr-state-icon">${crIcon(icon)}</div><div class="cr-state-title">${title}</div>${text?`<div class="cr-state-text">${text}</div>`:''}</div>`;
+}
+function crFilterDept(dept){
+  document.querySelectorAll('.cr-filter').forEach(b=>b.classList.toggle('active',b.dataset.dept===dept));
+  const cards=[...document.querySelectorAll('.cr-job')];
+  let shown=0;
+  cards.forEach(c=>{ const hit=!dept||c.dataset.dept===dept; c.style.display=hit?'':'none'; if(hit) shown++; });
+  const count=document.getElementById('cr-count');
+  if(count) count.textContent=dept?`${shown} of ${cards.length} open position${cards.length===1?'':'s'}`:`${cards.length} open position${cards.length===1?'':'s'}`;
+}
+
 async function renderCareersJobList(){
   const el=document.getElementById('careers-content');
   try{
     const jobs=await fetch('/api/jobs/public').then(r=>r.json());
     if(!Array.isArray(jobs)||!jobs.length){
-      el.innerHTML='<div style="background:#fff;border-radius:14px;padding:40px;text-align:center;color:var(--g3);box-shadow:0 8px 24px rgba(0,0,0,.06)">No open positions right now — check back soon.</div>';
+      el.innerHTML=crState('inbox','No open positions right now','Check back soon — new roles are posted here as soon as they open.');
       return;
     }
     const slug=window.OGTRACK_SLUG;
+    const depts=[...new Set(jobs.map(j=>j.department).filter(Boolean))].sort();
     el.innerHTML=`
-      <div style="font-size:13px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px">${jobs.length} open position${jobs.length===1?'':'s'}</div>
+      <div class="cr-list-head">
+        <div class="cr-count" id="cr-count">${jobs.length} open position${jobs.length===1?'':'s'}</div>
+        ${depts.length>1?`<div class="cr-filters" role="group" aria-label="Filter by department">
+          <button type="button" class="cr-filter active" data-dept="" onclick="crFilterDept('')">All</button>
+          ${depts.map(d=>`<button type="button" class="cr-filter" data-dept="${esc(d)}" onclick="crFilterDept(this.dataset.dept)">${esc(d)}</button>`).join('')}
+        </div>`:''}
+      </div>
+      <div class="cr-jobs">
       ${jobs.map(j=>`
-      <a href="/${slug}/careers/${j.id}" style="text-decoration:none;color:inherit;display:block;background:#fff;border-radius:14px;padding:22px 24px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,.05);border-left:4px solid var(--red);transition:box-shadow .15s,transform .15s" onmouseover="this.style.boxShadow='0 10px 28px rgba(0,0,0,.10)';this.style.transform='translateY(-2px)'" onmouseout="this.style.boxShadow='0 4px 14px rgba(0,0,0,.05)';this.style.transform='none'">
-        <div style="font-size:18px;font-weight:700">${esc(j.title)}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
-          ${[j.department,j.location,j.employmentType,j.workMode].filter(Boolean).map(v=>`<span style="font-size:12px;background:#f4f5f7;color:#555;padding:4px 10px;border-radius:20px;font-weight:500">${esc(v)}</span>`).join('')}
-        </div>
-        ${j.experience?`<div style="font-size:12px;color:var(--g3);margin-top:10px">Experience: ${esc(j.experience)}</div>`:''}
-      </a>`).join('')}`;
+        <a href="/${slug}/careers/${j.id}" class="cr-card cr-job" data-dept="${esc(j.department||'')}">
+          <div class="cr-job-main">
+            <div class="cr-job-title">${esc(j.title)}</div>
+            <div class="cr-meta">${crMeta(j)}</div>
+            ${j.experience?`<div class="cr-job-exp">${crIcon('clock')}Experience: ${esc(j.experience)}</div>`:''}
+          </div>
+          <span class="cr-job-cta">View role ${crIcon('arrowRight')}</span>
+        </a>`).join('')}
+      </div>`;
   }catch(e){
-    el.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load open positions.</div>';
+    el.innerHTML=crState('alert','Could not load open positions.','Please refresh the page or try again in a few minutes.',true);
   }
 }
 
 async function renderCareersJobDetail(jobId){
   const el=document.getElementById('careers-content');
-  el.innerHTML='<div class="empty-state">Loading…</div>';
+  el.innerHTML='<div class="cr-card cr-skel-card"><span class="cr-skel w40"></span><span class="cr-skel w70"></span><span class="cr-skel w60"></span></div>';
   try{
     const jobs=await fetch('/api/jobs/public').then(r=>r.json());
     const job=(jobs||[]).find(j=>j.id===jobId);
     if(!job){
-      el.innerHTML='<div class="empty-state">This position is no longer available. <a href="/'+window.OGTRACK_SLUG+'/careers">← Back to all openings</a></div>';
+      el.innerHTML=crState('search','This position is no longer available.',`<a class="cr-link" href="/${window.OGTRACK_SLUG}/careers">${crIcon('arrowLeft')}Back to all openings</a>`);
       return;
     }
     const skillsHtml=(job.skills||[]).length
-      ? `<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px">${job.skills.map(s=>`<span style="font-size:12px;background:var(--red);color:#fff;padding:4px 10px;border-radius:20px;font-weight:600">${esc(s)}</span>`).join('')}</div>` : '';
+      ? `<div class="cr-section"><h3>Skills</h3><div class="cr-skills">${job.skills.map(s=>`<span class="cr-skill">${esc(s)}</span>`).join('')}</div></div>`
+      : '';
+    const facts=[['building','Department',job.department],['pin','Location',job.location],['briefcase','Employment type',job.employmentType],
+      ['monitor','Work mode',job.workMode],['clock','Experience',job.experience],['wallet','Salary',job.salaryRange]].filter(f=>f[2]);
     el.innerHTML=`
-      <a href="/${window.OGTRACK_SLUG}/careers" style="font-size:13px;color:var(--g3);text-decoration:none">← Back to all openings</a>
-      <div style="background:#fff;border-radius:14px;padding:28px;margin-top:14px;box-shadow:0 4px 14px rgba(0,0,0,.05)">
-        <div style="font-size:22px;font-weight:800">${esc(job.title)}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
-          ${[job.department,job.location,job.employmentType,job.workMode].filter(Boolean).map(v=>`<span style="font-size:12px;background:#f4f5f7;color:#555;padding:4px 10px;border-radius:20px;font-weight:500">${esc(v)}</span>`).join('')}
-        </div>
-        <div style="display:flex;gap:20px;margin-top:12px;font-size:13px;color:var(--g3)">
-          ${job.experience?`<div style="display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> ${esc(job.experience)}</div>`:''}
-          ${job.salaryRange?`<div style="display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5.5a4.5 4.5 0 0 0-4.5-2H10a3.5 3.5 0 0 0 0 7h4a3.5 3.5 0 0 1 0 7h-2.5a4.5 4.5 0 0 1-4.5-2"/></svg> ${esc(job.salaryRange)}</div>`:''}
-        </div>
-        ${skillsHtml}
-        <div style="margin-top:18px;white-space:pre-wrap;font-size:14px;line-height:1.7;color:#333">${esc(job.description||'')}</div>
-      </div>
+      <a class="cr-link cr-back" href="/${window.OGTRACK_SLUG}/careers">${crIcon('arrowLeft')}Back to all openings</a>
+      <div class="cr-detail">
+        <div class="cr-detail-main">
+          <article class="cr-card cr-job-detail">
+            <h2 class="cr-detail-title">${esc(job.title)}</h2>
+            <div class="cr-meta">${crMeta(job)}</div>
+            ${skillsHtml}
+            ${job.description?`<div class="cr-section"><h3>About the role</h3><div class="cr-desc">${esc(job.description)}</div></div>`:''}
+          </article>
 
-      <div style="background:#fff;border-radius:14px;padding:28px;margin-top:20px;box-shadow:0 4px 14px rgba(0,0,0,.05)">
-        <div style="font-size:17px;font-weight:800;margin-bottom:16px">Apply for this role</div>
-        <div id="careers-apply-error" style="display:none;color:var(--red);font-size:13px;margin-bottom:10px"></div>
-        <div id="careers-apply-success" style="display:none;background:#e8f8f0;color:#1e7e4d;padding:12px;border-radius:8px;font-size:14px"></div>
-        <div id="careers-apply-form">
-          <div class="form-row">
-            <div class="form-group"><label>Full Name *</label><input type="text" id="cap-name" placeholder="Jane Doe"></div>
-            <div class="form-group"><label>Email *</label><input type="email" id="cap-email" placeholder="jane@example.com"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Phone</label><input type="text" id="cap-phone" placeholder="+91…"></div>
-            <div class="form-group"><label>Years of Experience</label><input type="number" id="cap-exp" placeholder="3"></div>
-          </div>
-          <div class="form-row full"><div class="form-group"><label>Education</label><input type="text" id="cap-edu" placeholder="B.Tech, XYZ University"></div></div>
-          <div class="form-row full"><div class="form-group"><label>Key Skills <span style="font-weight:400;color:var(--g3)">(comma separated)</span></label><input type="text" id="cap-skills" placeholder="Python, SQL, Communication"></div></div>
-          <div class="form-row full"><div class="form-group"><label>Cover Letter</label><textarea id="cap-cover" placeholder="Tell us why you're a great fit…" rows="4"></textarea></div></div>
-          <div class="form-row full"><div class="form-group"><label>Resume <span style="font-weight:400;color:var(--g3)">(PDF or Word)</span></label><input type="file" id="cap-resume" accept=".pdf,.doc,.docx"></div></div>
-          <button class="btn btn-primary" style="margin-top:14px;width:100%;padding:13px;font-size:15px;border-radius:10px" onclick="submitCareersApplication('${job.id}')" id="cap-submit-btn">Submit Application</button>
+          <section class="cr-card cr-apply" id="cr-apply">
+            <h2>Apply for this role</h2>
+            <p class="cr-apply-sub">Fields marked * are required.</p>
+            <div id="careers-apply-error" class="cr-alert is-error" style="display:none" role="alert"></div>
+            <div id="careers-apply-success" class="cr-alert is-success" style="display:none" role="status"></div>
+            <div id="careers-apply-form">
+              <div class="cr-fieldset-title">Your details</div>
+              <div class="form-row">
+                <div class="form-group"><label>Full Name *</label><input type="text" id="cap-name" placeholder="Jane Doe"></div>
+                <div class="form-group"><label>Email *</label><input type="email" id="cap-email" placeholder="jane@example.com"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label>Phone</label><input type="text" id="cap-phone" placeholder="+91…"></div>
+                <div class="form-group"><label>Years of Experience</label><input type="number" id="cap-exp" placeholder="3"></div>
+              </div>
+              <div class="cr-fieldset-title">Background</div>
+              <div class="form-row full"><div class="form-group"><label>Education</label><input type="text" id="cap-edu" placeholder="B.Tech, XYZ University"></div></div>
+              <div class="form-row full"><div class="form-group"><label>Key Skills <span class="cr-hint">(comma separated)</span></label><input type="text" id="cap-skills" placeholder="Python, SQL, Communication"></div></div>
+              <div class="form-row full"><div class="form-group"><label>Cover Letter</label><textarea id="cap-cover" placeholder="Tell us why you're a great fit…" rows="4"></textarea></div></div>
+              <div class="cr-fieldset-title">Resume</div>
+              <label class="cr-drop" for="cap-resume">
+                <span class="cr-drop-icon">${crIcon('upload')}</span>
+                <span class="cr-drop-text"><strong id="cr-drop-name">Choose a file to upload</strong><span>PDF or Word · optional</span></span>
+                <input type="file" id="cap-resume" accept=".pdf,.doc,.docx" onchange="document.getElementById('cr-drop-name').textContent=this.files&&this.files[0]?this.files[0].name:'Choose a file to upload'">
+              </label>
+              <button class="cr-btn cr-btn-primary cr-submit" onclick="submitCareersApplication('${job.id}')" id="cap-submit-btn">Submit Application</button>
+            </div>
+          </section>
         </div>
+        <aside class="cr-detail-side">
+          <div class="cr-card cr-summary">
+            <div class="cr-summary-title">Role summary</div>
+            <dl>${facts.map(([i,l,v])=>`<div><dt>${crIcon(i)}${l}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
+            <button type="button" class="cr-btn cr-btn-primary" onclick="document.getElementById('cr-apply').scrollIntoView({behavior:'smooth',block:'start'})">Apply now</button>
+          </div>
+        </aside>
       </div>`;
   }catch(e){
-    el.innerHTML='<div class="empty-state" style="color:var(--red)">Could not load this position.</div>';
+    el.innerHTML=crState('alert','Could not load this position.',`<a class="cr-link" href="/${window.OGTRACK_SLUG}/careers">${crIcon('arrowLeft')}Back to all openings</a>`,true);
   }
 }
 
@@ -8623,7 +8775,7 @@ async function submitCareersApplication(jobId){
 
     document.getElementById('careers-apply-form').style.display='none';
     const successEl=document.getElementById('careers-apply-success');
-    successEl.textContent='✅ Application submitted! We will be in touch if there is a match.';
+    successEl.textContent='Application submitted! We will be in touch if there is a match.';
     successEl.style.display='block';
   }catch(e){
     errEl.textContent=e.message;
@@ -11447,7 +11599,7 @@ async function renderCeoDashboard(){
     const max=Math.max(...vals,1);const h=160;const w=320;
     let out='';
     vals.forEach((v,i)=>{
-      const bw=Math.round((v/max)*(w-60))+40;const x=(w-bw)/2;const y=8+i*28;
+      const bw=Math.round((v/max)*(w-130))+110;const x=(w-bw)/2;const y=8+i*28; // min width fits the "Label: n" text
       const colors=['#3498DB','#9B59B6','#F39C12','#27AE60','#E74C3C'];
       out+=`<rect x="${x}" y="${y}" width="${bw}" height="22" rx="4" fill="${colors[i]||'#888'}" opacity=".85"/>`;
       out+=`<text x="${w/2}" y="${y+15}" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">${labels[i]||''}: ${v}</text>`;
@@ -15302,7 +15454,7 @@ async function saveDeliveryWithoutDelivering(){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Sitara Bespoke — saree business: weavers/vendors/customers, products,
+// Sitara Drapes — saree business: weavers/vendors/customers, products,
 // purchase orders, orders. Phase 1: manual data entry only — BigCommerce/
 // Razorpay sync are later phases and don't exist yet.
 // ══════════════════════════════════════════════════════════════════════════════
@@ -16168,7 +16320,7 @@ async function saveSitaraOrder(){
 // Matching is done server-side by customer email/phone + amount (Razorpay
 // carries no order reference of its own). An unmatched row is the actual
 // signal this screen exists for: a real captured payment with nothing
-// recorded against it in Sitara Bespoke — a manual/DM sale never entered,
+// recorded against it in Sitara Drapes — a manual/DM sale never entered,
 // or a sync gap — so unmatched rows always sort first regardless of the
 // "unmatched only" toggle.
 let sitaraRazorpayPayments=[];
@@ -18556,7 +18708,8 @@ function ensureAidaOverlay(){
     const btn=document.createElement('button');
     btn.id='aida-launcher-btn';btn.className='aida-launcher-btn';btn.title='Ask AIDA';
     btn.innerHTML='<img class="aida-launcher-orb" src="/images/aida-logo.svg" alt="AIDA">';
-    btn.onclick=()=>openAidaOverlay();
+    // Opens the AIDA mini chat; the talking UI is one click away from its header.
+    btn.onclick=()=>(window.AidaMini?AidaMini.toggle():openAidaOverlay());
     document.body.appendChild(btn);
   }
   if(!document.getElementById('aida-overlay')){
@@ -18735,7 +18888,7 @@ function ensureAidaOverlay(){
         </button>
 
         
-        <div class="footer">&copy; OGPlus Services Pvt Limited</div>
+        <div class="footer">&copy; OG Plus Services Pvt Ltd</div>
       </div>`;
     document.body.appendChild(ov);
     syncAidaLayoutToggle();
@@ -18745,6 +18898,34 @@ function ensureAidaOverlay(){
   }
   document.getElementById('aida-launcher-btn').style.display='flex';
 }
+
+// ── AIDA mini chat (css/og-aida-mini.css + js/og-aida-mini.js) ─────────────
+// Same endpoint, payload and shared transcript (aidaMessages) as the typed
+// path in the full Chats screen, so all three AIDA views stay one
+// conversation. No turnId is handed to the voice player, so replies here are
+// read, not spoken.
+if(window.AidaMini) AidaMini.init({
+  subtitle:'Your workspace assistant',
+  welcome:{title:'How can I help today?',text:'Ask about your projects, people, attendance and more.'},
+  suggestions:['What can you help me with?','What needs my attention today?','Summarise my workspace'],
+  getMessages:()=>aidaMessages,
+  ensureHistory:async()=>{ if(!aidaHistoryLoaded){ aidaHistoryLoaded=true; await loadAidaHistory(); } },
+  send:async(text,opts)=>{
+    if(!opts.retry) aidaMessages.push({role:'user',content:text});
+    const body={message:text,pageContext:buildAidaPageContext()};
+    if(aidaSelectedProvider&&aidaSelectedModel){ body.provider=aidaSelectedProvider; body.model=aidaSelectedModel; }
+    const r=await fetch('/api/aida/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error||(r.status===400?'Invalid model selection.':r.status===503?"AIDA isn't set up for this workspace yet.":'AIDA could not respond right now.'));
+    aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
+  },
+  openFull:()=>{
+    openAidaOverlay();
+    const item=document.querySelector('#aida-overlay .menu-item[data-action="messages"]');
+    if(item) setTimeout(()=>item.click(),60);
+  },
+  openVoice:()=>openAidaOverlay(),
+});
 
 // Closes the hub's own menu/modal first on Escape (handled inside
 // _aidaHubInit); only closes the whole overlay once nothing else is open,
@@ -19243,6 +19424,7 @@ function handleAidaVoiceError({turnId,message}){
 // the still-valid Authorization header) — logout should never be blocked by
 // this.
 async function clearAidaSessionOnLogout(){
+  if(window.AidaMini) AidaMini.reset();
   closeAidaOverlay({skipPush:true});
   const _btn=document.getElementById('aida-launcher-btn');
   if(_btn) _btn.style.display='none';
