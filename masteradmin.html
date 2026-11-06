@@ -1815,6 +1815,14 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
 #aida-overlay .msg-modal.open ~ .fcard-layer{display:none;}
 
 </style>
+<!-- Premium UI layer — presentation only, loaded after the base styles above -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/og-ui.css">
+<link rel="stylesheet" href="/css/og-masteradmin.css">
+<link rel="stylesheet" href="/css/og-aida-mini.css">
+<script src="/js/og-aida-mini.js"></script>
 </head>
 <body>
 
@@ -1840,140 +1848,217 @@ button.fcard-pill:focus-visible, .fcard-undo:focus-visible{outline:2px solid var
 
 <!-- MAIN -->
 <div id="main-screen">
-  <div class="topbar">
-    <h1><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-3px;margin-right:5px"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>OGTrack &nbsp;·&nbsp; Master Admin</h1>
-    <div class="topbar-right">
-      <span id="admin-name"></span>
-      <button onclick="signOut()">Sign Out</button>
-    </div>
-  </div>
-
   <div class="dash-body">
-    <div class="dash-sidenav">
-      <button type="button" class="dash-sidenav-item active" id="dashNavDashboard" onclick="switchDashPage('dashboard')">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-        <span>Dashboard</span>
-      </button>
-      <button type="button" class="dash-sidenav-item" id="dashNavFlows" onclick="switchDashPage('flows')">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><circle cx="18" cy="18" r="2.4"/><path d="M8.3 6h7.4M8.3 18h7.4M6 8.4v7.2M18 8.4v7.2"/></svg>
-        <span>Flows</span>
-      </button>
-    </div>
-    <div class="dash-pages">
-      <div id="dashPage" class="dash-page">
-  <div class="content">
-    <!-- Dashboard overview -->
-    <div class="dash-section-label" style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> This Month</div>
-    <div class="kpi-row" style="margin-bottom:24px">
-      <div class="kpi-card"><div class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M6 21V7l6-4 6 4v14M9 9h1M14 9h1M9 13h1M14 13h1M9 17h1M14 17h1"/></svg></div><div class="label">New Projects</div><div class="value" id="kpi-month-companies">—</div></div>
-      <div class="kpi-card"><div class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></div><div class="label">New Pending Users</div><div class="value" id="kpi-month-pending">—</div></div>
-      <div class="kpi-card"><div class="icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.3 3.9 1.9 18.3a1.5 1.5 0 0 0 1.3 2.2h17.6a1.5 1.5 0 0 0 1.3-2.2L13.7 3.9a1.5 1.5 0 0 0-2.6 0z"/><path d="M12 9.5v4M12 17h.01"/></svg></div><div class="label">Provisioning Failures</div><div class="value" id="kpi-month-failures">—</div></div>
-    </div>
+    <!-- Sidebar -->
+    <aside class="dash-sidenav ma-sidebar" id="ma-sidebar" aria-label="Main navigation">
+      <div class="ma-brand">
+        <svg width="26" height="26" viewBox="0 0 179 173" aria-hidden="true"><path d="M84.5 0C131.168 0 169 37.8319 169 84.5C169 99.6872 164.989 113.936 157.975 126.252C157.997 126.382 158.014 126.517 158.015 126.656L158.016 126.876L157.925 127.076C157.835 127.273 157.764 127.571 157.695 127.935C157.688 127.976 157.678 128.019 157.67 128.064L168.562 172.503L127.184 159.705C127.042 159.729 126.893 159.723 126.745 159.681C126.456 159.597 126.229 159.496 126.013 159.341L125.979 159.317L125.949 159.291C125.922 159.268 125.889 159.247 125.858 159.231C125.844 159.224 125.833 159.219 125.826 159.216L124.591 158.893C112.661 165.336 99.0097 169 84.5 169C37.8319 169 0 131.168 0 84.5C0 37.8319 37.8319 0 84.5 0Z" fill="#2b2b2b"/><path d="M84.7197 25.3936C117.725 25.3936 144.481 51.7607 144.481 84.2861C144.481 116.812 117.725 143.18 84.7197 143.18C73.4569 143.18 62.9223 140.108 53.9297 134.771L54.8389 135.703L22.8389 142.867L32.5322 113.006C27.7074 104.51 24.958 94.7142 24.958 84.2861C24.9583 51.7607 51.7142 25.3936 84.7197 25.3936Z" fill="#ebe7de"/><rect x="46" y="71.5" width="76" height="25" rx="8" fill="#111111" transform="rotate(45 84 84)"/><rect x="46" y="71.5" width="76" height="25" rx="8" fill="#111111" transform="rotate(-45 84 84)"/></svg>
+        <div><div class="ma-brand-name">OGTrack</div><div class="ma-brand-sub">Master Admin</div></div>
+      </div>
+      <nav class="ma-nav">
+        <div class="ma-nav-label">Workspace</div>
+        <button type="button" class="dash-sidenav-item active" id="dashNavDashboard" onclick="switchDashPage('dashboard')" title="Overview">
+          <span class="ma-i" data-icon="layout"></span><span>Overview</span>
+        </button>
+        <button type="button" class="dash-sidenav-item" id="dashNavFlows" onclick="switchDashPage('flows')" title="Flows">
+          <span class="ma-i" data-icon="workflow"></span><span>Flows</span>
+        </button>
+        <div class="ma-nav-label">Manage</div>
+        <button type="button" class="ma-nav-link" onclick="maJump('ma-projects')" title="Projects">
+          <span class="ma-i" data-icon="building"></span><span>Projects</span><span class="ma-count" id="ma-nav-projects-count">—</span>
+        </button>
+        <button type="button" class="ma-nav-link" onclick="maJump('pending-users-section')" title="Pending sign-ups">
+          <span class="ma-i" data-icon="userPlus"></span><span>Pending sign-ups</span><span class="ma-count" id="ma-nav-pending-count">—</span>
+        </button>
+        <button type="button" class="ma-nav-link" onclick="maJump('zoho-section')" title="Zoho Books">
+          <span class="ma-i" data-icon="book"></span><span>Zoho Books</span>
+        </button>
+      </nav>
+      <div class="ma-sidebar-foot">
+        <div class="ma-avatar" id="ma-admin-avatar">A</div>
+        <div class="ma-user"><div class="ma-user-name" id="admin-name"></div><div class="ma-user-role">Master admin</div></div>
+        <button type="button" class="ma-btn ma-btn-ghost ma-icon-btn" onclick="signOut()" title="Sign out" aria-label="Sign out"><span class="ma-i" data-icon="logout"></span></button>
+      </div>
+    </aside>
+    <div class="ma-scrim" onclick="maToggleNav(false)"></div>
 
-    <!-- Stats -->
-    <div class="stats-row">
-      <div class="stat-card"><div class="label">Total Projects</div><div class="value" id="stat-total">—</div></div>
-      <div class="stat-card"><div class="label">Active</div><div class="value" id="stat-active">—</div></div>
-      <div class="stat-card"><div class="label">Suspended</div><div class="value" id="stat-suspended">—</div></div>
-      <div class="stat-card"><div class="label">Provisioned</div><div class="value" id="stat-prov">—</div></div>
-      <div class="stat-card linkable" onclick="document.getElementById('pending-users-section').scrollIntoView({behavior:'smooth'})">
-        <div class="label">Pending Approvals</div><div class="value" id="stat-pending-approvals">—</div>
-      </div>
-    </div>
+    <div class="ma-main">
+      <header class="ma-topbar">
+        <button type="button" class="ma-btn ma-btn-ghost ma-icon-btn ma-menu-btn" onclick="maToggleNav()" aria-label="Open navigation"><span class="ma-i lg" data-icon="menu"></span></button>
+        <div class="ma-crumbs"><span>Master Admin</span><span class="ma-i" data-icon="chevronRight"></span><strong id="ma-crumb">Overview</strong></div>
+      </header>
 
-    <div class="dash-charts-grid">
-      <div class="chart-card">
-        <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg> Projects Created</h3>
-        <div class="chart-sub">Last 6 months</div>
-        <div id="chart-companies-trend"></div>
-      </div>
-      <div class="chart-card">
-        <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Module Adoption</h3>
-        <div class="chart-sub">Projects with each module enabled</div>
-        <div id="chart-module-adoption"></div>
-      </div>
-    </div>
+      <div class="dash-pages">
+        <div id="dashPage" class="dash-page">
+          <div class="ma-content">
 
-    <div class="dash-section-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Provisioning Health <span style="font-weight:400;text-transform:none;color:var(--g3)">— last 30 days</span></div>
-    <div class="health-row" style="margin-bottom:24px">
-      <div class="health-tile good"><div class="icon" style="color:#27AE60"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg></div><div><div class="label">Succeeded</div><div class="value" id="health-success">—</div></div></div>
-      <div class="health-tile fail"><div class="icon" style="color:var(--red)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg></div><div><div class="label">Failed</div><div class="value" id="health-failed">—</div></div></div>
-      <div class="health-tile warn"><div class="icon" style="color:#F39C12"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></div><div><div class="label">Pending</div><div class="value" id="health-pending">—</div></div></div>
-    </div>
+            <!-- Page header -->
+            <div class="ma-page-head">
+              <div>
+                <h1>Overview</h1>
+                <p>Tenants, provisioning and sign-ups across every OGTrack project.</p>
+              </div>
+              <div class="ma-page-actions">
+                <button class="ma-btn ma-btn-primary" onclick="openCompanyModal()"><span class="ma-i" data-icon="plus"></span>New project</button>
+              </div>
+            </div>
 
-    <!-- Companies table -->
-    <div class="section">
-      <div class="section-header">
-        <h2>Projects / Tenants</h2>
-        <button class="btn-add" onclick="openCompanyModal()">+ New Project</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Project</th><th>Slug</th><th>Database</th>
-              <th>Modules</th><th>Status</th><th>Provisioned</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="companies-tbody">
-            <tr><td colspan="7" class="empty-state">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <!-- Pending Signups (all companies) -->
-    <div class="section" id="pending-users-section">
-      <div class="section-header">
-        <h2>Pending Signups <span style="font-weight:400;color:var(--g3);font-size:13px">— across all projects</span></h2>
-        <button class="btn-add" onclick="loadPendingUsers()">↻ Refresh</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th><th>Email</th><th>Project</th><th>Requested Role</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="pending-users-tbody">
-            <tr><td colspan="5" class="empty-state">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <!-- Zoho Books connections -->
-    <div class="section" id="zoho-section">
-      <div class="section-header">
-        <h2>Zoho Books <span style="font-weight:400;color:var(--g3);font-size:13px">— connection management</span></h2>
-        <button class="btn-add" onclick="loadZohoConnections()">↻ Refresh</button>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Zoho Org</th><th>Org ID</th><th>Connected By</th><th>Connected At</th><th>Linked Projects</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="zoho-connections-tbody">
-            <tr><td colspan="6" class="empty-state">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="section-header" style="margin-top:20px">
-        <h2 style="font-size:15px">Projects awaiting connection</h2>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Project</th><th>Slug</th><th>Action</th></tr></thead>
-          <tbody id="zoho-unconnected-tbody">
-            <tr><td colspan="3" class="empty-state">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-      </div><!-- /#dashPage -->
-      <div id="flowsPage" class="dash-page" style="display:none"></div>
-    </div><!-- /.dash-pages -->
+            <!-- KPIs -->
+            <section class="ma-kpis" aria-label="Key metrics">
+              <article class="ma-card ma-kpi">
+                <div class="ma-kpi-top"><span class="ma-kpi-label">Total projects</span><span class="ma-i ma-kpi-icon" data-icon="building"></span></div>
+                <div class="ma-kpi-value" id="stat-total">—</div>
+                <div class="ma-kpi-meta" id="ma-kpi-total-meta"><span class="ma-skel w60"></span></div>
+              </article>
+              <article class="ma-card ma-kpi">
+                <div class="ma-kpi-top"><span class="ma-kpi-label">Active</span><span class="ma-i ma-kpi-icon" data-icon="activity"></span></div>
+                <div class="ma-kpi-value" id="stat-active">—</div>
+                <div class="ma-kpi-meta" id="ma-kpi-active-meta"><span class="ma-skel w60"></span></div>
+              </article>
+              <article class="ma-card ma-kpi">
+                <div class="ma-kpi-top"><span class="ma-kpi-label">Provisioned</span><span class="ma-i ma-kpi-icon" data-icon="database"></span></div>
+                <div class="ma-kpi-value" id="stat-prov">—</div>
+                <div class="ma-kpi-meta" id="ma-kpi-prov-meta"><span class="ma-skel w60"></span></div>
+              </article>
+              <article class="ma-card ma-kpi is-link" onclick="maJump('pending-users-section')" title="Go to pending sign-ups">
+                <div class="ma-kpi-top"><span class="ma-kpi-label">Pending approvals</span><span class="ma-i ma-kpi-icon" data-icon="userPlus"></span></div>
+                <div class="ma-kpi-value" id="stat-pending-approvals">—</div>
+                <div class="ma-kpi-meta">Review sign-ups <span class="ma-i" data-icon="arrowRight"></span></div>
+              </article>
+            </section>
+
+            <!-- At a glance -->
+            <section class="ma-card ma-strip" aria-label="This month">
+              <div class="ma-strip-title"><span class="ma-i" data-icon="calendar"></span>This month</div>
+              <div class="ma-strip-items">
+                <div class="ma-strip-item"><span>New projects</span><strong id="kpi-month-companies">—</strong></div>
+                <div class="ma-strip-item"><span>New sign-ups</span><strong id="kpi-month-pending">—</strong></div>
+                <div class="ma-strip-item"><span>Provisioning failures</span><strong id="kpi-month-failures">—</strong></div>
+                <div class="ma-strip-item"><span>Suspended projects</span><strong id="stat-suspended">—</strong></div>
+              </div>
+            </section>
+
+            <!-- Analytics -->
+            <div class="ma-section-head">
+              <div><h2>Analytics</h2><p>Built from live tenant, provisioning and sign-up data.</p></div>
+            </div>
+            <div class="ma-grid">
+              <section class="ma-card ma-span-8">
+                <div class="ma-card-head"><div><h3>New projects</h3><p>Projects created per month · last 6 months</p></div></div>
+                <div class="ma-card-body"><div class="ma-chart" id="chart-companies-trend"><span class="ma-skel ma-skel-chart"></span></div></div>
+              </section>
+              <section class="ma-card ma-span-4">
+                <div class="ma-card-head"><div><h3>Projects by status</h3><p>Current status of every tenant</p></div></div>
+                <div class="ma-card-body"><div class="ma-chart" id="chart-status-donut"><span class="ma-skel ma-skel-chart"></span></div></div>
+              </section>
+              <section class="ma-card ma-span-7">
+                <div class="ma-card-head"><div><h3>Module adoption</h3><p>Projects with each module enabled</p></div></div>
+                <div class="ma-card-body"><div class="ma-chart" id="chart-module-adoption"><span class="ma-skel ma-skel-chart"></span></div></div>
+              </section>
+              <section class="ma-card ma-span-5">
+                <div class="ma-card-head"><div><h3>Provisioning health</h3><p>Outcome of provisioning runs · last 30 days</p></div></div>
+                <div class="ma-card-body">
+                  <div class="ma-donut-wrap">
+                    <div class="ma-chart" id="chart-provision-donut"><span class="ma-skel ma-skel-chart"></span></div>
+                    <div class="ma-legend">
+                      <div class="ma-legend-row"><span class="sw" style="background:#16A34A"></span><span class="lbl">Succeeded</span><span class="val" id="health-success">—</span><span class="pct" id="ma-pct-success"></span></div>
+                      <div class="ma-legend-row"><span class="sw" style="background:#DC2626"></span><span class="lbl">Failed</span><span class="val" id="health-failed">—</span><span class="pct" id="ma-pct-failed"></span></div>
+                      <div class="ma-legend-row"><span class="sw" style="background:#D97706"></span><span class="lbl">Pending</span><span class="val" id="health-pending">—</span><span class="pct" id="ma-pct-pending"></span></div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+              <section class="ma-card ma-span-7">
+                <div class="ma-card-head"><div><h3>Pending sign-ups by project</h3><p>Users waiting for approval, grouped by project</p></div></div>
+                <div class="ma-card-body"><div class="ma-chart sm" id="chart-pending-by-project"><span class="ma-skel ma-skel-chart"></span></div></div>
+              </section>
+              <section class="ma-card ma-span-5">
+                <div class="ma-card-head"><div><h3>Zoho Books coverage</h3><p>Zoho-enabled projects with a live connection</p></div></div>
+                <div class="ma-card-body" id="ma-zoho-coverage"><span class="ma-skel w40"></span><span class="ma-skel"></span><span class="ma-skel w80"></span></div>
+              </section>
+            </div>
+
+            <!-- Projects table -->
+            <section class="ma-card ma-table-card" id="ma-projects">
+              <div class="ma-card-head">
+                <div><h2>Projects <span class="ma-count" id="ma-project-count">—</span></h2><p>Every tenant, its database and provisioning state.</p></div>
+                <div class="ma-card-actions">
+                  <label class="ma-search"><span class="ma-i" data-icon="search"></span><input type="search" id="ma-project-search" placeholder="Search projects…" oninput="maFilterProjects()" aria-label="Search projects"></label>
+                  <button class="ma-btn ma-btn-secondary ma-btn-sm" onclick="openCompanyModal()"><span class="ma-i" data-icon="plus"></span>New project</button>
+                </div>
+              </div>
+              <div class="ma-table-wrap">
+                <table class="ma-table">
+                  <thead>
+                    <tr>
+                      <th>Project</th><th>Database</th><th>Modules</th><th>Status</th><th>Provisioning</th><th class="right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="companies-tbody">
+                    <tr class="ma-state-row"><td colspan="6" class="ma-skel-cell"><span class="ma-skel w40"></span><span class="ma-skel w80"></span><span class="ma-skel w60"></span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Pending sign-ups -->
+            <section class="ma-card ma-table-card" id="pending-users-section">
+              <div class="ma-card-head">
+                <div><h2>Pending sign-ups <span class="ma-count" id="ma-pending-count">—</span></h2><p>Accounts waiting for approval across all projects.</p></div>
+                <div class="ma-card-actions">
+                  <button class="ma-btn ma-btn-secondary ma-btn-sm" onclick="loadPendingUsers()"><span class="ma-i" data-icon="refresh"></span>Refresh</button>
+                </div>
+              </div>
+              <div class="ma-table-wrap">
+                <table class="ma-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th><th>Email</th><th>Project</th><th>Requested role</th><th class="right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="pending-users-tbody">
+                    <tr class="ma-state-row"><td colspan="5" class="ma-skel-cell"><span class="ma-skel w40"></span><span class="ma-skel w60"></span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Zoho Books -->
+            <section class="ma-card ma-table-card" id="zoho-section">
+              <div class="ma-card-head">
+                <div><h2>Zoho Books</h2><p>Connected Zoho organisations and the projects linked to them.</p></div>
+                <div class="ma-card-actions">
+                  <button class="ma-btn ma-btn-secondary ma-btn-sm" onclick="loadZohoConnections()"><span class="ma-i" data-icon="refresh"></span>Refresh</button>
+                </div>
+              </div>
+              <div class="ma-table-wrap">
+                <table class="ma-table">
+                  <thead>
+                    <tr>
+                      <th>Zoho organisation</th><th>Org ID</th><th>Connected by</th><th>Connected at</th><th>Linked projects</th><th class="right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="zoho-connections-tbody">
+                    <tr class="ma-state-row"><td colspan="6" class="ma-skel-cell"><span class="ma-skel w40"></span><span class="ma-skel w60"></span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="ma-subhead"><h3>Projects awaiting connection</h3><p>Zoho Books is enabled for these projects but no organisation is linked yet.</p></div>
+              <div class="ma-table-wrap">
+                <table class="ma-table">
+                  <thead><tr><th>Project</th><th>Slug</th><th class="right">Action</th></tr></thead>
+                  <tbody id="zoho-unconnected-tbody">
+                    <tr class="ma-state-row"><td colspan="3" class="ma-skel-cell"><span class="ma-skel w40"></span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+          </div>
+        </div><!-- /#dashPage -->
+        <div id="flowsPage" class="dash-page" style="display:none"></div>
+      </div><!-- /.dash-pages -->
+    </div><!-- /.ma-main -->
   </div><!-- /.dash-body -->
 </div>
 
@@ -2136,7 +2221,7 @@ const ALL_MODULES = [
   { key:'roles',        label:'Roles' },
 ];
 
-// Sitara Bespoke is offered as ONE checkbox in the company modal (see
+// Sitara Drapes is offered as ONE checkbox in the company modal (see
 // buildModuleCheckboxes()/saveCompany() below) that expands to these 4 real
 // module keys at save time — not 4 separate checkboxes.
 const SITARA_MODULE_KEYS = ['sitara_dashboard','sitara_people','sitara_stocks','sitara_orders','sitara_razorpay','sitara_expenses'];
@@ -2307,40 +2392,49 @@ function renderStats() {
 
 function renderCompanies() {
   const tbody = document.getElementById('companies-tbody');
+  window._maCompaniesLoaded = true;
   if (!companies.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No projects yet. Click "+ New Project" to create one.</td></tr>';
+    tbody.innerHTML = `<tr class="ma-state-row"><td colspan="6">${maEmpty('building','No projects yet','Create your first project to provision its tenant database.','<button class="ma-btn ma-btn-primary ma-btn-sm" onclick="openCompanyModal()">'+maIcon('plus')+'New project</button>')}</td></tr>`;
     renderDashboardSummary(); // still re-run — an empty company list is itself a real (if uneventful) input to the fallbacks
     renderZohoUnconnected();
+    maFilterProjects();
     return;
   }
+  const statusTone = { active:'ok', suspended:'warn', archived:'' };
   tbody.innerHTML = companies.map(c => {
     const provStatus = c.provisioned_at
-      ? `<span class="prov-status ok">✓ Done</span>`
+      ? `<span class="ma-badge ok">${maIcon('circleCheck')}Done</span>`
       : c.lastProvisionStatus === 'failed'
-        ? `<span class="prov-status fail">✗ Failed</span>`
+        ? `<span class="ma-badge danger">${maIcon('circleX')}Failed</span>`
         : c.lastProvisionStatus === 'pending'
-          ? `<span class="prov-status pending"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Running…</span>`
-          : `<span class="prov-status">—</span>`;
-    const modules = (c.enabled_modules||[]).map(m=>`<span class="mod-chip">${m}</span>`).join('');
-    return `<tr>
-      <td><strong>${esc(c.name)}</strong></td>
-      <td><code style="background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px">${esc(c.slug)}</code></td>
-      <td><code style="font-size:11px;color:var(--g3)">${esc(c.db_name)}</code></td>
-      <td><div class="mod-chips">${modules}</div></td>
-      <td><span class="badge ${c.status}">${c.status}</span> ${c.sql_region?`<span class="mod-chip" style="font-size:10px">${esc(c.sql_region)}</span>`:''}</td>
-      <td>${provStatus}</td>
+          ? `<span class="ma-badge info"><span class="ma-i ma-spin">${maIcon('loader')}</span>Running…</span>`
+          : `<span class="ma-muted">—</span>`;
+    const modules = (c.enabled_modules||[]).map(m=>`<span class="ma-chip" title="${esc(m)}">${esc(maModuleLabel(m))}</span>`).join('');
+    const search = [c.name, c.slug, c.db_name, c.status, c.sql_region, ...(c.enabled_modules||[]).map(maModuleLabel)].join(' ').toLowerCase();
+    return `<tr data-search="${esc(search)}">
       <td>
-        <div class="action-btns">
-          <button class="btn-sm btn-edit" onclick="openCompanyModal('${c.id}')">Edit</button>
-          <button class="btn-sm btn-log" onclick="provisionModules('${c.id}','${esc(c.name)}')" style="color:#16A085;border-color:#A3E4D7">Provision</button>
-          <button class="btn-sm btn-log" onclick="showLog('${c.id}','${esc(c.name)}')">Log</button>
-          <button class="btn-sm btn-del" onclick="deleteCompany('${c.id}','${esc(c.name)}')">Delete</button>
+        <div class="ma-entity">
+          ${c.logo ? `<img class="ma-entity-avatar" src="${esc(c.logo)}" alt="" style="object-fit:contain;padding:3px">` : `<div class="ma-entity-avatar">${esc((c.name||'?').charAt(0).toUpperCase())}</div>`}
+          <div><div class="ma-entity-name">${esc(c.name)}</div><div class="ma-entity-sub ma-mono">${esc(c.slug)}</div></div>
+        </div>
+      </td>
+      <td><div class="ma-mono">${esc(c.db_name)}</div>${c.sql_region ? `<div class="ma-entity-sub" title="Region">${maIcon('globe')} ${esc(c.sql_region)}</div>` : ''}</td>
+      <td><div class="ma-chips">${modules || '<span class="ma-muted">—</span>'}</div></td>
+      <td><span class="ma-badge ma-badge-dot ${statusTone[c.status]||''}" style="text-transform:capitalize">${esc(c.status)}</span></td>
+      <td>${provStatus}</td>
+      <td class="right">
+        <div class="ma-row-actions">
+          <button class="ma-btn ma-btn-secondary ma-btn-xs ma-btn-icon" onclick="openCompanyModal('${c.id}')" title="Edit" aria-label="Edit ${esc(c.name)}">${maIcon('pencil')}</button>
+          <button class="ma-btn ma-btn-secondary ma-btn-xs" onclick="provisionModules('${c.id}','${esc(c.name)}')">${maIcon('play')}Provision</button>
+          <button class="ma-btn ma-btn-secondary ma-btn-xs ma-btn-icon" onclick="showLog('${c.id}','${esc(c.name)}')" title="Provisioning log" aria-label="Provisioning log for ${esc(c.name)}">${maIcon('fileText')}</button>
+          <button class="ma-btn ma-btn-danger ma-btn-xs ma-btn-icon" onclick="deleteCompany('${c.id}','${esc(c.name)}')" title="Delete" aria-label="Delete ${esc(c.name)}">${maIcon('trash')}</button>
         </div>
       </td>
     </tr>`;
   }).join('');
   renderDashboardSummary();
   renderZohoUnconnected();
+  maFilterProjects();
 }
 
 // ── Pending Signups (all companies) ─────────────────────────────────────────
@@ -2352,24 +2446,29 @@ async function loadPendingUsers() {
     renderPendingUsers(pending);
   } catch(e) {
     document.getElementById('pending-users-tbody').innerHTML =
-      `<tr><td colspan="5" class="empty-state" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+      `<tr class="ma-state-row"><td colspan="5">${maEmpty('alert',"Couldn't load sign-ups",esc(e.message),'',true)}</td></tr>`;
   }
 }
 
 function renderPendingUsers(pending) {
   const tbody = document.getElementById('pending-users-tbody');
   if (!pending.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No pending signups right now.</td></tr>';
+    tbody.innerHTML = `<tr class="ma-state-row"><td colspan="5">${maEmpty('inbox','No pending sign-ups right now','New account requests from any project will appear here.')}</td></tr>`;
   } else {
     tbody.innerHTML = pending.map(u => `<tr>
-        <td><strong>${esc(u.name)}</strong></td>
-        <td>${esc(u.email)}</td>
-        <td><span class="mod-chip">${esc(u.company_name)}</span></td>
-        <td><span class="mod-chip">${esc(u.role)}</span></td>
         <td>
-          <div class="action-btns">
-            <button class="btn-sm btn-edit" onclick="decidePendingUser('${u.company_slug}','${u.id}','active')">Approve</button>
-            <button class="btn-sm btn-del" onclick="decidePendingUser('${u.company_slug}','${u.id}','rejected')">Reject</button>
+          <div class="ma-entity">
+            <div class="ma-entity-avatar round">${esc((u.name||'?').charAt(0).toUpperCase())}</div>
+            <div class="ma-entity-name">${esc(u.name)}</div>
+          </div>
+        </td>
+        <td>${esc(u.email)}</td>
+        <td><span class="ma-chip">${esc(u.company_name)}</span></td>
+        <td><span class="ma-badge" style="text-transform:capitalize">${esc(String(u.role||'').replace(/_/g,' '))}</span></td>
+        <td class="right">
+          <div class="ma-row-actions">
+            <button class="ma-btn ma-btn-secondary ma-btn-xs" onclick="decidePendingUser('${u.company_slug}','${u.id}','active')">${maIcon('check')}Approve</button>
+            <button class="ma-btn ma-btn-danger ma-btn-xs" onclick="decidePendingUser('${u.company_slug}','${u.id}','rejected')">${maIcon('x')}Reject</button>
           </div>
         </td>
       </tr>`).join('');
@@ -2380,6 +2479,7 @@ function renderPendingUsers(pending) {
   // still-default '—', never overwrites a real value).
   const tile=document.getElementById('stat-pending-approvals');
   if(tile&&tile.textContent==='—') tile.textContent=pending.length;
+  maRenderPending(pending);
 }
 
 // ── Zoho Books connections ──────────────────────────────────────────────────
@@ -2397,28 +2497,28 @@ async function loadZohoConnections() {
     renderZohoUnconnected();
   } catch(e) {
     document.getElementById('zoho-connections-tbody').innerHTML =
-      `<tr><td colspan="6" class="empty-state" style="color:var(--red)">${esc(e.message)}</td></tr>`;
+      `<tr class="ma-state-row"><td colspan="6">${maEmpty('alert',"Couldn't load Zoho connections",esc(e.message),'',true)}</td></tr>`;
   }
 }
 
 function renderZohoConnections() {
   const tbody = document.getElementById('zoho-connections-tbody');
   if (!zohoConnections.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No Zoho connections yet.</td></tr>';
+    tbody.innerHTML = `<tr class="ma-state-row"><td colspan="6">${maEmpty('link','No Zoho connections yet','Connect a project below to add its Zoho Books organisation.')}</td></tr>`;
     return;
   }
   tbody.innerHTML = zohoConnections.map(c => {
     const linked = zohoLinks.filter(l => l.connectionId === c.id);
     const linkedHtml = linked.length
-      ? linked.map(l => `<span class="mod-chip">${esc(l.companyName)}${l.branchId ? ' ('+esc(l.branchId)+')' : ''}</span>`).join(' ')
-      : '<span style="color:var(--g3)">—</span>';
+      ? `<div class="ma-chips">${linked.map(l => `<span class="ma-chip">${esc(l.companyName)}${l.branchId ? ' ('+esc(l.branchId)+')' : ''}</span>`).join('')}</div>`
+      : '<span class="ma-muted">—</span>';
     return `<tr>
-      <td><strong>${esc(c.display_name)}</strong></td>
-      <td><code style="font-size:11px;color:var(--g3)">${esc(c.zoho_organization_id)}</code></td>
+      <td><div class="ma-entity"><div class="ma-entity-avatar">${maIcon('book')}</div><div class="ma-entity-name">${esc(c.display_name)}</div></div></td>
+      <td><span class="ma-mono">${esc(c.zoho_organization_id)}</span></td>
       <td>${esc(c.connected_by||'')}</td>
-      <td>${c.connected_at ? new Date(c.connected_at).toLocaleString() : ''}</td>
+      <td style="white-space:nowrap">${c.connected_at ? new Date(c.connected_at).toLocaleString() : ''}</td>
       <td>${linkedHtml}</td>
-      <td><button class="btn-sm btn-edit" onclick="openZohoLinkModal('${c.id}')">Link another project</button></td>
+      <td class="right"><div class="ma-row-actions"><button class="ma-btn ma-btn-secondary ma-btn-xs" onclick="openZohoLinkModal('${c.id}')">${maIcon('link')}Link another project</button></div></td>
     </tr>`;
   }).join('');
 }
@@ -2427,14 +2527,15 @@ function renderZohoUnconnected() {
   const tbody = document.getElementById('zoho-unconnected-tbody');
   const linkedCompanyIds = new Set(zohoLinks.map(l => l.companyId));
   const candidates = companies.filter(c => (c.enabled_modules||[]).includes('zoho_books') && !linkedCompanyIds.has(c.id));
+  maRenderZohoCoverage();
   if (!candidates.length) {
-    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Every project with Zoho Books enabled is already connected.</td></tr>';
+    tbody.innerHTML = `<tr class="ma-state-row"><td colspan="3">${maEmpty('circleCheck','All connected','Every project with Zoho Books enabled is already connected.')}</td></tr>`;
     return;
   }
   tbody.innerHTML = candidates.map(c => `<tr>
-    <td><strong>${esc(c.name)}</strong></td>
-    <td><code style="font-size:11px;color:var(--g3)">${esc(c.slug)}</code></td>
-    <td><button class="btn-sm btn-edit" onclick="connectZohoCompany('${c.id}')">Connect</button></td>
+    <td><div class="ma-entity"><div class="ma-entity-avatar">${esc((c.name||'?').charAt(0).toUpperCase())}</div><div class="ma-entity-name">${esc(c.name)}</div></div></td>
+    <td><span class="ma-mono">${esc(c.slug)}</span></td>
+    <td class="right"><div class="ma-row-actions"><button class="ma-btn ma-btn-primary ma-btn-xs" onclick="connectZohoCompany('${c.id}')">${maIcon('link')}Connect</button></div></td>
   </tr>`).join('');
 }
 
@@ -2575,6 +2676,7 @@ function renderDashboardSummary(){
     ?data.moduleAdoption:_computeModuleAdoptionFromCompanies(companies);
   renderCompanyTrendChart(trend);
   renderModuleAdoptionChart(moduleAdoption);
+  maRenderOverview();
 }
 
 function _monthAbbrev(ym){
@@ -2618,70 +2720,59 @@ function _smoothPath(coords){
 // labels since there are only ever a handful of points, hover tooltip per
 // point since an SVG line chart is expected to be interactive.
 function renderCompanyTrendChart(trend){
-  const el=document.getElementById('chart-companies-trend');
-  if(!el) return;
   const points=(trend||[])
     .map(t=>({label:t.month||t.label||'',count:Number(t.count||t.value||0)}))
     .filter(p=>p.label)
     .slice(-6);
-  if(!points.length){
-    el.innerHTML='<div class="empty-chart"><span class="empty-chart-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span>No projects created yet</div>';
+  if(!points.length||!points.some(p=>p.count>0)){
+    maChartEmpty('chart-companies-trend','trendUp','No new projects in the last 6 months','Projects you create will be plotted here by month.');
     return;
   }
-  const w=340,h=140,padL=10,padR=10,padT=22,padB=22;
-  const max=Math.max(...points.map(p=>p.count),1);
-  const stepX=points.length>1?(w-padL-padR)/(points.length-1):0;
-  const yFor=(v)=>h-padB-(v/max)*(h-padT-padB);
-  const coords=points.map((p,i)=>({x:padL+i*stepX,y:yFor(p.count),...p}));
-  const smoothLine=_smoothPath(coords);
-  const baseline=h-padB;
-  const areaPath=`${smoothLine} L${coords[coords.length-1].x.toFixed(1)},${baseline} L${coords[0].x.toFixed(1)},${baseline} Z`;
-  const dots=coords.map(c=>
-    `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="var(--red)" stroke="#fff" stroke-width="1.5" style="cursor:default"
-       onmouseenter="showChartTooltip(event,'${esc(_monthAbbrev(c.label))}: ${c.count}')" onmouseleave="hideChartTooltip()"/>`
-  ).join('');
-  const valueLabels=coords.map(c=>
-    `<text x="${c.x.toFixed(1)}" y="${(c.y-10).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--g2)" font-weight="600">${c.count}</text>`
-  ).join('');
-  const monthLabels=coords.map(c=>
-    `<text x="${c.x.toFixed(1)}" y="${h-6}" text-anchor="middle" font-size="9" fill="var(--g3)">${esc(_monthAbbrev(c.label))}</text>`
-  ).join('');
-  el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px;overflow:visible">
-    <defs>
-      <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--red)" stop-opacity=".16"/>
-        <stop offset="100%" stop-color="var(--red)" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    <path d="${areaPath}" fill="url(#trendFill)" stroke="none"/>
-    <path d="${smoothLine}" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round"/>
-    ${dots}${valueLabels}${monthLabels}
-  </svg>`;
+  const accent=maAccent();
+  maChart('chart-companies-trend',{
+    type:'line',
+    data:{labels:points.map(p=>_monthAbbrev(p.label)),datasets:[{
+      label:'Projects created',data:points.map(p=>p.count),
+      borderColor:accent,borderWidth:2,pointRadius:3,pointHoverRadius:5,
+      pointBackgroundColor:'#fff',pointBorderColor:accent,pointBorderWidth:2,
+      cubicInterpolationMode:'monotone',tension:.35,fill:true,
+      backgroundColor:(ctx)=>{const a=ctx.chart.chartArea;if(!a)return 'transparent';
+        const g=ctx.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,maRgba(accent,.14));g.addColorStop(1,maRgba(accent,0));return g;}
+    }]},
+    options:maChartOptions({
+      scales:{x:maAxis({grid:{display:false}}),y:maAxis({beginAtZero:true,ticks:{precision:0},suggestedMax:Math.max(...points.map(p=>p.count))+1})},
+      plugins:{tooltip:{callbacks:{label:(c)=>` ${c.parsed.y} project${c.parsed.y===1?'':'s'} created`}}}
+    })
+  });
 }
 
 // Ranked magnitude comparison across modules — single hue, direct count
 // labels (this is "which of these is bigger", not "tell these series
 // apart", so it stays sequential rather than categorical).
 function renderModuleAdoptionChart(moduleAdoption){
-  const el=document.getElementById('chart-module-adoption');
-  if(!el) return;
   const rows=(moduleAdoption||[])
     .map(m=>({name:m.module||m.name||m.key||'',count:Number(m.count||m.value||0)}))
     .filter(r=>r.name)
     .sort((a,b)=>b.count-a.count);
   if(!rows.length){
-    el.innerHTML='<div class="empty-chart"><span class="empty-chart-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>No modules enabled anywhere yet</div>';
+    maChartEmpty('chart-module-adoption','layout','No modules enabled anywhere yet','Enable modules on a project to see adoption here.');
     return;
   }
   const top=rows.slice(0,10);
-  const max=Math.max(...top.map(r=>r.count),1);
-  el.innerHTML=top.map(r=>`
-    <div class="rank-bar-row">
-      <div class="rank-bar-name" title="${esc(r.name)}">${esc(r.name)}</div>
-      <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${Math.max(4,Math.round(r.count/max*100))}%"></div></div>
-      <div class="rank-bar-count">${r.count}</div>
-    </div>`).join('')
-    + (rows.length>top.length?`<div style="font-size:11px;color:var(--g3);margin-top:6px">+${rows.length-top.length} more modules</div>`:'');
+  maChart('chart-module-adoption',{
+    type:'bar',
+    data:{labels:top.map(r=>maModuleLabel(r.name)),datasets:[{label:'Projects',data:top.map(r=>r.count),
+      backgroundColor:'#3F3F46',hoverBackgroundColor:maAccent(),borderRadius:4,barThickness:14,maxBarThickness:16}]},
+    options:maChartOptions({
+      indexAxis:'y',
+      scales:{x:maAxis({beginAtZero:true,ticks:{precision:0}}),y:maAxis({grid:{display:false},ticks:{color:'#3F3F46'}})},
+      plugins:{
+        subtitle:{display:rows.length>top.length,text:`+${rows.length-top.length} more modules`,position:'bottom',align:'start',color:'#71717A',font:{size:12},padding:{top:8}},
+        tooltip:{callbacks:{title:(items)=>top[items[0].dataIndex].name===items[0].label?items[0].label:`${items[0].label} (${top[items[0].dataIndex].name})`,
+          label:(c)=>` ${c.parsed.x} project${c.parsed.x===1?'':'s'}`}}
+      }
+    })
+  });
 }
 
 async function decidePendingUser(companySlug, userId, status) {
@@ -2704,7 +2795,7 @@ function buildModuleCheckboxes(selected) {
   ).join('') + `
     <label class="module-check" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">
       <input type="checkbox" value="sitara_bundle" id="mod-check-sitara_bundle" ${SITARA_MODULE_KEYS.some(k=>selected.includes(k))?'checked':''}/>
-      Sitara Bespoke <span style="font-weight:400;color:var(--g3)">(Dashboard, People, Stocks, Orders)</span>
+      Sitara Drapes <span style="font-weight:400;color:var(--g3)">(Dashboard, People, Stocks, Orders)</span>
     </label>`;
   // If manufacturing starts out checked, inventory must be locked on immediately.
   if (selected.includes('manufacturing')) handleModuleDependency('manufacturing', true);
@@ -2825,7 +2916,7 @@ async function saveCompany() {
   const primary_color = document.getElementById('cm-color').value;
   const logo_url = document.getElementById('cm-logo').value.trim();
   // "sitara_bundle" is a UI-only marker checkbox (see buildModuleCheckboxes())
-  // that expands to the 4 real Sitara Bespoke module keys here — it's never
+  // that expands to the 4 real Sitara Drapes module keys here — it's never
   // itself a real module key sent to the backend.
   const enabled_modules = [...document.querySelectorAll('#module-checkboxes input:checked')].map(i=>i.value)
     .flatMap(v => v==='sitara_bundle' ? SITARA_MODULE_KEYS : [v]);
@@ -2897,6 +2988,244 @@ async function showLog(companyId, companyName) {
   } catch(e) {
     document.getElementById('log-list').innerHTML = `<li style="padding:12px;color:var(--red)">${e.message}</li>`;
   }
+}
+
+// ── Dashboard presentation helpers ────────────────────────────────────────
+// Icons (Lucide, ISC licence) as inline SVG so the dashboard has one
+// consistent icon set without another CDN dependency.
+const MA_ICONS={
+  layout:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  workflow:'<rect x="3" y="3" width="8" height="8" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect x="13" y="13" width="8" height="8" rx="2"/>',
+  building:'<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>',
+  userPlus:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/>',
+  book:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  menu:'<path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>',
+  chevronRight:'<path d="m9 18 6-6-6-6"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  database:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+  arrowRight:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  refresh:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  pencil:'<path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  fileText:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  circleCheck:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  circleX:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  loader:'<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  trendUp:'<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',
+  trendDown:'<path d="M22 17 13.5 8.5 8.5 13.5 2 7"/><path d="M16 17h6v-6"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  globe:'<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  pie:'<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+};
+function maIcon(name){
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MA_ICONS[name]||''}</svg>`;
+}
+function maHydrateIcons(root){
+  (root||document).querySelectorAll('[data-icon]').forEach(el=>{ if(!el.firstChild) el.innerHTML=maIcon(el.dataset.icon); });
+}
+function maEmpty(icon,title,text,action,isError){
+  return `<div class="ma-empty${isError?' error':''}"><div class="ma-empty-icon">${maIcon(icon)}</div>`+
+    `<div class="ma-empty-title">${title}</div>${text?`<div class="ma-empty-text">${text}</div>`:''}${action?`<div style="margin-top:10px">${action}</div>`:''}</div>`;
+}
+// Friendly module names for display only — the raw key stays in title attrs.
+function maModuleLabel(key){
+  const m=(typeof ALL_MODULES!=='undefined'?ALL_MODULES:[]).find(x=>x.key===key);
+  if(m) return m.label.replace(/\s*\(.*\)\s*$/,'');
+  return String(key||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+
+// Charts (Chart.js, already loaded on this page for AIDA)
+const _maCharts={};
+function maAccent(){ return (getComputedStyle(document.documentElement).getPropertyValue('--red')||'').trim()||'#C0392B'; }
+function maRgba(hex,a){
+  const h=String(hex).replace('#','');
+  const f=h.length===3?h.split('').map(c=>c+c).join(''):h;
+  if(!/^[0-9a-f]{6}$/i.test(f)) return `rgba(192,57,43,${a})`;
+  return `rgba(${parseInt(f.slice(0,2),16)},${parseInt(f.slice(2,4),16)},${parseInt(f.slice(4,6),16)},${a})`;
+}
+function maAxis(extra){
+  return Object.assign({border:{display:false},grid:{color:'#F1F1F3',drawTicks:false},ticks:{color:'#71717A',padding:8,font:{size:12}}},extra||{},
+    {ticks:Object.assign({color:'#71717A',padding:8,font:{size:12}},(extra&&extra.ticks)||{})});
+}
+function maChartOptions(extra){
+  const base={
+    responsive:true,maintainAspectRatio:false,animation:{duration:400},
+    layout:{padding:{top:4,right:4}},
+    interaction:{mode:'nearest',intersect:false},
+    plugins:{
+      legend:{display:false},
+      datalabels:{display:false}, // registered globally by the AIDA charts
+      tooltip:{backgroundColor:'#18181B',titleColor:'#fff',bodyColor:'#E4E4E7',padding:10,cornerRadius:8,displayColors:false,
+        titleFont:{size:12,weight:'600'},bodyFont:{size:12},caretSize:5}
+    }
+  };
+  const out=Object.assign({},base,extra||{});
+  out.plugins=Object.assign({},base.plugins,(extra&&extra.plugins)||{});
+  out.plugins.tooltip=Object.assign({},base.plugins.tooltip,((extra&&extra.plugins)||{}).tooltip||{});
+  return out;
+}
+function maChart(hostId,config){
+  const host=document.getElementById(hostId);
+  if(!host) return;
+  if(!window.Chart){ host.innerHTML=maEmpty('alert','Chart unavailable','The charting library did not load.','',true); return; }
+  if(window.Chart.defaults){ Chart.defaults.font.family="'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"; }
+  const existing=_maCharts[hostId];
+  if(existing&&host.contains(existing.canvas)&&existing.config.type===config.type){
+    existing.data=config.data; existing.options=config.options; existing.update(); return;
+  }
+  if(existing){ try{ existing.destroy(); }catch(e){} }
+  host.innerHTML='<canvas role="img"></canvas>';
+  _maCharts[hostId]=new Chart(host.firstChild,config);
+}
+function maChartEmpty(hostId,icon,title,text){
+  const host=document.getElementById(hostId);
+  if(!host) return;
+  if(_maCharts[hostId]){ try{ _maCharts[hostId].destroy(); }catch(e){} delete _maCharts[hostId]; }
+  host.innerHTML=maEmpty(icon,title,text);
+}
+const MA_STATUS_COLORS={active:'#16A34A',suspended:'#D97706',archived:'#A1A1AA'};
+// Donut centre label (total) — per-chart plugin, not registered globally.
+function maCenterText(label){
+  return {id:'maCenter',afterDraw(chart){
+    const {ctx,chartArea:a}=chart; if(!a) return;
+    const total=chart.data.datasets[0].data.reduce((s,v)=>s+v,0);
+    const x=(a.left+a.right)/2,y=(a.top+a.bottom)/2;
+    ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='#18181B';ctx.font="600 22px Inter,sans-serif";ctx.fillText(String(total),x,y-7);
+    ctx.fillStyle='#71717A';ctx.font="500 11px Inter,sans-serif";ctx.fillText(label,x,y+13);
+    ctx.restore();
+  }};
+}
+function maDonut(hostId,labels,values,colors,centerLabel,showLegend){
+  maChart(hostId,{
+    type:'doughnut',
+    data:{labels,datasets:[{data:values,backgroundColor:colors,borderColor:'#fff',borderWidth:2,hoverOffset:3}]},
+    options:maChartOptions({cutout:'72%',interaction:{mode:'nearest',intersect:true},
+      plugins:{legend:{display:!!showLegend,position:'bottom',labels:{usePointStyle:true,pointStyle:'rectRounded',boxWidth:8,boxHeight:8,padding:14,color:'#3F3F46',font:{size:12}}},
+        tooltip:{displayColors:true,boxWidth:8,boxHeight:8,callbacks:{label:(c)=>{const t=c.dataset.data.reduce((s,v)=>s+v,0)||1;return ` ${c.label}: ${c.parsed} (${Math.round(c.parsed/t*100)}%)`;}}}}}),
+    plugins:[maCenterText(centerLabel)]
+  });
+}
+
+function _maNum(id){ const v=parseInt((document.getElementById(id)||{}).textContent,10); return isNaN(v)?null:v; }
+function _maSetHtml(id,html){ const el=document.getElementById(id); if(el) el.innerHTML=html; }
+function _maSetText(id,t){ const el=document.getElementById(id); if(el) el.textContent=t; }
+
+// KPI captions, status + provisioning donuts, nav counts. Everything here is
+// derived from data already on the page (companies list + the existing KPI
+// values written by renderStats/renderDashboardSummary).
+function maRenderOverview(){
+  const list=companies||[];
+  const total=list.length;
+  const now=new Date();
+  const ym=(d)=>d.toISOString().slice(0,7);
+  const thisYm=ym(now), lastYm=ym(new Date(now.getFullYear(),now.getMonth()-1,15));
+  const created=(m)=>list.filter(c=>String(c.created_at||c.createdAt||'').slice(0,7)===m).length;
+  const nThis=created(thisYm), nLast=created(lastYm);
+  if(window._maCompaniesLoaded){
+    const dir=nThis>nLast?'up':nThis<nLast?'down':'';
+    _maSetHtml('ma-kpi-total-meta', nThis||nLast
+      ? `<span class="ma-delta ${dir}">${dir?maIcon(dir==='up'?'trendUp':'trendDown'):''}+${nThis}</span> this month <span class="ma-muted">· ${nLast} last month</span>`
+      : 'No new projects this month');
+    const active=list.filter(c=>c.status==='active').length;
+    const suspended=list.filter(c=>c.status==='suspended').length;
+    _maSetHtml('ma-kpi-active-meta', total?`${Math.round(active/total*100)}% of projects${suspended?` <span class="ma-muted">· ${suspended} suspended</span>`:''}`:'No projects yet');
+    _maSetText('ma-nav-projects-count', total);
+
+    // Projects by status
+    if(!total){ maChartEmpty('chart-status-donut','pie','No projects yet','Status breakdown appears once projects exist.'); }
+    else{
+      const counts={}; list.forEach(c=>{ const s=c.status||'unknown'; counts[s]=(counts[s]||0)+1; });
+      const keys=Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+      maDonut('chart-status-donut',keys.map(k=>k.charAt(0).toUpperCase()+k.slice(1)),keys.map(k=>counts[k]),
+        keys.map(k=>MA_STATUS_COLORS[k]||'#71717A'),'projects',true);
+    }
+  }
+
+  // Provisioning health — same numbers as the legend values (health-*)
+  const ok=_maNum('health-success'), failed=_maNum('health-failed'), pending=_maNum('health-pending');
+  if(ok!=null||failed!=null||pending!=null){
+    const vals=[ok||0,failed||0,pending||0], sum=vals[0]+vals[1]+vals[2];
+    ['success','failed','pending'].forEach((k,i)=>_maSetText('ma-pct-'+k, sum?Math.round(vals[i]/sum*100)+'%':''));
+    if(!sum) maChartEmpty('chart-provision-donut','database','No provisioning runs yet','');
+    else maDonut('chart-provision-donut',['Succeeded','Failed','Pending'],vals,['#16A34A','#DC2626','#D97706'],'runs',false);
+    _maSetHtml('ma-kpi-prov-meta', (failed||pending)
+      ? `${failed?`<span class="ma-badge danger">${failed} failed</span>`:''}${pending?`<span class="ma-badge info">${pending} running</span>`:''}`
+      : (window._maCompaniesLoaded?'No failed or running jobs':''));
+  }
+
+  const avatar=document.getElementById('ma-admin-avatar'), name=(document.getElementById('admin-name')||{}).textContent||'';
+  if(avatar&&name) avatar.textContent=name.trim().charAt(0).toUpperCase();
+}
+
+function maRenderPending(pending){
+  _maSetText('ma-pending-count', pending.length);
+  _maSetText('ma-nav-pending-count', pending.length);
+  if(!pending.length){ maChartEmpty('chart-pending-by-project','inbox','No pending sign-ups','Requests waiting for approval will be grouped by project here.'); return; }
+  const by={}; pending.forEach(u=>{ const k=u.company_name||u.company_slug||'Unknown'; by[k]=(by[k]||0)+1; });
+  const keys=Object.keys(by).sort((a,b)=>by[b]-by[a]).slice(0,10);
+  maChart('chart-pending-by-project',{
+    type:'bar',
+    data:{labels:keys,datasets:[{label:'Pending sign-ups',data:keys.map(k=>by[k]),backgroundColor:'#3F3F46',hoverBackgroundColor:maAccent(),borderRadius:4,barThickness:14,maxBarThickness:16}]},
+    options:maChartOptions({indexAxis:'y',
+      scales:{x:maAxis({beginAtZero:true,ticks:{precision:0}}),y:maAxis({grid:{display:false},ticks:{color:'#3F3F46'}})},
+      plugins:{tooltip:{callbacks:{label:(c)=>` ${c.parsed.x} waiting for approval`}}}})
+  });
+}
+
+function maRenderZohoCoverage(){
+  const el=document.getElementById('ma-zoho-coverage');
+  if(!el||!window._maCompaniesLoaded) return;
+  const enabled=companies.filter(c=>(c.enabled_modules||[]).includes('zoho_books'));
+  const linkedIds=new Set(zohoLinks.map(l=>l.companyId));
+  const connected=enabled.filter(c=>linkedIds.has(c.id)).length;
+  if(!enabled.length){ el.innerHTML=maEmpty('book','No projects use Zoho Books','Enable the Zoho Books module on a project to track its connection here.'); return; }
+  const pct=Math.round(connected/enabled.length*100);
+  el.innerHTML=`<div class="ma-coverage-num">${connected}<small>of ${enabled.length} connected</small></div>
+    <div class="ma-progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div style="width:${pct}%"></div></div>
+    <div class="ma-stat-list">
+      <div><span>Coverage</span><strong>${pct}%</strong></div>
+      <div><span>Awaiting connection</span><strong>${enabled.length-connected}</strong></div>
+      <div><span>Zoho organisations</span><strong>${zohoConnections.length}</strong></div>
+    </div>`;
+}
+
+// Projects table search (client-side filter over rows already rendered)
+function maFilterProjects(){
+  const input=document.getElementById('ma-project-search');
+  const tbody=document.getElementById('companies-tbody');
+  if(!input||!tbody) return;
+  const q=input.value.trim().toLowerCase();
+  const rows=[...tbody.querySelectorAll('tr[data-search]')];
+  let shown=0;
+  rows.forEach(r=>{ const hit=!q||r.dataset.search.includes(q); r.style.display=hit?'':'none'; if(hit) shown++; });
+  let none=document.getElementById('ma-project-nomatch');
+  if(rows.length&&q&&!shown){
+    if(!none){ none=document.createElement('tr'); none.id='ma-project-nomatch'; none.className='ma-state-row'; tbody.appendChild(none); }
+    none.innerHTML=`<td colspan="6">${maEmpty('search','No matching projects',`Nothing matches “${esc(input.value.trim())}”.`)}</td>`;
+  } else if(none){ none.remove(); }
+  _maSetText('ma-project-count', rows.length ? (q?`${shown} of ${rows.length}`:rows.length) : (window._maCompaniesLoaded?0:'—'));
+}
+
+// Shell: mobile drawer, in-page jumps, breadcrumb
+function maToggleNav(force){
+  const s=document.getElementById('main-screen');
+  if(s) s.classList.toggle('ma-nav-open', force===undefined?!s.classList.contains('ma-nav-open'):!!force);
+}
+function maJump(id){
+  if(document.getElementById('dashPage').style.display==='none') switchDashPage('dashboard');
+  maToggleNav(false);
+  const el=document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -5693,6 +6022,18 @@ function switchDashPage(page){
   }
 }
 
+// Presentation-only wrapper: keep the breadcrumb in sync and close the
+// mobile drawer whenever the Dashboard/Flows page changes.
+(function(){
+  const _switch=switchDashPage;
+  switchDashPage=function(page){
+    _switch(page);
+    const c=document.getElementById('ma-crumb'); if(c) c.textContent=page==='flows'?'Flows':'Overview';
+    maToggleNav(false);
+  };
+  maHydrateIcons();
+})();
+
 // ── Flows — node-canvas page living in the master-admin dashboard's own
 // sidenav (dashNavFlows/#flowsPage below), independent of AIDA chat — it
 // used to be a tab inside AIDA's Skills popup; moved out so it works
@@ -7221,7 +7562,8 @@ function ensureAidaOverlay(){
     const btn=document.createElement('button');
     btn.id='aida-launcher-btn';btn.className='aida-launcher-btn';btn.title='Ask AIDA';
     btn.innerHTML='<img class="aida-launcher-orb" src="/images/aida-logo.svg" alt="AIDA">';
-    btn.onclick=()=>openAidaOverlay();
+    // Opens the AIDA mini chat; the talking UI is one click away from its header.
+    btn.onclick=()=>(window.AidaMini?AidaMini.toggle():openAidaOverlay());
     document.body.appendChild(btn);
   }
   if(!document.getElementById('aida-overlay')){
@@ -7451,7 +7793,7 @@ function ensureAidaOverlay(){
 
         <div class="hint" id="hintText">Hold the icon for menu</div>
         <div class="hint" id="voiceHintText">Press space to talk to Aida</div>
-        <div class="footer">&copy; OGPlus Services Pvt Limited</div>
+        <div class="footer">&copy; OG Plus Services Pvt Ltd</div>
       </div>`;
     document.body.appendChild(ov);
     syncAidaLayoutToggle();
@@ -7461,6 +7803,35 @@ function ensureAidaOverlay(){
   }
   document.getElementById('aida-launcher-btn').style.display='flex';
 }
+
+// ── AIDA mini chat (css/og-aida-mini.css + js/og-aida-mini.js) ─────────────
+// Same endpoint, payload, conversation threading (aidaActiveConversationId)
+// and shared transcript (aidaMessages) as the typed path in the full Chats
+// screen. Replies here are read, not spoken.
+if(window.AidaMini) AidaMini.init({
+  subtitle:'Master Admin assistant',
+  welcome:{title:'How can I help today?',text:'Ask about projects, provisioning and sign-ups across OGTrack.'},
+  suggestions:['How many projects are active?','Any provisioning failures this month?','Who is waiting for approval?'],
+  getMessages:()=>aidaMessages,
+  ensureHistory:async()=>{ if(!_aidaInitialConvLoadStarted){ _aidaInitialConvLoadStarted=true; await loadInitialAidaConversation(); } },
+  send:async(text,opts)=>{
+    if(!opts.retry) aidaMessages.push({role:'user',content:text});
+    const body={message:text,pageContext:buildAidaPageContext()};
+    if(aidaSelectedProvider&&aidaSelectedModel){ body.provider=aidaSelectedProvider; body.model=aidaSelectedModel; }
+    if(aidaActiveConversationId) body.conversationId=aidaActiveConversationId;
+    const r=await authFetch('/api/masteradmin/aida/chat',{method:'POST',body:JSON.stringify(body)});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.error||(r.status===400?'Invalid model selection.':r.status===503?"AIDA isn't set up yet.":'AIDA could not respond right now.'));
+    if(data.conversationId) aidaActiveConversationId=data.conversationId;
+    aidaMessages.push({role:'assistant',content:data.reply||'(no response)',toolCalls:Array.isArray(data.toolCalls)?data.toolCalls:null,turnId:data.turnId||null,provider:data.provider||null,model:data.model||null});
+  },
+  openFull:()=>{
+    openAidaOverlay();
+    const item=document.querySelector('#aida-overlay .menu-item[data-action="messages"]');
+    if(item) setTimeout(()=>item.click(),60);
+  },
+  openVoice:()=>openAidaOverlay(),
+});
 
 // Closes the hub's own menu/modal first on Escape (handled inside
 // _aidaHubInit); only closes the whole overlay once nothing else is open,
@@ -7948,6 +8319,7 @@ function handleAidaVoiceError({turnId,message}){
 // which calls this function, and that recursion has to be avoided since this
 // is itself firing from inside signOut(). Best-effort; never blocks logout.
 async function clearAidaSessionOnLogout(){
+  if(window.AidaMini) AidaMini.reset();
   closeAidaOverlay({skipPush:true});
   const _btn=document.getElementById('aida-launcher-btn');
   if(_btn) _btn.style.display='none';

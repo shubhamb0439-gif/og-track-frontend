@@ -28,7 +28,7 @@ node serve.js
 Open a tenant in your browser:
 ```
 http://localhost:8080/ogtrack     ← loads OGTrack, talks to OGTrack_prod
-http://localhost:8080/cajo        ← loads Cajo, talks to OGTrack_cajo
+http://localhost:8080/cajo        ← loads CAJO, talks to OGTrack_cajo
 ```
 
 The slug in the URL is what selects the tenant — same page, different backend

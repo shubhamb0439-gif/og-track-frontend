@@ -1,0 +1,89 @@
+/* ============================================================================
+   OGTrack UI — shared design foundation (index.html + masteradmin.html)
+   ----------------------------------------------------------------------------
+   Loaded AFTER each page's own <style> block, so it refines the existing look
+   without touching markup or logic. Brand colours are always derived from
+   --red / --red2, which tenants override at runtime (COMPANY_CONTEXT
+   primaryColor / secondaryColor) — never hardcode a brand hex in here.
+   ============================================================================ */
+
+:root{
+  /* Brand scale, derived from the tenant's primary colour */
+  --brand:var(--red);
+  --brand-hover:color-mix(in srgb,var(--red) 88%,#000);
+  --brand-50:color-mix(in srgb,var(--red) 7%,transparent);
+  --brand-100:color-mix(in srgb,var(--red) 12%,transparent);
+  --brand-200:color-mix(in srgb,var(--red) 22%,transparent);
+  --ring:0 0 0 3px color-mix(in srgb,var(--red) 22%,transparent);
+
+  /* Semantic status colours */
+  --ok:#16A34A;   --ok-bg:rgba(22,163,74,.10);
+  --warn:#D97706; --warn-bg:rgba(217,119,6,.11);
+  --info:#2563EB; --info-bg:rgba(37,99,235,.10);
+  --violet:#7C3AED;--violet-bg:rgba(124,58,237,.10);
+  --teal:#0D9488; --teal-bg:rgba(13,148,136,.10);
+  --danger:var(--red);--danger-bg:var(--brand-100);
+
+  /* Elevation */
+  --shadow-xs:0 1px 2px rgba(16,24,40,.05);
+  --shadow-sm:0 1px 3px rgba(16,24,40,.07),0 1px 2px rgba(16,24,40,.04);
+  --shadow-md:0 4px 12px -2px rgba(16,24,40,.08),0 2px 4px -2px rgba(16,24,40,.04);
+  --shadow-lg:0 16px 32px -8px rgba(16,24,40,.16),0 4px 8px -4px rgba(16,24,40,.06);
+  --shadow-xl:0 24px 48px -12px rgba(16,24,40,.24);
+
+  /* Shape + motion */
+  --r-sm:6px;--r-md:8px;--r-lg:12px;--r-xl:16px;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --dur:.16s;
+
+  --font-ui:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+
+[data-theme="dark"]{
+  --brand-50:color-mix(in srgb,var(--red) 12%,transparent);
+  --brand-100:color-mix(in srgb,var(--red) 18%,transparent);
+  --brand-200:color-mix(in srgb,var(--red) 30%,transparent);
+  --ok:#22C55E;--ok-bg:rgba(34,197,94,.14);
+  --warn:#F59E0B;--warn-bg:rgba(245,158,11,.14);
+  --info:#60A5FA;--info-bg:rgba(96,165,250,.14);
+  --violet:#A78BFA;--violet-bg:rgba(167,139,250,.14);
+  --teal:#2DD4BF;--teal-bg:rgba(45,212,191,.14);
+  --shadow-xs:0 1px 2px rgba(0,0,0,.4);
+  --shadow-sm:0 1px 3px rgba(0,0,0,.45);
+  --shadow-md:0 6px 16px -4px rgba(0,0,0,.5);
+  --shadow-lg:0 18px 36px -10px rgba(0,0,0,.6);
+  --shadow-xl:0 28px 56px -12px rgba(0,0,0,.7);
+}
+
+html{-webkit-text-size-adjust:100%;}
+body{
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  font-feature-settings:'cv11','ss01';
+}
+::selection{background:var(--brand-200);}
+
+/* Keyboard focus — visible ring only for keyboard users */
+:focus{outline:none;}
+:focus-visible{outline:none;box-shadow:var(--ring) !important;}
+a:focus-visible,button:focus-visible{border-radius:var(--r-md);}
+
+/* Numbers line up in KPIs and tables */
+.value,.ceo-kpi-num,.hr-stat-num,.kpi-card .value,.stat-card .value,td{font-variant-numeric:tabular-nums;}
+
+/* Slim, quiet scrollbars */
+*{scrollbar-width:thin;scrollbar-color:rgba(127,127,127,.35) transparent;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(127,127,127,.30);border-radius:10px;border:3px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-thumb:hover{background:rgba(127,127,127,.5);background-clip:content-box;}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}
