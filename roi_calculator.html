@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROI Calculator · Helios Photonics</title>
+<meta name="description" content="Interactive ROI calculator comparing traditional printing/marking technologies to UV laser marking systems.">
+<style>
+  :root{
+    --bg:#17191C;
+    --bg-soft:#141618;
+    --panel:#1D2023;
+    --panel-alt:#202327;
+    --panel-hover:#24282C;
+    --border:#2B2F33;
+    --border-soft:#25282C;
+    --green:#30D584;
+    --green-dim:#1E9F63;
+    --green-glow:rgba(48,213,132,.16);
+    --amber:#F4B740;
+    --red:#FF6B6B;
+    --text:#F3F5F6;
+    --muted:#9BA3AA;
+    --muted-dim:#6D757B;
+    --font:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+    --radius:16px;
+    --radius-sm:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(ellipse at top,#1b1e21 0%,var(--bg) 45%,var(--bg-soft) 100%);
+    color:var(--text);
+    font-family:var(--font);
+    font-size:14px;
+    line-height:1.45;
+    min-height:100vh;
+  }
+  a{color:inherit;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#33383d;border-radius:10px;}
+  ::-webkit-scrollbar-thumb:hover{background:#3f454b;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:16px 28px;border-bottom:1px solid var(--border);
+    background:rgba(23,25,28,.85);backdrop-filter:blur(6px);
+    position:sticky;top:0;z-index:40;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{
+    width:40px;height:40px;border-radius:11px;
+    background:linear-gradient(145deg,var(--green) 0%,var(--green-dim) 100%);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    box-shadow:0 0 0 1px rgba(48,213,132,.35), 0 6px 18px -4px var(--green-glow);
+  }
+  .brand-mark svg{width:22px;height:22px;color:#0C1210;}
+  .brand-text .name{font-weight:700;font-size:17px;letter-spacing:.3px;}
+  .brand-text .name b{color:var(--green);font-weight:800;}
+  .brand-text .tag{font-size:11.5px;color:var(--muted);letter-spacing:.2px;margin-top:1px;}
+  .top-actions{display:flex;align-items:center;gap:10px;}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:9px 14px;border-radius:9px;border:1px solid var(--border);
+    background:var(--panel-alt);color:var(--text);font-size:13px;font-weight:600;
+    cursor:pointer;transition:.15s;white-space:nowrap;
+  }
+  .btn:hover{background:var(--panel-hover);border-color:#3a4046;}
+  .btn-primary{background:var(--green);border-color:var(--green);color:#0C1210;}
+  .btn-primary:hover{background:#3fe192;}
+  .btn svg{width:14px;height:14px;}
+
+  .page-title{padding:22px 28px 6px;}
+  .page-title h1{margin:0 0 4px;font-size:22px;font-weight:700;}
+  .page-title p{margin:0;color:var(--muted);font-size:13.5px;max-width:760px;}
+
+  /* ---------- layout ---------- */
+  .layout{
+    display:grid;grid-template-columns:420px 1fr;gap:20px;
+    padding:18px 28px 40px;align-items:start;
+  }
+  @media (max-width:1080px){
+    .layout{grid-template-columns:1fr;}
+  }
+  .col{min-width:0;}
+  .col-inputs{position:sticky;top:78px;max-height:calc(100vh - 96px);overflow-y:auto;padding-right:4px;}
+  @media (max-width:1080px){ .col-inputs{position:static;max-height:none;} }
+
+  .panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px 18px 20px;margin-bottom:16px;
+  }
+  .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+  .panel-header h2{margin:0;font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .panel-header h2 svg{width:16px;height:16px;color:var(--green);}
+  .panel-sub{color:var(--muted-dim);font-size:11.5px;margin-top:2px;}
+
+  .mode-toggle{display:flex;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--panel-alt);}
+  .mode-toggle button{
+    border:none;background:transparent;color:var(--muted);font-size:12.5px;font-weight:700;
+    padding:7px 14px;cursor:pointer;transition:.15s;letter-spacing:.3px;
+  }
+  .mode-toggle button.active{background:var(--green);color:#0C1210;}
+
+  .section-label{
+    font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted-dim);
+    margin:18px 0 10px;display:flex;align-items:center;gap:8px;
+  }
+  .section-label:first-child{margin-top:0;}
+  .section-label::after{content:'';flex:1;height:1px;background:var(--border-soft);}
+
+  .field{margin-bottom:12px;}
+  .field label{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:6px;}
+  .field label .val{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;}
+  .field input[type="number"],.field select{
+    width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--border);
+    background:var(--panel-alt);color:var(--text);font-size:13.5px;font-family:inherit;outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .field input[type="number"]:focus,.field select:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow);}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .field input[type="range"]{
+    width:100%;accent-color:var(--green);height:4px;background:var(--border);border-radius:4px;
+  }
+  .unit-wrap{position:relative;}
+  .unit-wrap .suffix{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:11.5px;color:var(--muted-dim);pointer-events:none;}
+  .adv-only{display:none;}
+  .detailed .adv-only{display:block;}
+  .hint{font-size:11px;color:var(--muted-dim);margin-top:4px;}
+
+  /* ---------- results ---------- */
+  .metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
+  @media (max-width:640px){.metric-grid{grid-template-columns:1fr;}}
+  .metric-grid.single{grid-template-columns:1fr;}
+
+  .metric-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 16px 15px;position:relative;overflow:hidden;
+  }
+  .metric-card.span2{grid-column:1 / -1;}
+  .metric-card .mc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .metric-card .mc-icon{
+    width:30px;height:30px;border-radius:9px;background:var(--green-glow);
+    display:flex;align-items:center;justify-content:center;color:var(--green);flex-shrink:0;
+  }
+  .metric-card .mc-icon svg{width:16px;height:16px;}
+  .metric-card .mc-icon.amber{background:rgba(244,183,64,.14);color:var(--amber);}
+  .metric-card h3{margin:0;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+  .mc-value{font-size:26px;font-weight:800;letter-spacing:-.4px;color:var(--text);font-variant-numeric:tabular-nums;}
+  .mc-value.green{color:var(--green);}
+  .mc-sub{font-size:11.5px;color:var(--muted-dim);margin-top:3px;}
+  .mc-delta{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:8px;}
+  .mc-delta.up{background:rgba(48,213,132,.14);color:var(--green);}
+  .mc-delta.down{background:rgba(255,107,107,.12);color:var(--red);}
+
+  .compare{margin-top:12px;display:flex;flex-direction:column;gap:7px;}
+  .compare-row{display:flex;align-items:center;gap:8px;}
+  .compare-row .lbl{width:64px;font-size:11px;color:var(--muted-dim);flex-shrink:0;}
+  .compare-track{flex:1;height:8px;border-radius:6px;background:var(--border-soft);overflow:hidden;}
+  .compare-fill{height:100%;border-radius:6px;transition:width .4s ease;}
+  .compare-fill.trad{background:linear-gradient(90deg,#ff9f6b,var(--amber));}
+  .compare-fill.laser{background:linear-gradient(90deg,var(--green-dim),var(--green));}
+  .compare-row .amt{width:84px;text-align:right;font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--text);flex-shrink:0;}
+
+  .gauge-wrap{display:flex;align-items:center;gap:16px;}
+  .gauge{
+    width:104px;height:104px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:conic-gradient(var(--green) calc(var(--pct)*1%), var(--border-soft) 0);
+  }
+  .gauge-inner{width:78px;height:78px;border-radius:50%;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .gauge-inner .num{font-size:17px;font-weight:800;color:var(--green);}
+  .gauge-inner .cap{font-size:9px;color:var(--muted-dim);text-transform:uppercase;letter-spacing:.3px;}
+
+  .progress-track{height:9px;border-radius:6px;background:var(--border-soft);margin-top:10px;overflow:hidden;}
+  .progress-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--green-dim),var(--green));transition:width .4s ease;}
+  .progress-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted-dim);margin-top:5px;}
+
+  .eco-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;}
+  @media (max-width:560px){.eco-grid{grid-template-columns:1fr;}}
+  .eco-item{background:var(--panel-alt);border:1px solid var(--border-soft);border-radius:12px;padding:12px;text-align:center;}
+  .eco-item .eco-num{font-size:19px;font-weight:800;color:var(--green);}
+  .eco-item .eco-lbl{font-size:10.5px;color:var(--muted-dim);margin-top:3px;}
+
+  .chart-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:16px;}
+  .chart-card .ch-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px;}
+  .chart-card h3{margin:0;font-size:13.5px;font-weight:700;}
+  .legend{display:flex;gap:14px;font-size:11.5px;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .legend i.trad{background:var(--amber);}
+  .legend i.laser{background:var(--green);}
+  .charts-row{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  @media (max-width:900px){.charts-row{grid-template-columns:1fr;}}
+  svg.chartsvg{width:100%;height:auto;display:block;}
+
+  .disclaimer{
+    margin-top:18px;padding:14px 16px;border:1px dashed var(--border);border-radius:12px;
+    color:var(--muted-dim);font-size:11.5px;line-height:1.6;
+  }
+  .footer-brand{text-align:center;color:var(--muted-dim);font-size:11.5px;padding:26px 0 40px;}
+  .footer-brand b{color:var(--muted);}
+
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;background:var(--panel-alt);border:1px solid var(--border);color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 11-14h-7l0-6z"/></svg>
+    </div>
+    <div class="brand-text">
+      <div class="name">HELIOS <b>PHOTONICS</b></div>
+      <div class="tag">UV Laser Marking Systems</div>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="pill">Estimate Tool</span>
+    <button class="btn" onclick="resetDefaults()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      Reset
+    </button>
+    <button class="btn btn-primary" onclick="window.print()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+      Export / Print
+    </button>
+  </div>
+</div>
+
+<div class="page-title">
+  <h1>UV Laser Marking ROI Calculator</h1>
+  <p>Compare the total cost of ownership of your current printing or marking technology against a Helios UV Laser Marking System — and see exactly when it pays for itself.</p>
+</div>
+
+<div class="layout" id="appRoot">
+
+  <!-- ===================== INPUTS ===================== -->
+  <div class="col col-inputs">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V9"/><path d="M4 9l8-6 8 6"/><path d="M9 21V13h6v8"/></svg>
+          Inputs
+        </h2>
+        <div class="mode-toggle" id="modeToggle">
+          <button type="button" class="active" data-mode="simple">SIMPLE</button>
+          <button type="button" data-mode="detailed">DETAILED</button>
+        </div>
+      </div>
+      <div class="panel-sub" style="margin-bottom:14px;">All fields update your results instantly. Figures are editable estimates.</div>
+
+      <div id="inputsForm">
+
+        <div class="section-label">Current Technology</div>
+        <div class="field">
+          <label>Technology in use</label>
+          <select data-key="technology" id="techSelect">
+            <option value="cij">Continuous Inkjet (CIJ)</option>
+            <option value="tto">Thermal Transfer Overprint (TTO)</option>
+            <option value="labels">Pressure-Sensitive Labeling</option>
+            <option value="oldlaser">Legacy CO₂ / Fiber Laser</option>
+            <option value="custom">Custom / Other</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Daily production <span class="val" id="v_unitsPerDay"></span></label>
+            <input type="number" data-key="unitsPerDay" value="50000" min="0" step="1000">
+          </div>
+          <div class="field">
+            <label>Days / year <span class="val" id="v_daysPerYear"></span></label>
+            <input type="number" data-key="daysPerYear" value="250" min="1" max="366" step="1">
+          </div>
+        </div>
+
+        <div class="section-label">Current System — Annual Costs</div>
+        <div class="field">
+          <label>Consumables (ink / ribbon / labels) <span class="val" id="v_trad_consumablesAnnual"></span></label>
+          <div class="unit-wrap"><input type="number" data-key="trad_consumablesAnnual" value="42000" min="0" step="500"><span class="suffix">USD / yr</span></div>
+        </div>
+        <div class="field">
+          <label>Maintenance & service contracts <span class="val" id="v_trad_maintenanceAnnual"></span></label>
+          <div class="unit-wrap"><input type="number" data-key="trad_maintenanceAnnual" value="18000" min="0" step="500"><span class="suffix">USD / yr</span></div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Unplanned downtime <span class="val" id="v_trad_downtimeHours"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="trad_downtimeHours" value="120" min="0" step="5"><span class="suffix">hrs/yr</span></div>
+          </div>
+          <div class="field">
+            <label>Cost per downtime hr <span class="val" id="v_downtimeCostPerHour"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="downtimeCostPerHour" value="450" min="0" step="10"><span class="suffix">USD</span></div>
+          </div>
+        </div>
+
+        <div class="section-label">UV Laser Investment</div>
+        <div class="field">
+          <label>Laser system investment (CAPEX) <span class="val" id="v_laserCapex"></span></label>
+          <div class="unit-wrap"><input type="number" data-key="laserCapex" value="95000" min="0" step="1000"><span class="suffix">USD</span></div>
+        </div>
+        <div class="field">
+          <label>Analysis period <span class="val" id="v_analysisYears"></span></label>
+          <input type="range" data-key="analysisYears" min="1" max="10" step="1" value="5">
+        </div>
+
+        <!-- ================= DETAILED-ONLY ================= -->
+        <div class="adv-only">
+          <div class="section-label">Investment Detail</div>
+          <div class="field">
+            <label>Installation, training & integration <span class="val" id="v_installTraining"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="installTraining" value="12000" min="0" step="500"><span class="suffix">USD</span></div>
+          </div>
+          <div class="field">
+            <label>Residual / resale value at end of period <span class="val" id="v_residualValue"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="residualValue" value="8000" min="0" step="500"><span class="suffix">USD</span></div>
+          </div>
+
+          <div class="section-label">Laser System — Annual Costs</div>
+          <div class="field">
+            <label>Consumables (optics / gas-free) <span class="val" id="v_laser_consumablesAnnual"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="laser_consumablesAnnual" value="1800" min="0" step="100"><span class="suffix">USD / yr</span></div>
+          </div>
+          <div class="field">
+            <label>Maintenance & service <span class="val" id="v_laser_maintenanceAnnual"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="laser_maintenanceAnnual" value="5200" min="0" step="100"><span class="suffix">USD / yr</span></div>
+          </div>
+          <div class="field">
+            <label>Unplanned downtime <span class="val" id="v_laser_downtimeHours"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="laser_downtimeHours" value="12" min="0" step="1"><span class="suffix">hrs/yr</span></div>
+          </div>
+
+          <div class="section-label">Energy & Labor</div>
+          <div class="field-row">
+            <div class="field">
+              <label>Current system energy <span class="val" id="v_trad_energyKwh"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="trad_energyKwh" value="15000" min="0" step="500"><span class="suffix">kWh/yr</span></div>
+            </div>
+            <div class="field">
+              <label>Laser system energy <span class="val" id="v_laser_energyKwh"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="laser_energyKwh" value="4200" min="0" step="200"><span class="suffix">kWh/yr</span></div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Electricity rate <span class="val" id="v_electricityRate"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="electricityRate" value="0.14" min="0" step="0.01"><span class="suffix">USD/kWh</span></div>
+            </div>
+            <div class="field">
+              <label>Labor cost <span class="val" id="v_laborCostPerHour"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="laborCostPerHour" value="35" min="0" step="1"><span class="suffix">USD/hr</span></div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Labor hours lost to downtime (current system) <span class="val" id="v_laborHoursLostDowntime"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="laborHoursLostDowntime" value="120" min="0" step="5"><span class="suffix">hrs/yr</span></div>
+          </div>
+
+          <div class="section-label">Environmental & Financial</div>
+          <div class="field">
+            <label>Solvent / ink volume eliminated <span class="val" id="v_solventVolumeLiters"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="solventVolumeLiters" value="3800" min="0" step="100"><span class="suffix">L/yr</span></div>
+          </div>
+          <div class="field">
+            <label>Hazardous waste disposal (current) <span class="val" id="v_trad_wasteDisposalAnnual"></span></label>
+            <div class="unit-wrap"><input type="number" data-key="trad_wasteDisposalAnnual" value="6000" min="0" step="200"><span class="suffix">USD/yr</span></div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>CO₂ per liter solvent <span class="val" id="v_co2PerLiter"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="co2PerLiter" value="2.8" min="0" step="0.1"><span class="suffix">kg</span></div>
+            </div>
+            <div class="field">
+              <label>CO₂ per kWh (grid) <span class="val" id="v_energyCO2Factor"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="energyCO2Factor" value="0.42" min="0" step="0.01"><span class="suffix">kg</span></div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Annual inflation <span class="val" id="v_inflationRate"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="inflationRate" value="2.5" min="0" step="0.1"><span class="suffix">%</span></div>
+            </div>
+            <div class="field">
+              <label>Cost of capital <span class="val" id="v_discountRate"></span></label>
+              <div class="unit-wrap"><input type="number" data-key="discountRate" value="6" min="0" step="0.5"><span class="suffix">%</span></div>
+            </div>
+          </div>
+        </div>
+        <!-- ================= END DETAILED ================= -->
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== RESULTS ===================== -->
+  <div class="col col-results">
+
+    <div class="metric-grid">
+
+      <div class="metric-card span2">
+        <div class="mc-top">
+          <h3>Total Annual Operating Cost</h3>
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        </div>
+        <div class="compare">
+          <div class="compare-row">
+            <div class="lbl">Current</div>
+            <div class="compare-track"><div class="compare-fill trad" id="bar_tradAnnual" style="width:0%"></div></div>
+            <div class="amt" id="num_tradAnnual">$0</div>
+          </div>
+          <div class="compare-row">
+            <div class="lbl">UV Laser</div>
+            <div class="compare-track"><div class="compare-fill laser" id="bar_laserAnnual" style="width:0%"></div></div>
+            <div class="amt" id="num_laserAnnual">$0</div>
+          </div>
+        </div>
+        <div class="mc-sub" id="sub_annualCostPerUnit">—</div>
+      </div>
+
+      <div class="metric-card span2">
+        <div class="mc-top">
+          <h3>Total Cost of Ownership <span id="tcoYearsLabel">(5 yrs)</span></h3>
+          <div class="mc-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div>
+        </div>
+        <div class="compare">
+          <div class="compare-row">
+            <div class="lbl">Current</div>
+            <div class="compare-track"><div class="compare-fill trad" id="bar_tradTCO" style="width:0%"></div></div>
+            <div class="amt" id="num_tradTCO">$0</div>
+          </div>
+          <div class="compare-row">
+            <div class="lbl">UV Laser</div>
+            <div class="compare-track"><div class="compare-fill laser" id="bar_laserTCO" style="width:0%"></div></div>
+            <div class="amt" id="num_laserTCO">$0</div>
+          </div>
+        </div>
+        <div class="mc-delta up" id="chip_tcoDelta">—</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="mc-top">
+          <h3>Annual Operational Savings</h3>
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        </div>
+        <div class="mc-value green" id="num_annualSavings">$0</div>
+        <div class="mc-sub">vs. current technology, per year</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="mc-top">
+          <h3>Investment Payback Period</h3>
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></div>
+        </div>
+        <div class="mc-value" id="num_payback">0 yrs</div>
+        <div class="progress-track"><div class="progress-fill" id="bar_payback" style="width:0%"></div></div>
+        <div class="progress-labels"><span>Today</span><span id="lbl_paybackHorizon">of 5-yr horizon</span></div>
+      </div>
+
+      <div class="metric-card">
+        <div class="mc-top">
+          <h3>Return on Investment <span id="roiYearsLabel">(5 yrs)</span></h3>
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></div>
+        </div>
+        <div class="gauge-wrap">
+          <div class="gauge" id="gauge_roi" style="--pct:0">
+            <div class="gauge-inner"><div class="num" id="num_roiGauge">0%</div><div class="cap">ROI</div></div>
+          </div>
+          <div>
+            <div class="mc-sub" style="margin-top:0">Net return over selected period relative to total investment.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="mc-top">
+          <h3>Five-Year Net Savings</h3>
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
+        </div>
+        <div class="mc-value green" id="num_fiveYearNet">$0</div>
+        <div class="mc-sub">Net of investment, fixed 5-year window</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="mc-top">
+          <h3>Consumables &amp; Maintenance Savings</h3>
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+        </div>
+        <div class="mc-value green" id="num_consMaintSavings">$0</div>
+        <div class="mc-sub">per year, combined consumables + service</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="mc-top">
+          <h3>Downtime-Related Savings</h3>
+          <div class="mc-icon amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        </div>
+        <div class="mc-value green" id="num_downtimeSavings">$0</div>
+        <div class="mc-sub" id="sub_downtimeHours">—</div>
+      </div>
+
+      <div class="metric-card span2">
+        <div class="mc-top">
+          <h3>Environmental Impact &amp; Sustainability</h3>
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 5.5 2 9a7 7 0 0 1-7 9H11z"/><path d="M12 11v9"/></svg></div>
+        </div>
+        <div class="eco-grid">
+          <div class="eco-item">
+            <div class="eco-num" id="eco_co2">0</div>
+            <div class="eco-lbl">kg CO₂ avoided over period</div>
+          </div>
+          <div class="eco-item">
+            <div class="eco-num" id="eco_liters">0</div>
+            <div class="eco-lbl">Liters of solvent/ink eliminated</div>
+          </div>
+          <div class="eco-item">
+            <div class="eco-num" id="eco_trees">0</div>
+            <div class="eco-lbl">Equivalent trees planted / yr</div>
+          </div>
+        </div>
+        <div class="mc-sub" style="margin-top:10px" id="sub_waste">—</div>
+      </div>
+
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="ch-head">
+          <h3>Cumulative Cost Comparison</h3>
+          <div class="legend"><span><i class="trad"></i>Current Tech</span><span><i class="laser"></i>UV Laser</span></div>
+        </div>
+        <div id="lineChartHolder"></div>
+      </div>
+      <div class="chart-card">
+        <div class="ch-head">
+          <h3>Annual Cost Breakdown</h3>
+          <div class="legend"><span><i class="trad"></i>Current</span><span><i class="laser"></i>Laser</span></div>
+        </div>
+        <div id="barChartHolder"></div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      All figures produced by this calculator are planning-level estimates based on the inputs provided and standard industry benchmarks. Actual costs, savings and payback will vary based on application, duty cycle, substrate, local energy/labor rates and system configuration. Contact a Helios Photonics applications engineer for a formal, site-specific quotation.
+    </div>
+
+  </div>
+</div>
+
+<div class="footer-brand">© <span id="yr"></span> <b>Helios Photonics</b> — UV Laser Marking Systems. This ROI Calculator is for illustrative purposes only.</div>
+
+<script>
+(function(){
+  document.getElementById('yr').textContent = new Date().getFullYear();
+
+  // ---------------- state ----------------
+  var defaults = {
+    technology:'cij',
+    unitsPerDay:50000, daysPerYear:250, analysisYears:5,
+
+    trad_consumablesAnnual:42000, trad_maintenanceAnnual:18000,
+    trad_downtimeHours:120, downtimeCostPerHour:450,
+    trad_energyKwh:15000, electricityRate:0.14,
+    trad_wasteDisposalAnnual:6000, solventVolumeLiters:3800,
+    co2PerLiter:2.8, energyCO2Factor:0.42,
+    laborCostPerHour:35, laborHoursLostDowntime:120,
+
+    laserCapex:95000, installTraining:12000, residualValue:8000,
+    laser_consumablesAnnual:1800, laser_maintenanceAnnual:5200,
+    laser_downtimeHours:12, laser_energyKwh:4200,
+
+    inflationRate:2.5, discountRate:6
+  };
+  var state = Object.assign({}, defaults);
+
+  var presets = {
+    cij:    {trad_consumablesAnnual:42000, trad_maintenanceAnnual:18000, trad_downtimeHours:120, trad_energyKwh:15000, trad_wasteDisposalAnnual:6000, solventVolumeLiters:3800, co2PerLiter:2.8},
+    tto:    {trad_consumablesAnnual:31000, trad_maintenanceAnnual:14000, trad_downtimeHours:90,  trad_energyKwh:9000,  trad_wasteDisposalAnnual:3200, solventVolumeLiters:1800, co2PerLiter:2.2},
+    labels: {trad_consumablesAnnual:58000, trad_maintenanceAnnual:9000,  trad_downtimeHours:60,  trad_energyKwh:6000,  trad_wasteDisposalAnnual:9000, solventVolumeLiters:200,  co2PerLiter:3.4},
+    oldlaser:{trad_consumablesAnnual:9000, trad_maintenanceAnnual:21000, trad_downtimeHours:80,  trad_energyKwh:11000, trad_wasteDisposalAnnual:500,  solventVolumeLiters:0,    co2PerLiter:0.3}
+  };
+
+  var form = document.getElementById('inputsForm');
+  var inputs = form.querySelectorAll('[data-key]');
+
+  function readStateFromDOM(){
+    inputs.forEach(function(el){
+      var key = el.getAttribute('data-key');
+      if(el.tagName === 'SELECT'){ state[key] = el.value; }
+      else { state[key] = parseFloat(el.value) || 0; }
+    });
+  }
+  function writeDOMFromState(){
+    inputs.forEach(function(el){
+      var key = el.getAttribute('data-key');
+      if(state[key] !== undefined) el.value = state[key];
+    });
+  }
+
+  form.addEventListener('input', function(e){
+    if(e.target.id === 'techSelect'){
+      var p = presets[e.target.value];
+      if(p){ Object.assign(state, p); writeDOMFromState(); }
+    }
+    readStateFromDOM();
+    update();
+  });
+
+  document.getElementById('modeToggle').addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-mode]');
+    if(!btn) return;
+    this.querySelectorAll('button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('appRoot').classList.toggle('detailed', btn.getAttribute('data-mode') === 'detailed');
+  });
+
+  window.resetDefaults = function(){
+    state = Object.assign({}, defaults);
+    writeDOMFromState();
+    update();
+  };
+
+  // ---------------- formatting ----------------
+  var fmtUSD = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0});
+  var fmtUSD1 = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:2});
+  var fmtNum = new Intl.NumberFormat('en-US', {maximumFractionDigits:0});
+  function pct(n){ return (n>=0?'+':'') + n.toFixed(0) + '%'; }
+  function yrsMonths(y){
+    if(!isFinite(y) || y<0) return '—';
+    var yrs = Math.floor(y);
+    var mos = Math.round((y - yrs)*12);
+    if(mos === 12){ yrs++; mos=0; }
+    if(yrs<=0 && mos<=0) return '< 1 mo';
+    var parts=[];
+    if(yrs>0) parts.push(yrs + (yrs===1?' yr':' yrs'));
+    if(mos>0) parts.push(mos + ' mo');
+    return parts.join(' ');
+  }
+
+  // ---------------- computation ----------------
+  function computeAnnual(s){
+    var tradEnergyCost = s.trad_energyKwh * s.electricityRate;
+    var laserEnergyCost = s.laser_energyKwh * s.electricityRate;
+
+    var tradLaborLoss = s.laborHoursLostDowntime * s.laborCostPerHour;
+    var ratio = s.trad_downtimeHours > 0 ? (s.laser_downtimeHours / s.trad_downtimeHours) : 0;
+    var laserLaborLoss = tradLaborLoss * ratio;
+
+    var tradDowntimeCost = s.trad_downtimeHours * s.downtimeCostPerHour + tradLaborLoss;
+    var laserDowntimeCost = s.laser_downtimeHours * s.downtimeCostPerHour + laserLaborLoss;
+
+    var tradAnnual = s.trad_consumablesAnnual + s.trad_maintenanceAnnual + tradDowntimeCost + tradEnergyCost + s.trad_wasteDisposalAnnual;
+    var laserAnnual = s.laser_consumablesAnnual + s.laser_maintenanceAnnual + laserDowntimeCost + laserEnergyCost;
+
+    return {
+      tradAnnual:tradAnnual, laserAnnual:laserAnnual,
+      tradEnergyCost:tradEnergyCost, laserEnergyCost:laserEnergyCost,
+      tradDowntimeCost:tradDowntimeCost, laserDowntimeCost:laserDowntimeCost
+    };
+  }
+
+  function computeOverYears(s, years, ann){
+    var capex = s.laserCapex + s.installTraining;
+    var cumTrad = 0, cumLaser = capex;
+    var tradByYear = [0], laserByYear = [capex];
+    for(var y=1; y<=years; y++){
+      var infl = Math.pow(1 + s.inflationRate/100, y-1);
+      cumTrad += ann.tradAnnual * infl;
+      cumLaser += ann.laserAnnual * infl;
+      tradByYear.push(cumTrad);
+      laserByYear.push(cumLaser);
+    }
+    var laserTCO = cumLaser - s.residualValue;
+    laserByYear[laserByYear.length-1] = laserTCO;
+    var tradTCO = cumTrad;
+    var netSavings = tradTCO - laserTCO;
+    var roi = capex > 0 ? (netSavings / capex) * 100 : 0;
+    return {tradTCO:tradTCO, laserTCO:laserTCO, netSavings:netSavings, roi:roi, tradByYear:tradByYear, laserByYear:laserByYear, capex:capex};
+  }
+
+  function update(){
+    var s = state;
+    var ann = computeAnnual(s);
+    var N = Math.max(1, Math.round(s.analysisYears));
+    var overN = computeOverYears(s, N, ann);
+    var over5 = computeOverYears(s, 5, ann);
+
+    var annualSavings = ann.tradAnnual - ann.laserAnnual;
+    var capex = s.laserCapex + s.installTraining;
+    var payback = annualSavings > 0 ? capex / annualSavings : Infinity;
+
+    var consMaintSavings = (s.trad_consumablesAnnual + s.trad_maintenanceAnnual) - (s.laser_consumablesAnnual + s.laser_maintenanceAnnual);
+    var downtimeSavings = ann.tradDowntimeCost - ann.laserDowntimeCost;
+
+    var co2SolventN = s.solventVolumeLiters * s.co2PerLiter * N;
+    var co2EnergyN = (s.trad_energyKwh - s.laser_energyKwh) * s.energyCO2Factor * N;
+    var co2TotalN = Math.max(0, co2SolventN + co2EnergyN);
+    var litersN = s.solventVolumeLiters * N;
+    var treesPerYear = (s.solventVolumeLiters * s.co2PerLiter + Math.max(0,(s.trad_energyKwh - s.laser_energyKwh) * s.energyCO2Factor)) / 21;
+
+    // ---- write out numbers ----
+    document.getElementById('v_unitsPerDay').textContent = fmtNum.format(s.unitsPerDay);
+    document.getElementById('v_daysPerYear').textContent = fmtNum.format(s.daysPerYear);
+    document.getElementById('v_trad_consumablesAnnual').textContent = fmtUSD.format(s.trad_consumablesAnnual);
+    document.getElementById('v_trad_maintenanceAnnual').textContent = fmtUSD.format(s.trad_maintenanceAnnual);
+    document.getElementById('v_trad_downtimeHours').textContent = fmtNum.format(s.trad_downtimeHours)+'h';
+    document.getElementById('v_downtimeCostPerHour').textContent = fmtUSD.format(s.downtimeCostPerHour);
+    document.getElementById('v_laserCapex').textContent = fmtUSD.format(s.laserCapex);
+    document.getElementById('v_analysisYears').textContent = N + (N===1?' yr':' yrs');
+
+    var advIds = {installTraining:fmtUSD, residualValue:fmtUSD, laser_consumablesAnnual:fmtUSD, laser_maintenanceAnnual:fmtUSD,
+      laser_downtimeHours:null, trad_energyKwh:null, laser_energyKwh:null, electricityRate:fmtUSD1, laborCostPerHour:fmtUSD,
+      laborHoursLostDowntime:null, solventVolumeLiters:null, trad_wasteDisposalAnnual:fmtUSD, co2PerLiter:null, energyCO2Factor:null,
+      inflationRate:null, discountRate:null};
+    Object.keys(advIds).forEach(function(k){
+      var el = document.getElementById('v_'+k);
+      if(!el) return;
+      var f = advIds[k];
+      el.textContent = f ? f.format(s[k]) : fmtNum.format(s[k]);
+    });
+
+    var maxAnnual = Math.max(ann.tradAnnual, ann.laserAnnual, 1);
+    document.getElementById('bar_tradAnnual').style.width = (ann.tradAnnual/maxAnnual*100)+'%';
+    document.getElementById('bar_laserAnnual').style.width = (ann.laserAnnual/maxAnnual*100)+'%';
+    document.getElementById('num_tradAnnual').textContent = fmtUSD.format(ann.tradAnnual);
+    document.getElementById('num_laserAnnual').textContent = fmtUSD.format(ann.laserAnnual);
+    var perUnit = s.unitsPerDay*s.daysPerYear > 0 ? (ann.tradAnnual - ann.laserAnnual)/(s.unitsPerDay*s.daysPerYear) : 0;
+    document.getElementById('sub_annualCostPerUnit').textContent = s.unitsPerDay*s.daysPerYear>0 ?
+      ('Savings of ' + fmtUSD1.format(perUnit) + ' per unit marked (' + fmtNum.format(s.unitsPerDay*s.daysPerYear) + ' units/yr)') : '—';
+
+    document.getElementById('tcoYearsLabel').textContent = '(' + N + ' ' + (N===1?'yr':'yrs') + ')';
+    document.getElementById('roiYearsLabel').textContent = '(' + N + ' ' + (N===1?'yr':'yrs') + ')';
+    var maxTco = Math.max(overN.tradTCO, overN.laserTCO, 1);
+    document.getElementById('bar_tradTCO').style.width = (overN.tradTCO/maxTco*100)+'%';
+    document.getElementById('bar_laserTCO').style.width = (overN.laserTCO/maxTco*100)+'%';
+    document.getElementById('num_tradTCO').textContent = fmtUSD.format(overN.tradTCO);
+    document.getElementById('num_laserTCO').textContent = fmtUSD.format(overN.laserTCO);
+    var tcoDeltaPct = overN.tradTCO>0 ? ((overN.tradTCO-overN.laserTCO)/overN.tradTCO*100) : 0;
+    var chip = document.getElementById('chip_tcoDelta');
+    chip.textContent = (tcoDeltaPct>=0?'▼ ':'▲ ') + Math.abs(tcoDeltaPct).toFixed(0) + '% lower TCO with UV Laser';
+    chip.className = 'mc-delta ' + (tcoDeltaPct>=0?'up':'down');
+
+    document.getElementById('num_annualSavings').textContent = (annualSavings>=0?'':'-') + fmtUSD.format(Math.abs(annualSavings));
+
+    document.getElementById('num_payback').textContent = isFinite(payback) ? yrsMonths(payback) : 'N/A';
+    var pbPct = isFinite(payback) ? Math.min(100, (payback/N)*100) : 100;
+    document.getElementById('bar_payback').style.width = pbPct + '%';
+    document.getElementById('lbl_paybackHorizon').textContent = 'of ' + N + '-yr horizon';
+
+    var roiClamped = Math.max(0, Math.min(100, overN.roi));
+    document.getElementById('gauge_roi').style.setProperty('--pct', roiClamped);
+    document.getElementById('num_roiGauge').textContent = overN.roi.toFixed(0) + '%';
+
+    document.getElementById('num_fiveYearNet').textContent = (over5.netSavings>=0?'':'-') + fmtUSD.format(Math.abs(over5.netSavings));
+
+    document.getElementById('num_consMaintSavings').textContent = (consMaintSavings>=0?'':'-') + fmtUSD.format(Math.abs(consMaintSavings));
+
+    document.getElementById('num_downtimeSavings').textContent = (downtimeSavings>=0?'':'-') + fmtUSD.format(Math.abs(downtimeSavings));
+    document.getElementById('sub_downtimeHours').textContent = fmtNum.format(Math.max(0,s.trad_downtimeHours - s.laser_downtimeHours)) + ' fewer downtime hours/yr';
+
+    document.getElementById('eco_co2').textContent = fmtNum.format(co2TotalN);
+    document.getElementById('eco_liters').textContent = fmtNum.format(litersN);
+    document.getElementById('eco_trees').textContent = fmtNum.format(Math.max(0,treesPerYear));
+    document.getElementById('sub_waste').textContent = 'Eliminates hazardous solvent/ink waste streams and associated disposal cost of ' + fmtUSD.format(s.trad_wasteDisposalAnnual) + '/yr, reducing compliance burden and workplace exposure risk.';
+
+    renderLineChart(overN.tradByYear, overN.laserByYear, N);
+    renderBarChart(s, ann);
+  }
+
+  // ---------------- charts (pure SVG, no dependencies) ----------------
+  function renderLineChart(tradArr, laserArr, years){
+    var W=520,H=240,pad={l:58,r:14,t:16,b:30};
+    var innerW = W-pad.l-pad.r, innerH = H-pad.t-pad.b;
+    var maxV = Math.max.apply(null, tradArr.concat(laserArr).map(function(v){return Math.max(v,0);})) || 1;
+    var n = tradArr.length;
+    function x(i){ return pad.l + (innerW*(i/(n-1))); }
+    function y(v){ return pad.t + innerH - (v/maxV*innerH); }
+    function pathFor(arr){
+      return arr.map(function(v,i){ return (i===0?'M':'L') + x(i).toFixed(1) + ',' + y(v).toFixed(1); }).join(' ');
+    }
+    // crossover index
+    var crossIdx = -1;
+    for(var i=1;i<n;i++){
+      if((tradArr[i-1]-laserArr[i-1])*(tradArr[i]-laserArr[i]) <= 0 && laserArr[i] <= tradArr[i]){ crossIdx = i; break; }
+    }
+    var gridLines = 4, gridHtml='';
+    for(var g=0; g<=gridLines; g++){
+      var gv = maxV * g/gridLines;
+      var gy = y(gv);
+      gridHtml += '<line x1="'+pad.l+'" y1="'+gy.toFixed(1)+'" x2="'+(W-pad.r)+'" y2="'+gy.toFixed(1)+'" stroke="#2B2F33" stroke-width="1"/>';
+      gridHtml += '<text x="'+(pad.l-8)+'" y="'+(gy+3).toFixed(1)+'" text-anchor="end" font-size="9.5" fill="#6D757B">'+fmtShort(gv)+'</text>';
+    }
+    var xLabels='';
+    for(var i2=0;i2<n;i2++){
+      xLabels += '<text x="'+x(i2).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9.5" fill="#6D757B">Y'+i2+'</text>';
+    }
+    var crossHtml='';
+    if(crossIdx>0){
+      var cx = x(crossIdx);
+      crossHtml = '<line x1="'+cx.toFixed(1)+'" y1="'+pad.t+'" x2="'+cx.toFixed(1)+'" y2="'+(H-pad.b)+'" stroke="#30D584" stroke-width="1.3" stroke-dasharray="4,3"/>'+
+        '<text x="'+cx.toFixed(1)+'" y="'+(pad.t+10)+'" text-anchor="middle" font-size="9.5" fill="#30D584" font-weight="700">Payback</text>';
+    }
+    var svg = '<svg class="chartsvg" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+
+      gridHtml +
+      '<path d="'+pathFor(tradArr)+'" fill="none" stroke="#F4B740" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>'+
+      '<path d="'+pathFor(laserArr)+'" fill="none" stroke="#30D584" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>'+
+      crossHtml + xLabels +
+      '</svg>';
+    document.getElementById('lineChartHolder').innerHTML = svg;
+  }
+
+  function fmtShort(v){
+    if(v>=1000000) return '$'+(v/1000000).toFixed(1)+'M';
+    if(v>=1000) return '$'+(v/1000).toFixed(0)+'k';
+    return '$'+v.toFixed(0);
+  }
+
+  function renderBarChart(s, ann){
+    var cats = [
+      {l:'Consumables', t:s.trad_consumablesAnnual, z:s.laser_consumablesAnnual},
+      {l:'Maintenance', t:s.trad_maintenanceAnnual, z:s.laser_maintenanceAnnual},
+      {l:'Downtime', t:ann.tradDowntimeCost, z:ann.laserDowntimeCost},
+      {l:'Energy', t:ann.tradEnergyCost, z:ann.laserEnergyCost},
+      {l:'Waste', t:s.trad_wasteDisposalAnnual, z:0}
+    ];
+    var W=420,H=240,pad={l:40,r:10,t:16,b:50};
+    var innerW=W-pad.l-pad.r, innerH=H-pad.t-pad.b;
+    var maxV = Math.max.apply(null, cats.map(function(c){return Math.max(c.t,c.z);})) || 1;
+    var groupW = innerW/cats.length;
+    var barW = Math.min(26, groupW*0.32);
+    var bars='', labels='';
+    cats.forEach(function(c,i){
+      var gx = pad.l + i*groupW + groupW/2;
+      var th = (c.t/maxV)*innerH, zh=(c.z/maxV)*innerH;
+      var tx = gx - barW - 3, zx = gx + 3;
+      var ty = pad.t+innerH-th, zy = pad.t+innerH-zh;
+      bars += '<rect x="'+tx.toFixed(1)+'" y="'+ty.toFixed(1)+'" width="'+barW+'" height="'+th.toFixed(1)+'" rx="3" fill="#F4B740"/>';
+      bars += '<rect x="'+zx.toFixed(1)+'" y="'+zy.toFixed(1)+'" width="'+barW+'" height="'+zh.toFixed(1)+'" rx="3" fill="#30D584"/>';
+      labels += '<text x="'+gx.toFixed(1)+'" y="'+(H-pad.b+16)+'" text-anchor="middle" font-size="9.5" fill="#9BA3AA">'+c.l+'</text>';
+    });
+    var baseline = pad.t+innerH;
+    var svg = '<svg class="chartsvg" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'+
+      '<line x1="'+pad.l+'" y1="'+baseline+'" x2="'+(W-pad.r)+'" y2="'+baseline+'" stroke="#2B2F33" stroke-width="1"/>'+
+      bars + labels +
+      '</svg>';
+    document.getElementById('barChartHolder').innerHTML = svg;
+  }
+
+  // ---------------- init ----------------
+  writeDOMFromState();
+  update();
+})();
+</script>
+</body>
+</html>
