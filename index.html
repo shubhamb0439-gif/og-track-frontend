@@ -3032,6 +3032,20 @@ body { transition: background .3s ease, color .3s ease; }
     hexes.forEach(h=>drawHex(h,h.baseAlpha));
   }
 
+  // Company name + logo on the login card. Runs whenever the login card is
+  // shown — on load (below), after logout (doLogout) and on a back-forward
+  // cache restore — not just on load: after a Microsoft sign-in the page
+  // loads straight into the app, so without this, logging out revealed the
+  // card's built-in default (tick) logo until the next refresh.
+  window.applyAuthBranding=function(){
+    const as=document.getElementById('auth-screen');
+    if(!as||!window.COMPANY_CONTEXT) return;
+    const ctx=window.COMPANY_CONTEXT;
+    as.querySelectorAll('.auth-company-name').forEach(el=>{el.textContent=ctx.name;});
+    if(ctx.logo) as.querySelectorAll('.auth-company-logo').forEach(el=>{el.src=ctx.logo;el.style.display='block';});
+  };
+  window.addEventListener('pageshow',function(e){ if(e.persisted) window.applyAuthBranding(); });
+
   window.startHexReveal=function(showAuth){
     const ls=document.getElementById('loading-screen');
     // 1. Show content underneath immediately
@@ -3040,11 +3054,7 @@ body { transition: background .3s ease, color .3s ease; }
       if(as){
         as.style.display='flex';
         // Apply company branding on tenant URLs
-        if(window.COMPANY_CONTEXT){
-          const ctx=window.COMPANY_CONTEXT;
-          as.querySelectorAll('.auth-company-name').forEach(el=>{el.textContent=ctx.name;});
-          if(ctx.logo) as.querySelectorAll('.auth-company-logo').forEach(el=>{el.src=ctx.logo;el.style.display='block';});
-        }
+        window.applyAuthBranding();
         // sso-callback.html redirects a failed Microsoft sign-in back to
         // this company's own login page as ?error=<message> instead of
         // rendering its own error UI, so it shows in the exact same place/
@@ -4533,7 +4543,9 @@ function doLogout(){
   const ls=document.getElementById('loading-screen');
   if(ls) ls.style.display='none';
 
-  // Show auth with fade in
+  // Show auth with fade in — re-branded first, since a Microsoft sign-in
+  // never showed (and so never branded) the login card before this point
+  if(window.applyAuthBranding) window.applyAuthBranding();
   const auth=document.getElementById('auth-screen');
   auth.style.opacity='0';
   auth.style.display='flex';
