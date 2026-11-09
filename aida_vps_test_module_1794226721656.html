@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AIDA VPS Test Module 1794226721656</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f5f6f8; color: #1f2937; }
+    main { max-width: 640px; margin: 48px auto; padding: 0 16px; }
+    .card { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    h1 { font-size: 1.25rem; margin-top: 0; }
+    #greeting { font-size: 1.1rem; }
+    .error { color: #b91c1c; }
+    button { margin-top: 16px; padding: 8px 16px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>AIDA VPS Test Module 1794226721656</h1>
+      <p id="greeting" role="status">Loading…</p>
+      <button id="reload" type="button">Reload</button>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var MODULE_KEY = 'aida_vps_test_module_1794226721656';
+      var el = document.getElementById('greeting');
+
+      // Tenant slug: ?slug=... , else the segment after /t/ or first path segment, else localStorage.
+      function getSlug() {
+        var q = new URLSearchParams(location.search).get('slug');
+        if (q) return q;
+        var seg = location.pathname.split('/').filter(Boolean)[0];
+        if (seg && !/\.html?$/i.test(seg)) return seg;
+        return localStorage.getItem('slug') || localStorage.getItem('tenantSlug') || '';
+      }
+
+      function load() {
+        var slug = getSlug();
+        el.className = '';
+        el.textContent = 'Loading…';
+        if (!slug) {
+          el.className = 'error';
+          el.textContent = 'Missing tenant slug. Open this page with ?slug=<your-slug>.';
+          return;
+        }
+        // GET /api/:slug/aida_vps_test_module_1794226721656 -> { message }
+        fetch('/api/' + encodeURIComponent(slug) + '/' + MODULE_KEY, { headers: { Accept: 'application/json' } })
+          .then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (body) {
+              if (!r.ok) throw new Error(body.error || 'Could not load the greeting. Please try again.');
+              return body;
+            });
+          })
+          .then(function (data) { el.textContent = data.message; })
+          .catch(function (e) { el.className = 'error'; el.textContent = e.message; });
+      }
+
+      document.getElementById('reload').addEventListener('click', load);
+      load();
+    })();
+  </script>
+</body>
+</html>
