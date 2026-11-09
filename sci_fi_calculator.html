@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sci-Fi Calculator</title>
+<style>
+  :root{
+    --neon-cyan:#2af5ff;
+    --neon-magenta:#ff2ad4;
+    --neon-amber:#ffb347;
+    --bg-deep:#03050c;
+    --bg-panel:#0a1120;
+    --bg-panel-2:#0d1830;
+    --glass: rgba(20,35,60,0.55);
+    --border-glow: rgba(42,245,255,0.45);
+  }
+
+  *{box-sizing:border-box;}
+
+  html,body{
+    height:100%;
+    margin:0;
+    padding:0;
+    background:var(--bg-deep);
+    font-family:'Consolas','Courier New',monospace;
+    color:var(--neon-cyan);
+    overflow-x:hidden;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:24px;
+    position:relative;
+  }
+
+  /* animated starfield / grid background */
+  .bg-grid{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    background-image:
+      linear-gradient(rgba(42,245,255,0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42,245,255,0.07) 1px, transparent 1px);
+    background-size:42px 42px;
+    animation:gridMove 18s linear infinite;
+    mask-image:radial-gradient(ellipse at center, rgba(0,0,0,0.9) 0%, transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse at center, rgba(0,0,0,0.9) 0%, transparent 75%);
+  }
+
+  @keyframes gridMove{
+    0%{background-position:0 0, 0 0;}
+    100%{background-position:0 420px, 420px 0;}
+  }
+
+  .stars{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    background:
+      radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+      radial-gradient(1px 1px at 70% 60%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 40% 80%, #9ff, transparent),
+      radial-gradient(1px 1px at 85% 15%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 60% 25%, #f9f, transparent),
+      radial-gradient(1px 1px at 10% 90%, #fff, transparent),
+      radial-gradient(1px 1px at 92% 75%, #fff, transparent);
+    opacity:0.6;
+    animation:twinkle 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes twinkle{
+    0%{opacity:0.35;}
+    100%{opacity:0.85;}
+  }
+
+  .calc-wrap{
+    position:relative;
+    z-index:2;
+    width:100%;
+    max-width:380px;
+  }
+
+  .calculator{
+    position:relative;
+    background:linear-gradient(160deg, var(--bg-panel) 0%, var(--bg-panel-2) 100%);
+    border-radius:22px;
+    padding:22px;
+    border:1px solid var(--border-glow);
+    box-shadow:
+      0 0 25px rgba(42,245,255,0.25),
+      0 0 70px rgba(42,245,255,0.08),
+      inset 0 0 30px rgba(0,0,0,0.6);
+    animation:floatPulse 6s ease-in-out infinite;
+  }
+
+  @keyframes floatPulse{
+    0%,100%{ box-shadow:0 0 25px rgba(42,245,255,0.25), 0 0 70px rgba(42,245,255,0.08), inset 0 0 30px rgba(0,0,0,0.6); transform:translateY(0);}
+    50%{ box-shadow:0 0 40px rgba(42,245,255,0.45), 0 0 100px rgba(42,245,255,0.15), inset 0 0 30px rgba(0,0,0,0.6); transform:translateY(-4px);}
+  }
+
+  .calculator::before{
+    content:"";
+    position:absolute;
+    inset:-1px;
+    border-radius:22px;
+    padding:1px;
+    background:linear-gradient(135deg, var(--neon-cyan), var(--neon-magenta), var(--neon-amber), var(--neon-cyan));
+    background-size:300% 300%;
+    animation:borderShift 6s linear infinite;
+    -webkit-mask:linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    opacity:0.6;
+    pointer-events:none;
+  }
+
+  @keyframes borderShift{
+    0%{background-position:0% 50%;}
+    50%{background-position:100% 50%;}
+    100%{background-position:0% 50%;}
+  }
+
+  .header-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+    padding:0 4px;
+  }
+
+  .brand{
+    font-size:13px;
+    letter-spacing:4px;
+    text-transform:uppercase;
+    color:var(--neon-cyan);
+    text-shadow:0 0 8px rgba(42,245,255,0.8);
+  }
+
+  .status-dots{
+    display:flex;
+    gap:6px;
+  }
+  .status-dots span{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--neon-magenta);
+    box-shadow:0 0 8px var(--neon-magenta);
+    animation:blink 1.6s infinite ease-in-out;
+  }
+  .status-dots span:nth-child(2){animation-delay:0.3s; background:var(--neon-amber); box-shadow:0 0 8px var(--neon-amber);}
+  .status-dots span:nth-child(3){animation-delay:0.6s;}
+
+  @keyframes blink{
+    0%,100%{opacity:0.25;}
+    50%{opacity:1;}
+  }
+
+  .screen{
+    position:relative;
+    background:#01060c;
+    border-radius:14px;
+    border:1px solid rgba(42,245,255,0.35);
+    padding:18px 16px 14px;
+    margin-bottom:18px;
+    box-shadow:inset 0 0 20px rgba(42,245,255,0.15), inset 0 0 50px rgba(0,0,0,0.8);
+    overflow:hidden;
+  }
+
+  .screen::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(42,245,255,0.05) 0px,
+      rgba(42,245,255,0.05) 1px,
+      transparent 2px,
+      transparent 4px
+    );
+    pointer-events:none;
+    animation:scan 6s linear infinite;
+  }
+
+  @keyframes scan{
+    0%{transform:translateY(0);}
+    100%{transform:translateY(20px);}
+  }
+
+  .expression{
+    min-height:18px;
+    font-size:13px;
+    color:rgba(42,245,255,0.55);
+    text-align:right;
+    letter-spacing:1px;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+
+  .display{
+    text-align:right;
+    font-size:42px;
+    font-weight:700;
+    letter-spacing:2px;
+    color:var(--neon-cyan);
+    text-shadow:
+      0 0 6px rgba(42,245,255,0.9),
+      0 0 18px rgba(42,245,255,0.6),
+      0 0 34px rgba(42,245,255,0.35);
+    white-space:nowrap;
+    overflow-x:auto;
+    min-height:50px;
+    font-family:'Orbitron','Consolas',monospace;
+  }
+
+  .keypad{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:10px;
+  }
+
+  .key{
+    position:relative;
+    appearance:none;
+    border:1px solid rgba(42,245,255,0.3);
+    background:linear-gradient(160deg, rgba(14,25,46,0.9), rgba(6,12,24,0.9));
+    color:var(--neon-cyan);
+    font-family:inherit;
+    font-size:18px;
+    font-weight:600;
+    padding:16px 0;
+    border-radius:12px;
+    cursor:pointer;
+    overflow:hidden;
+    transition:transform 0.08s ease, box-shadow 0.15s ease, color 0.15s ease;
+    box-shadow:0 0 0 rgba(42,245,255,0);
+    user-select:none;
+  }
+
+  .key::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    background:radial-gradient(circle at 50% 50%, rgba(42,245,255,0.35), transparent 70%);
+    opacity:0;
+    transition:opacity 0.2s ease;
+  }
+
+  .key:hover{
+    box-shadow:0 0 14px rgba(42,245,255,0.5);
+    color:#ffffff;
+  }
+
+  .key:hover::before{opacity:1;}
+
+  .key:active, .key.pressed{
+    transform:scale(0.92);
+    box-shadow:0 0 24px rgba(42,245,255,0.9);
+  }
+
+  .key.op{
+    color:var(--neon-amber);
+    border-color:rgba(255,179,71,0.4);
+  }
+  .key.op:hover{box-shadow:0 0 14px rgba(255,179,71,0.6); color:#fff;}
+  .key.op::before{background:radial-gradient(circle at 50% 50%, rgba(255,179,71,0.35), transparent 70%);}
+
+  .key.equals{
+    color:#03050c;
+    background:linear-gradient(160deg, var(--neon-magenta), #a300ff);
+    border-color:rgba(255,42,212,0.6);
+    grid-column:span 2;
+    font-size:20px;
+  }
+  .key.equals:hover{box-shadow:0 0 22px rgba(255,42,212,0.9); color:#fff;}
+
+  .key.clear, .key.func{
+    color:var(--neon-magenta);
+    border-color:rgba(255,42,212,0.35);
+  }
+  .key.clear::before, .key.func::before{background:radial-gradient(circle at 50% 50%, rgba(255,42,212,0.35), transparent 70%);}
+  .key.clear:hover, .key.func:hover{box-shadow:0 0 14px rgba(255,42,212,0.6); color:#fff;}
+
+  .key.zero{grid-column:span 2;}
+
+  .footer-note{
+    margin-top:16px;
+    text-align:center;
+    font-size:10px;
+    letter-spacing:2px;
+    color:rgba(42,245,255,0.4);
+    text-transform:uppercase;
+  }
+
+  .sound-toggle{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:10px;
+    letter-spacing:1px;
+    color:rgba(42,245,255,0.7);
+    cursor:pointer;
+    user-select:none;
+  }
+  .sound-toggle input{
+    accent-color:var(--neon-cyan);
+    cursor:pointer;
+  }
+
+  @media (max-width:420px){
+    .display{font-size:32px;}
+    .key{font-size:16px; padding:14px 0;}
+    .calculator{padding:16px;}
+  }
+
+  @media (max-width:340px){
+    .display{font-size:26px;}
+    .brand{font-size:11px; letter-spacing:2px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="stars"></div>
+
+<div class="calc-wrap">
+  <div class="calculator">
+    <div class="header-row">
+      <div class="brand">⟡ OG&nbsp;CALC&nbsp;9000</div>
+      <div class="status-dots"><span></span><span></span><span></span></div>
+    </div>
+
+    <div class="screen">
+      <div class="expression" id="expression">&nbsp;</div>
+      <div class="display" id="display">0</div>
+    </div>
+
+    <div class="keypad">
+      <button class="key clear" data-action="clear">AC</button>
+      <button class="key func" data-action="sign">±</button>
+      <button class="key func" data-action="percent">%</button>
+      <button class="key op" data-action="op" data-value="/">÷</button>
+
+      <button class="key" data-action="num" data-value="7">7</button>
+      <button class="key" data-action="num" data-value="8">8</button>
+      <button class="key" data-action="num" data-value="9">9</button>
+      <button class="key op" data-action="op" data-value="*">×</button>
+
+      <button class="key" data-action="num" data-value="4">4</button>
+      <button class="key" data-action="num" data-value="5">5</button>
+      <button class="key" data-action="num" data-value="6">6</button>
+      <button class="key op" data-action="op" data-value="-">−</button>
+
+      <button class="key" data-action="num" data-value="1">1</button>
+      <button class="key" data-action="num" data-value="2">2</button>
+      <button class="key" data-action="num" data-value="3">3</button>
+      <button class="key op" data-action="op" data-value="+">+</button>
+
+      <button class="key zero" data-action="num" data-value="0">0</button>
+      <button class="key" data-action="dot">.</button>
+      <button class="key equals" data-action="equals">=</button>
+    </div>
+
+    <div class="footer-note">
+      <span>Quantum Precision Engine v2.3</span><br>
+      <label class="sound-toggle" style="margin-top:6px; justify-content:center;">
+        <input type="checkbox" id="soundToggle" checked> SFX ON
+      </label>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const display = document.getElementById('display');
+  const expressionEl = document.getElementById('expression');
+  const soundToggle = document.getElementById('soundToggle');
+
+  let current = '0';
+  let previous = null;
+  let operator = null;
+  let justEvaluated = false;
+
+  // --- Sound effects using Web Audio API (no external files needed) ---
+  let audioCtx = null;
+  function getCtx(){
+    if(!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(AC) audioCtx = new AC();
+    }
+    return audioCtx;
+  }
+
+  function beep(freq, duration, type, vol){
+    if(!soundToggle.checked) return;
+    const ctx = getCtx();
+    if(!ctx) return;
+    if(ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol || 0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  }
+
+  function playKeySound(action){
+    switch(action){
+      case 'num':
+        beep(620 + Math.random()*40, 0.07, 'square', 0.05);
+        break;
+      case 'op':
+        beep(380, 0.09, 'sawtooth', 0.06);
+        break;
+      case 'equals':
+        beep(880, 0.18, 'triangle', 0.08);
+        setTimeout(()=>beep(1180, 0.15, 'triangle', 0.06), 90);
+        break;
+      case 'clear':
+        beep(220, 0.15, 'sawtooth', 0.07);
+        break;
+      default:
+        beep(500, 0.08, 'square', 0.05);
+    }
+  }
+
+  function formatNumber(numStr){
+    if(numStr === 'Error') return numStr;
+    const num = parseFloat(numStr);
+    if(isNaN(num)) return '0';
+    if(Math.abs(num) >= 1e12 || (Math.abs(num) < 1e-6 && num !== 0)){
+      return num.toExponential(4);
+    }
+    let s = num.toString();
+    if(s.length > 14) s = num.toPrecision(10).toString();
+    return s;
+  }
+
+  function updateDisplay(){
+    display.textContent = formatNumber(current);
+    if(operator && previous !== null){
+      const opSymbol = {'/':'÷','*':'×','-':'−','+':'+'}[operator];
+      expressionEl.textContent = formatNumber(previous) + ' ' + opSymbol;
+    } else {
+      expressionEl.textContent = '\u00A0';
+    }
+  }
+
+  function inputDigit(d){
+    if(justEvaluated){
+      current = '0';
+      justEvaluated = false;
+    }
+    if(current === '0' && d !== '.'){
+      current = d;
+    } else {
+      current += d;
+    }
+  }
+
+  function inputDot(){
+    if(justEvaluated){
+      current = '0';
+      justEvaluated = false;
+    }
+    if(!current.includes('.')){
+      current += '.';
+    }
+  }
+
+  function setOperator(op){
+    if(operator && previous !== null && !justEvaluated){
+      evaluate();
+    }
+    previous = parseFloat(current);
+    operator = op;
+    justEvaluated = false;
+    current = '0';
+  }
+
+  function evaluate(){
+    if(operator === null || previous === null) return;
+    const a = previous;
+    const b = parseFloat(current);
+    let result;
+    switch(operator){
+      case '+': result = a + b; break;
+      case '-': result = a - b; break;
+      case '*': result = a * b; break;
+      case '/': result = b === 0 ? NaN : a / b; break;
+      default: result = b;
+    }
+    current = isNaN(result) ? 'Error' : String(result);
+    operator = null;
+    previous = null;
+    justEvaluated = true;
+  }
+
+  function clearAll(){
+    current = '0';
+    previous = null;
+    operator = null;
+    justEvaluated = false;
+  }
+
+  function toggleSign(){
+    if(current === '0' || current === 'Error') return;
+    current = current.startsWith('-') ? current.slice(1) : '-' + current;
+  }
+
+  function percent(){
+    if(current === 'Error') return;
+    current = String(parseFloat(current) / 100);
+  }
+
+  function flashKey(btn){
+    btn.classList.add('pressed');
+    setTimeout(()=>btn.classList.remove('pressed'), 120);
+  }
+
+  document.querySelectorAll('.key').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const action = btn.getAttribute('data-action');
+      const value = btn.getAttribute('data-value');
+
+      playKeySound(action);
+      flashKey(btn);
+
+      switch(action){
+        case 'num': inputDigit(value); break;
+        case 'dot': inputDot(); break;
+        case 'op': setOperator(value); break;
+        case 'equals': evaluate(); break;
+        case 'clear': clearAll(); break;
+        case 'sign': toggleSign(); break;
+        case 'percent': percent(); break;
+      }
+      updateDisplay();
+    });
+  });
+
+  // keyboard support
+  window.addEventListener('keydown', (e)=>{
+    const key = e.key;
+    let btn = null;
+    if(/^[0-9]$/.test(key)){
+      btn = document.querySelector('.key[data-action="num"][data-value="'+key+'"]');
+      inputDigit(key);
+    } else if(key === '.'){
+      btn = document.querySelector('.key[data-action="dot"]');
+      inputDot();
+    } else if(['+','-','*','/'].includes(key)){
+      btn = document.querySelector('.key[data-action="op"][data-value="'+key+'"]');
+      setOperator(key);
+    } else if(key === 'Enter' || key === '='){
+      btn = document.querySelector('.key[data-action="equals"]');
+      evaluate();
+    } else if(key === 'Escape'){
+      btn = document.querySelector('.key[data-action="clear"]');
+      clearAll();
+    } else if(key === '%'){
+      btn = document.querySelector('.key[data-action="percent"]');
+      percent();
+    } else if(key === 'Backspace'){
+      if(current.length > 1) current = current.slice(0, -1);
+      else current = '0';
+    } else {
+      return;
+    }
+    if(btn){
+      playKeySound(btn.getAttribute('data-action'));
+      flashKey(btn);
+    }
+    updateDisplay();
+  });
+
+  updateDisplay();
+})();
+</script>
+
+</body>
+</html>
