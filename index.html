@@ -3744,6 +3744,55 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
+<!-- Inward Outward: Outward (stock leaving for a customer) -->
+<div class="modal-overlay" id="inv-outward-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2>Record Outward</h2><button class="modal-close" onclick="closeModal('inv-outward-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="inv-outward-error" style="display:none;background:#C0392B15;color:#C0392B;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Item *</label><select id="inv-outward-item"><option value="">Select Item</option></select></div>
+        <div class="form-group"><label>Customer *</label><select id="inv-outward-customer"><option value="">Select Customer</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantity *</label><input type="number" id="inv-outward-qty" min="0.01" step="any"></div>
+        <div class="form-group"><label>Date</label><input type="date" id="inv-outward-date"></div>
+      </div>
+      <div class="form-row full"><div class="form-group"><label>Details</label><textarea id="inv-outward-details" placeholder="Optional notes"></textarea></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('inv-outward-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitInvOutward()">Send to Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inward Outward: Inward (stock coming back from a customer) -->
+<div class="modal-overlay" id="inv-inward-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h2>Record Inward</h2><button class="modal-close" onclick="closeModal('inv-inward-modal')">×</button></div>
+    <div class="modal-body">
+      <div id="inv-inward-error" style="display:none;background:#C0392B15;color:#C0392B;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Item *</label><select id="inv-inward-item"><option value="">Select Item</option></select></div>
+        <div class="form-group"><label>Customer *</label><select id="inv-inward-customer"><option value="">Select Customer</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Quantity *</label><input type="number" id="inv-inward-qty" min="0.01" step="any"></div>
+        <div class="form-group"><label>Date</label><input type="date" id="inv-inward-date"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Unit Cost Override</label><input type="number" id="inv-inward-unitcost" min="0" step="any" placeholder="Defaults to item's average cost"></div>
+      </div>
+      <div class="form-row full"><div class="form-group"><label>Details</label><textarea id="inv-inward-details" placeholder="Optional notes"></textarea></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('inv-inward-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitInvInward()">Receive from Customer</button>
+    </div>
+  </div>
+</div>
+
 <!-- Manufacturing: BOM Modal -->
 <div class="modal-overlay" id="mfg-bom-modal">
   <div class="modal">
@@ -13821,25 +13870,29 @@ async function deleteInvPurchase(id){
   }catch(e){ showToast(e.message,'error'); }
 }
 
-// ── Inward Outward (stock issue to a customer) ───────────────────────────────
-// Reuses the pre-existing internal-consumption issue endpoint — customerId is
-// just a new optional field on it (see POST handler below). The history list
-// is new: there was no way before this to answer "what went out, to whom,
-// when" at all.
+// ── Inward Outward (stock to/from a customer) ────────────────────────────────
+// Two separate actions, two separate endpoints/tables — NOT one form with a
+// signed quantity:
+//  - Outward: reuses the pre-existing internal-consumption issue endpoint;
+//    customerId is just a new optional field on it. Deducts stock (FIFO).
+//  - Inward: a new endpoint/table (inv_stock_returns). Adds stock back via a
+//    real new stock lot (source: 'customer_return') — becomes normal,
+//    FIFO-consumable stock again, not a separate pool.
+// History is combined into one table with a Direction column, built by
+// merging both /issues and /returns, since both already return clearly-
+// labeled, distinctly-shaped rows.
 let invIssues=[];
+let invReturns=[];
 let invIssuesLoaded=false;
 let invIssueCustomers=[]; // same data source as the CRM module's own customer list
 let invIssueCustomersLoaded=false;
 let invIssueFilters={customerId:'',itemId:'',dateFrom:'',dateTo:''};
-let invIssueFormError='';
+let invOutwardFormError='';
+let invInwardFormError='';
 async function loadInvIssueCustomers(){
   try{ invIssueCustomers=await fetch('/api/crm/customers').then(r=>r.json()); }
   catch(e){ invIssueCustomers=[]; }
   invIssueCustomersLoaded=true;
-}
-function invIssueCustomerName(id){
-  const c=invIssueCustomers.find(c=>c.id===id);
-  return c?c.name:'—';
 }
 async function loadInvIssues(){
   const qs=new URLSearchParams();
@@ -13847,18 +13900,27 @@ async function loadInvIssues(){
   if(invIssueFilters.itemId) qs.set('itemId',invIssueFilters.itemId);
   if(invIssueFilters.dateFrom) qs.set('dateFrom',invIssueFilters.dateFrom);
   if(invIssueFilters.dateTo) qs.set('dateTo',invIssueFilters.dateTo);
+  const suffix=qs.toString()?'?'+qs.toString():'';
   try{
-    invIssues=await fetch('/api/inventory/issues'+(qs.toString()?'?'+qs.toString():'')).then(r=>r.json());
-  }catch(e){ invIssues=[]; }
+    [invIssues,invReturns]=await Promise.all([
+      fetch('/api/inventory/issues'+suffix).then(r=>r.json()),
+      fetch('/api/inventory/returns'+suffix).then(r=>r.json()),
+    ]);
+  }catch(e){ invIssues=[]; invReturns=[]; }
   const tbody=document.getElementById('inv-issues-tbody');
   if(tbody) tbody.innerHTML=invIssuesTableHtml();
 }
 function invIssuesTableHtml(){
-  if(!Array.isArray(invIssues)||!invIssues.length){
-    return `<tr><td colspan="5" class="empty-state">No stock issues match your filters.</td></tr>`;
+  const rows=[
+    ...(Array.isArray(invIssues)?invIssues.map(r=>({...r,direction:'Outward',date:r.issueDate})):[]),
+    ...(Array.isArray(invReturns)?invReturns.map(r=>({...r,direction:'Inward',date:r.returnDate})):[]),
+  ].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+  if(!rows.length){
+    return `<tr><td colspan="6" class="empty-state">No stock movements match your filters.</td></tr>`;
   }
-  return invIssues.map(r=>`<tr>
-    <td>${r.issueDate?new Date(r.issueDate).toLocaleDateString('en-GB'):'—'}</td>
+  return rows.map(r=>`<tr>
+    <td>${r.date?new Date(r.date).toLocaleDateString('en-GB'):'—'}</td>
+    <td><span class="badge" style="background:${r.direction==='Outward'?'#C0392B15;color:#C0392B':'#27AE6015;color:#27AE60'}">${r.direction}</span></td>
     <td>${esc(r.itemName||'—')}${r.itemCode?`<div style="font-size:11px;color:var(--g3)">${esc(r.itemCode)}</div>`:''}</td>
     <td style="text-align:center">${r.quantity}</td>
     <td>${esc(r.customerName||'—')}</td>
@@ -13885,32 +13947,15 @@ function renderInvIssues(){
     return;
   }
   ca.innerHTML=`
-    <div style="margin-bottom:16px">
-      <h1 style="font-size:22px;font-weight:700">Inward Outward</h1>
-      <div style="font-size:13px;color:var(--g3)">Send an item out to a customer — deducted from stock immediately, FIFO against existing lots.</div>
-    </div>
-    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:24px;max-width:680px">
-      ${invIssueFormError?`<div style="background:#C0392B15;color:#C0392B;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px">${esc(invIssueFormError)}</div>`:''}
-      <div class="form-row">
-        <div class="form-group"><label>Item *</label>
-          <select id="inv-issue-item">
-            <option value="">Select Item</option>
-            ${invItems.map(i=>`<option value="${i.id}">${esc(i.name)}${i.itemCode?' ('+esc(i.itemCode)+')':''} — stock ${i.stock}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group"><label>Customer *</label>
-          <select id="inv-issue-customer">
-            <option value="">Select Customer</option>
-            ${invIssueCustomers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
-          </select>
-        </div>
+    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:22px;font-weight:700">Inward Outward</h1>
+        <div style="font-size:13px;color:var(--g3)">Send a part out to a customer, or receive one back — stock updates immediately either way.</div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label>Quantity *</label><input type="number" id="inv-issue-qty" min="0.01" step="any"></div>
-        <div class="form-group"><label>Issue Date</label><input type="date" id="inv-issue-date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="openInvOutwardModal()">Record Outward</button>
+        <button class="btn btn-primary" onclick="openInvInwardModal()">Record Inward</button>
       </div>
-      <div class="form-row full"><div class="form-group"><label>Details</label><textarea id="inv-issue-details" placeholder="Optional notes"></textarea></div></div>
-      <button class="btn btn-primary" onclick="submitInvIssue()">Send to Customer</button>
     </div>
     <h2 style="font-size:16px;font-weight:700;margin-bottom:12px">History</h2>
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
@@ -13930,20 +13975,35 @@ function renderInvIssues(){
       </div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Date</th><th>Item</th><th>Quantity</th><th>Customer</th><th>Details</th></tr></thead>
+      <thead><tr><th>Date</th><th>Direction</th><th>Item</th><th>Quantity</th><th>Customer</th><th>Details</th></tr></thead>
       <tbody id="inv-issues-tbody">${invIssuesTableHtml()}</tbody>
     </table></div>`;
 }
-async function submitInvIssue(){
-  invIssueFormError='';
-  const itemId=document.getElementById('inv-issue-item').value;
-  const customerId=document.getElementById('inv-issue-customer').value;
-  const quantity=Number(document.getElementById('inv-issue-qty').value);
-  const issueDate=document.getElementById('inv-issue-date').value||null;
-  const details=document.getElementById('inv-issue-details').value.trim()||null;
+function invFillItemCustomerSelects(itemSelId,custSelId){
+  const itemSel=document.getElementById(itemSelId);
+  const custSel=document.getElementById(custSelId);
+  if(itemSel) itemSel.innerHTML='<option value="">Select Item</option>'+invItems.map(i=>`<option value="${i.id}">${esc(i.name)}${i.itemCode?' ('+esc(i.itemCode)+')':''} — stock ${i.stock}</option>`).join('');
+  if(custSel) custSel.innerHTML='<option value="">Select Customer</option>'+invIssueCustomers.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+}
+function openInvOutwardModal(){
+  invOutwardFormError='';
+  document.getElementById('inv-outward-error').style.display='none';
+  invFillItemCustomerSelects('inv-outward-item','inv-outward-customer');
+  document.getElementById('inv-outward-qty').value='';
+  document.getElementById('inv-outward-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('inv-outward-details').value='';
+  document.getElementById('inv-outward-modal').classList.add('open');
+}
+async function submitInvOutward(){
+  const itemId=document.getElementById('inv-outward-item').value;
+  const customerId=document.getElementById('inv-outward-customer').value;
+  const quantity=Number(document.getElementById('inv-outward-qty').value);
+  const issueDate=document.getElementById('inv-outward-date').value||null;
+  const details=document.getElementById('inv-outward-details').value.trim()||null;
+  const errEl=document.getElementById('inv-outward-error');
   if(!itemId||!customerId||!quantity||quantity<=0){
-    invIssueFormError='Item, customer, and a quantity greater than 0 are required.';
-    renderInvIssues();
+    errEl.textContent='Item, customer, and a quantity greater than 0 are required.';
+    errEl.style.display='block';
     return;
   }
   try{
@@ -13953,12 +14013,55 @@ async function submitInvIssue(){
     });
     if(!r.ok){ const d=await r.json(); throw new Error(d.error||'Could not send this item to the customer.'); }
     showToast('Sent to customer ✓','success');
-    await loadInvData(); // item stock changed
+    closeModal('inv-outward-modal');
+    await loadInvData(); // item stock (and the summary tile) changed
     await loadInvIssues();
     renderView();
   }catch(e){
-    invIssueFormError=e.message;
+    errEl.textContent=e.message;
+    errEl.style.display='block';
+  }
+}
+function openInvInwardModal(){
+  invInwardFormError='';
+  document.getElementById('inv-inward-error').style.display='none';
+  invFillItemCustomerSelects('inv-inward-item','inv-inward-customer');
+  document.getElementById('inv-inward-qty').value='';
+  document.getElementById('inv-inward-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('inv-inward-unitcost').value='';
+  document.getElementById('inv-inward-details').value='';
+  document.getElementById('inv-inward-modal').classList.add('open');
+}
+async function submitInvInward(){
+  const itemId=document.getElementById('inv-inward-item').value;
+  const customerId=document.getElementById('inv-inward-customer').value;
+  const quantity=Number(document.getElementById('inv-inward-qty').value);
+  const returnDate=document.getElementById('inv-inward-date').value||null;
+  const unitCostRaw=document.getElementById('inv-inward-unitcost').value;
+  const unitCost=unitCostRaw!==''?Number(unitCostRaw):undefined;
+  const details=document.getElementById('inv-inward-details').value.trim()||null;
+  const errEl=document.getElementById('inv-inward-error');
+  if(!itemId||!customerId||!quantity||quantity<=0){
+    errEl.textContent='Item, customer, and a quantity greater than 0 are required.';
+    errEl.style.display='block';
+    return;
+  }
+  try{
+    const body={quantity,customerId,details,returnDate};
+    if(unitCost!==undefined) body.unitCost=unitCost;
+    const r=await fetch(`/api/inventory/items/${itemId}/receive-from-customer`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body),
+    });
+    if(!r.ok){ const d=await r.json(); throw new Error(d.error||'Could not receive this item from the customer.'); }
+    showToast('Received from customer ✓','success');
+    closeModal('inv-inward-modal');
+    await loadInvData(); // item stock (and the summary tile) changed
+    await loadInvIssues();
     renderView();
+  }catch(e){
+    errEl.textContent=e.message;
+    errEl.style.display='block';
   }
 }
 
