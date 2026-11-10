@@ -3301,6 +3301,11 @@ let aidaConversations=[]; // sidebar cache: [{id,title,createdAt,updatedAt,lastM
 let aidaConversationsLoaded=false;
 let aidaActiveConversationId=null; // threaded through every POST /chat and /voice-input; stored back from each response
 let _aidaInitialConvLoadStarted=false; // guards loadInitialAidaConversation() to exactly one attempt per overlay session, same role aidaHistoryLoaded used to play
+// Conversation ids with an unread server-pushed message (aida:chatMessage
+// for a conversation that wasn't the open one when it arrived) — cleared the
+// moment that conversation is opened. Keyed by id so it survives a list
+// re-sort/refetch.
+let aidaUnreadConvIds={};
 // Skills panel (browse AIDA's tools + propose a new one) — masteradmin only.
 let aidaSkillsTab='browse';
 let aidaSkillsTools=null; // null = not loaded yet or failed; [] = loaded, empty
@@ -5323,8 +5328,12 @@ var AidaFaceFlow=(function(){
       }
       aidaConvList.innerHTML=aidaConversations.map(function(c){
         var active=c.id===aidaActiveConversationId;
+        var unread=!active&&aidaUnreadConvIds[c.id];
         return '<div class="aida-conv-row'+(active?' active':'')+'" data-conv-id="'+esc(c.id)+'">'+
-          '<div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.title||'New conversation')+'</div>'+
+          '<div style="display:flex;align-items:center;gap:6px">'+
+            (unread?'<span style="width:7px;height:7px;border-radius:50%;background:#33539E;flex-shrink:0" title="New message"></span>':'')+
+            '<div style="font-size:13px;font-weight:'+(unread?'700':'600')+';color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.title||'New conversation')+'</div>'+
+          '</div>'+
           '<div style="font-size:11px;color:var(--text-dim);margin-top:2px">'+esc(_aidaHubRelTime(c.lastMessageAt||c.updatedAt))+'</div>'+
         '</div>';
       }).join('');
@@ -5340,6 +5349,7 @@ var AidaFaceFlow=(function(){
         // chronological, oldest-first order the chat body renders in.
         aidaMessages=(Array.isArray(data.messages)?data.messages:[]).map(function(m){ return {role:m.role,content:m.content}; }).reverse();
         aidaActiveConversationId=id;
+        delete aidaUnreadConvIds[id];
         renderAidaMsgRows();
         renderAidaConvList();
       }catch(e){ showAidaToast(e.message||'Could not load that conversation'); }
@@ -5985,6 +5995,31 @@ var AidaFaceFlow=(function(){
       var id=(payload&&(payload.jobId||(payload.job&&payload.job.id)||payload.id))||null;
       if(aidaJobDetailId&&id&&aidaJobDetailId===id) openAidaJobDetail(id);
       else if(!aidaJobDetailId) loadAidaJobsList();
+    };
+    // A real assistant message the backend wrote into a conversation's own
+    // transcript (e.g. "your job finished, here's the link") — pushed live
+    // via its own event rather than riding on aida:job, since aida:job is a
+    // Jobs-panel concern and this is a chat-transcript concern. If it's for
+    // the conversation open right now, show it immediately like any other
+    // reply; otherwise just flag + resort that conversation in the sidebar
+    // so it's not missed — the message itself is already a real row on the
+    // backend, so it loads normally next time that conversation is opened
+    // either way, same as any other past message.
+    window._aidaHubOnChatMessage=function(msg){
+      if(!msg||!msg.conversationId) return;
+      if(msg.conversationId===aidaActiveConversationId){
+        aidaMessages.push({role:msg.role||'assistant',content:msg.content||''});
+        renderAidaMsgRows();
+      }else{
+        aidaUnreadConvIds[msg.conversationId]=true;
+      }
+      var idx=aidaConversations.findIndex(function(c){ return c.id===msg.conversationId; });
+      if(idx>-1){
+        var conv=aidaConversations.splice(idx,1)[0];
+        conv.lastMessageAt=msg.createdAt||new Date().toISOString();
+        aidaConversations.unshift(conv);
+      }
+      if(aidaConvSidebarOpen) renderAidaConvList();
     };
 
     menuItems.forEach(function(el){
@@ -8117,6 +8152,9 @@ function connectAidaSocket(){
   // the panel itself lives inside the _aidaHubInit IIFE, so this just relays
   // through the same window._aidaHub* hook pattern used for onClose/onLogout.
   aidaSocket.on('aida:job',function(payload){ if(window._aidaHubOnJobEvent) window._aidaHubOnJobEvent(payload); });
+  // A real persisted chat message the backend wrote (e.g. a job-finished
+  // follow-up) — same masteradmin:<adminId> room as aida:job above.
+  aidaSocket.on('aida:chatMessage',function(msg){ if(window._aidaHubOnChatMessage) window._aidaHubOnChatMessage(msg); });
 }
 
 // If a turnId comes back but not one single chunk shows up within a
