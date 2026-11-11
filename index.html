@@ -12911,6 +12911,48 @@ const INV_ITEM_GROUPS=['Part','Component','Product'];
 const INV_ITEM_CLASSES=['Class A','Class B','Class C'];
 const INV_CURRENCIES=['INR','USD','EUR','GBP','CNY'];
 
+// Display-only currency conversion for the Vendors / Purchase History views —
+// never touches stored data. '' means "show each amount in its own original
+// currency" (no conversion). Responses are cached per target currency so
+// flipping the dropdown back and forth doesn't re-fetch.
+let invFxTargetCurrency='';
+let invFxRatesCache={}; // targetCurrency -> {to, rates, asOf}
+async function invSetFxTarget(val){
+  invFxTargetCurrency=val||'';
+  if(invFxTargetCurrency && !invFxRatesCache[invFxTargetCurrency]){
+    try{
+      invFxRatesCache[invFxTargetCurrency]=await fetch('/api/inventory/fx-rates?to='+encodeURIComponent(invFxTargetCurrency)).then(r=>r.json());
+    }catch(e){ invFxRatesCache[invFxTargetCurrency]=null; }
+  }
+  renderView();
+}
+// Converts `amount` (in `fromCurrency`) into the currently-selected display
+// currency. Returns {amount, currency} — unconverted (original currency) when
+// no target is selected, the amount is already in that currency, or a real
+// rate lookup failure came back null (never guess a conversion).
+function invConvertForDisplay(amount,fromCurrency){
+  const from=(fromCurrency||'INR').toUpperCase();
+  if(!invFxTargetCurrency || from===invFxTargetCurrency) return {amount,currency:from};
+  const entry=invFxRatesCache[invFxTargetCurrency];
+  const rate=entry?.rates?.[from];
+  if(rate==null) return {amount,currency:from};
+  return {amount:amount*rate,currency:invFxTargetCurrency};
+}
+function invFormatMoney(amount,fromCurrency){
+  const c=invConvertForDisplay(amount,fromCurrency);
+  const prefix=c.currency==='INR'?'₹':c.currency+' ';
+  return prefix+Number(c.amount).toLocaleString('en-IN',{maximumFractionDigits:2});
+}
+function invFxSelectHtml(){
+  return `<div style="display:flex;align-items:center;gap:6px">
+    <label style="font-size:12px;color:var(--g3)">Show in</label>
+    <select onchange="invSetFxTarget(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px">
+      <option value="">Original</option>
+      ${INV_CURRENCIES.map(c=>`<option value="${c}" ${invFxTargetCurrency===c?'selected':''}>${c}</option>`).join('')}
+    </select>
+  </div>`;
+}
+
 async function loadInvData(){
   try{
     [invVendors,invItems,invPurchases,invStockSummary] = await Promise.all([
@@ -12948,9 +12990,6 @@ function invSearchInput(value,oninput,placeholder){
     </span>
   </div>`;
 }
-function invContactCell(email,phone){
-  return `${esc(email||'—')}${phone?`<div style="font-size:11px;color:var(--g3);margin-top:2px">${esc(phone)}</div>`:''}`;
-}
 
 // ── Vendors ───────────────────────────────────────────────────────────────────
 function invVendorsTableHtml(){
@@ -12978,7 +13017,7 @@ function invVendorsTableHtml(){
           </td>
           <td><strong>${esc(v.name)}</strong></td>
           <td style="text-transform:capitalize">${esc(v.vendorGroup||'—')}</td>
-          <td>${invContactCell(v.email,v.phone)}</td>
+          <td>${invFormatMoney(v.totalValue||0,v.totalValueCurrency||'INR')}</td>
           <td>
             ${invIconBtn('edit','Edit',`openInvVendorModal('${v.id}')`)}
             ${invIconBtn('delete','Delete',`deleteInvVendor('${v.id}')`,'color:var(--red)')}
@@ -13000,15 +13039,16 @@ function renderInvVendors(){
       <h1 style="font-size:22px;font-weight:700">Vendors</h1>
       <button class="btn btn-primary" onclick="openInvVendorModal()">+ Add Vendor</button>
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
       ${invSearchInput(invVendorFilters.search,'invSetVendorFilter_search','Search vendors...')}
       <select onchange="invSetVendorFilter_group(this.value)" style="flex:1 1 180px;padding:8px 10px;border:1px solid var(--border);border-radius:8px">
         <option value="">All Groups</option>
         ${INV_VENDOR_GROUPS.map(g=>`<option value="${g}" ${invVendorFilters.group===g?'selected':''}>${g}</option>`).join('')}
       </select>
+      ${invFxSelectHtml()}
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>ID</th><th>Name</th><th>Group</th><th>Contact</th><th>Actions</th></tr></thead>
+      <thead><tr><th>ID</th><th>Name</th><th>Group</th><th>Total Value</th><th>Actions</th></tr></thead>
       <tbody id="inv-vendors-tbody">${invVendorsTableHtml()}</tbody>
     </table></div>`;
 }
@@ -13038,15 +13078,15 @@ function invVendorHistoryHtml(vendor){
         </div>
         ${!cached ? '<div style="font-size:12px;color:var(--g3)">Loading items…</div>' : `
           <table style="width:100%;font-size:13px">
-            <thead><tr><th style="text-align:left">Item</th><th style="text-align:left">Vendor Code</th><th>Ordered</th><th>Delivered</th><th>Undelivered</th><th>Unit Cost</th><th>Total Lead Time</th></tr></thead>
+            <thead><tr><th style="text-align:left">Item</th><th style="text-align:left">Vendor Code</th><th>Ordered</th><th>Delivered</th><th>Undelivered</th><th>Unit Cost</th><th>Total Value</th></tr></thead>
             <tbody>${cached.map(l=>`<tr>
               <td>${esc(invItemName(l.itemId))}</td>
               <td>${esc(l.vendorItemCode||'—')}</td>
               <td style="text-align:center">${l.quantityOrdered}</td>
               <td style="text-align:center;color:#27AE60">${l.quantityReceived}</td>
               <td style="text-align:center">${l.quantityOrdered-l.quantityReceived}</td>
-              <td>${p.currency?p.currency+' ':'₹'}${Number(l.unitCost).toLocaleString('en-IN')}</td>
-              <td>${p.currency?p.currency+' ':'₹'}${Number(l.unitCost*l.quantityOrdered).toLocaleString('en-IN')}</td>
+              <td>${invFormatMoney(l.unitCost,p.currency||'INR')}</td>
+              <td>${invFormatMoney(l.totalValue,p.currency||'INR')}</td>
             </tr>`).join('')}</tbody>
           </table>`}
       </div>`;
