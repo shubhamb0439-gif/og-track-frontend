@@ -3239,6 +3239,7 @@ body { transition: background .3s ease, color .3s ease; }
           <select id="filter-status" onchange="renderView()"><option value="">All Status</option><option>Open</option><option>In Progress</option><option>Resolved</option><option>Closed</option><option>Wont Fix</option><option>Not a Bug</option><option>Expected Behavior</option></select>
           <select id="filter-sev" onchange="renderView()" class="hide-mobile"><option value="">All Severity</option><option>Critical</option><option>High</option><option>Medium</option><option>Low</option></select>
         </div>
+        <select id="global-currency-select" onchange="setGlobalFxTarget(this.value)" title="Show money figures in another currency" style="display:none;padding:6px 8px;border:1px solid var(--border);border-radius:7px;font-size:12.5px;background:none"></select>
         <button id="font-btn" onclick="toggleFontPicker()" title="Change font">Aa</button>
         <button id="theme-toggle" onclick="toggleTheme()" title="Toggle theme" style="padding:7px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;line-height:1;transition:all .2s;display:flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
         <button id="report-issue-btn" onclick="openReportIssueModal()" title="Report a bug or feature idea" style="display:none;padding:7px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;line-height:1;transition:all .2s;align-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="6"/><path d="M12 7V4M9 4 7.5 2.5M15 4l1.5-1.5M6 11H3M6 15H3M18 11h3M18 15h3M8 19l-2 2M16 19l2 2"/></svg></button>
@@ -4854,6 +4855,23 @@ async function launchApp(){
   // pipeline directly. Static HTML in the topbar, just role-gated here same
   // as notif-bell-btn above.
   document.getElementById('report-issue-btn').style.display=currentUser.role==='masteradmin'?'none':'flex';
+  // Global currency toggle — CAJO is currently the one real multi-currency
+  // tenant (vendors/POs placed in a mix of INR/USD/EUR); every other tenant's
+  // money is already plain INR, so there's nothing for this control to do
+  // there. Gated on the URL slug, not role, since it's a tenant-wide setting.
+  {
+    const fxSel=document.getElementById('global-currency-select');
+    if(fxSel){
+      if(window.OGTRACK_SLUG==='cajo'){
+        fxSel.innerHTML='<option value="">Original</option>'+INV_CURRENCIES.map(c=>`<option value="${c}">${c}</option>`).join('');
+        fxSel.value=globalFxTargetCurrency;
+        fxSel.style.display='inline-block';
+        if(globalFxTargetCurrency) setGlobalFxTarget(globalFxTargetCurrency);
+      }else{
+        fxSel.style.display='none';
+      }
+    }
+  }
   if(!document.getElementById('qr-scanner-modal')){
     const _modal=document.createElement('div');
     _modal.id='qr-scanner-modal';_modal.className='qr-modal-bg';
@@ -11906,6 +11924,53 @@ function _exportCeoReport(){
 // esc(...) call below was throwing ReferenceError until this was added.
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// ── Global currency display toggle (CAJO only) ──────────────────────────────
+// Display-only conversion for every money figure in the app — never touches
+// stored data. A stored "currency" concept only exists on CAJO's
+// inv_vendors/inv_purchases rows; every other money figure anywhere (Sales
+// prices, the Inventory stock-value tile, Manufacturing BOM costs, an item's
+// avgCost) is already plain INR, so the SAME /fx-rates response covers all of
+// it — an INR figure anywhere just multiplies by rates['INR']. Selection is
+// global (set once from the topbar, not per page) and persisted so it
+// survives a refresh. '' means "show each amount in its own original
+// currency" (no conversion). Responses are cached per target currency so
+// flipping the toolbar selector back and forth doesn't re-fetch.
+let globalFxTargetCurrency='';
+try{ globalFxTargetCurrency=localStorage.getItem('og_fx_target')||''; }catch(e){}
+let globalFxRatesCache={}; // targetCurrency -> {to, rates, asOf}
+async function setGlobalFxTarget(val){
+  globalFxTargetCurrency=val||'';
+  try{
+    if(globalFxTargetCurrency) localStorage.setItem('og_fx_target',globalFxTargetCurrency);
+    else localStorage.removeItem('og_fx_target');
+  }catch(e){}
+  if(globalFxTargetCurrency && !globalFxRatesCache[globalFxTargetCurrency]){
+    try{
+      globalFxRatesCache[globalFxTargetCurrency]=await fetch('/api/inventory/fx-rates?to='+encodeURIComponent(globalFxTargetCurrency)).then(r=>r.json());
+    }catch(e){ globalFxRatesCache[globalFxTargetCurrency]=null; }
+  }
+  const sel=document.getElementById('global-currency-select');
+  if(sel) sel.value=globalFxTargetCurrency;
+  renderView();
+}
+// Converts `amount` (in `fromCurrency`) into the currently-selected display
+// currency. Returns {amount, currency} — unconverted (original currency) when
+// no target is selected, the amount is already in that currency, or a real
+// rate lookup failure came back null (never guess a conversion).
+function convertForDisplay(amount,fromCurrency){
+  const from=(fromCurrency||'INR').toUpperCase();
+  if(!globalFxTargetCurrency || from===globalFxTargetCurrency) return {amount,currency:from};
+  const entry=globalFxRatesCache[globalFxTargetCurrency];
+  const rate=entry?.rates?.[from];
+  if(rate==null) return {amount,currency:from};
+  return {amount:amount*rate,currency:globalFxTargetCurrency};
+}
+function formatMoney(amount,fromCurrency){
+  const c=convertForDisplay(amount,fromCurrency);
+  const prefix=c.currency==='INR'?'₹':c.currency+' ';
+  return prefix+Number(c.amount).toLocaleString('en-IN',{maximumFractionDigits:2});
+}
+
 // Sets a <select>'s value, adding the value as an extra option first if it
 // isn't already one of the standard choices — e.g. a lead/prospect/customer
 // created before the Source field became a fixed dropdown may carry a
@@ -12911,48 +12976,6 @@ const INV_ITEM_GROUPS=['Part','Component','Product'];
 const INV_ITEM_CLASSES=['Class A','Class B','Class C'];
 const INV_CURRENCIES=['INR','USD','EUR','GBP','CNY'];
 
-// Display-only currency conversion for the Vendors / Purchase History views —
-// never touches stored data. '' means "show each amount in its own original
-// currency" (no conversion). Responses are cached per target currency so
-// flipping the dropdown back and forth doesn't re-fetch.
-let invFxTargetCurrency='';
-let invFxRatesCache={}; // targetCurrency -> {to, rates, asOf}
-async function invSetFxTarget(val){
-  invFxTargetCurrency=val||'';
-  if(invFxTargetCurrency && !invFxRatesCache[invFxTargetCurrency]){
-    try{
-      invFxRatesCache[invFxTargetCurrency]=await fetch('/api/inventory/fx-rates?to='+encodeURIComponent(invFxTargetCurrency)).then(r=>r.json());
-    }catch(e){ invFxRatesCache[invFxTargetCurrency]=null; }
-  }
-  renderView();
-}
-// Converts `amount` (in `fromCurrency`) into the currently-selected display
-// currency. Returns {amount, currency} — unconverted (original currency) when
-// no target is selected, the amount is already in that currency, or a real
-// rate lookup failure came back null (never guess a conversion).
-function invConvertForDisplay(amount,fromCurrency){
-  const from=(fromCurrency||'INR').toUpperCase();
-  if(!invFxTargetCurrency || from===invFxTargetCurrency) return {amount,currency:from};
-  const entry=invFxRatesCache[invFxTargetCurrency];
-  const rate=entry?.rates?.[from];
-  if(rate==null) return {amount,currency:from};
-  return {amount:amount*rate,currency:invFxTargetCurrency};
-}
-function invFormatMoney(amount,fromCurrency){
-  const c=invConvertForDisplay(amount,fromCurrency);
-  const prefix=c.currency==='INR'?'₹':c.currency+' ';
-  return prefix+Number(c.amount).toLocaleString('en-IN',{maximumFractionDigits:2});
-}
-function invFxSelectHtml(){
-  return `<div style="display:flex;align-items:center;gap:6px">
-    <label style="font-size:12px;color:var(--g3)">Show in</label>
-    <select onchange="invSetFxTarget(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px">
-      <option value="">Original</option>
-      ${INV_CURRENCIES.map(c=>`<option value="${c}" ${invFxTargetCurrency===c?'selected':''}>${c}</option>`).join('')}
-    </select>
-  </div>`;
-}
-
 async function loadInvData(){
   try{
     [invVendors,invItems,invPurchases,invStockSummary] = await Promise.all([
@@ -13017,7 +13040,7 @@ function invVendorsTableHtml(){
           </td>
           <td><strong>${esc(v.name)}</strong></td>
           <td style="text-transform:capitalize">${esc(v.vendorGroup||'—')}</td>
-          <td>${invFormatMoney(v.totalValue||0,v.totalValueCurrency||'INR')}</td>
+          <td>${formatMoney(v.totalValue||0,v.totalValueCurrency||'INR')}</td>
           <td>
             ${invIconBtn('edit','Edit',`openInvVendorModal('${v.id}')`)}
             ${invIconBtn('delete','Delete',`deleteInvVendor('${v.id}')`,'color:var(--red)')}
@@ -13045,7 +13068,6 @@ function renderInvVendors(){
         <option value="">All Groups</option>
         ${INV_VENDOR_GROUPS.map(g=>`<option value="${g}" ${invVendorFilters.group===g?'selected':''}>${g}</option>`).join('')}
       </select>
-      ${invFxSelectHtml()}
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>ID</th><th>Name</th><th>Group</th><th>Total Value</th><th>Actions</th></tr></thead>
@@ -13085,8 +13107,8 @@ function invVendorHistoryHtml(vendor){
               <td style="text-align:center">${l.quantityOrdered}</td>
               <td style="text-align:center;color:#27AE60">${l.quantityReceived}</td>
               <td style="text-align:center">${l.quantityOrdered-l.quantityReceived}</td>
-              <td>${invFormatMoney(l.unitCost,p.currency||'INR')}</td>
-              <td>${invFormatMoney(l.totalValue,p.currency||'INR')}</td>
+              <td>${formatMoney(l.unitCost,p.currency||'INR')}</td>
+              <td>${formatMoney(l.totalValue,p.currency||'INR')}</td>
             </tr>`).join('')}</tbody>
           </table>`}
       </div>`;
@@ -13200,7 +13222,7 @@ function renderInvItems(){
       <div style="flex:1 1 240px;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:12px;color:var(--g3);margin-bottom:6px">Total Stock Value (at cost)</div>
-          <div style="font-size:26px;font-weight:700">₹${Number(invStockSummary.totalStockValue||0).toLocaleString('en-IN',{maximumFractionDigits:2})}</div>
+          <div style="font-size:26px;font-weight:700">${formatMoney(invStockSummary.totalStockValue||0,'INR')}</div>
         </div>
         <div style="width:44px;height:44px;border-radius:10px;background:#D3540022;color:#D35400;display:flex;align-items:center;justify-content:center">
           <svg width="20" height="20" viewBox="0 0 18 18" stroke="currentColor" stroke-width="1.6" fill="none"><line x1="4" y1="3" x2="14" y2="3"/><line x1="4" y1="7" x2="14" y2="7"/><path d="M4 3c5 0 6 6 0 6h-1l7 6"/></svg>
@@ -14215,7 +14237,7 @@ async function renderMfgComponentsPanel(bom){
   try{
     const full=await fetch(`/api/manufacturing/boms/${bom.id}`).then(r=>r.json());
     const costEl=document.getElementById('mfg-production-cost');
-    if(costEl) costEl.textContent = full.manufacturingPrice!=null ? `Production Cost: ₹${Number(full.manufacturingPrice).toLocaleString('en-IN',{minimumFractionDigits:2})}` : '';
+    if(costEl) costEl.textContent = full.manufacturingPrice!=null ? `Production Cost: ${formatMoney(full.manufacturingPrice,'INR')}` : '';
     mfgComponentsCache=full.lines||[];
     mfgComponentsSearch='';
     mfgComponentsBomId=bom.id;
@@ -15492,12 +15514,12 @@ async function openSaleDetailModal(id){
         <tbody>${(full.items||[]).map(i=>`<tr>
           <td>${esc(invItemName(i.itemId))}</td>
           <td>${esc(i.serialNumber||'—')}</td>
-          <td>₹${Number(i.unitPrice).toLocaleString('en-IN',{maximumFractionDigits:2})}</td>
+          <td>${formatMoney(i.unitPrice,'INR')}</td>
         </tr>`).join('')}</tbody>
       </table>
-      <div>Subtotal: ₹${Number(full.subtotal).toLocaleString('en-IN',{maximumFractionDigits:2})}</div>
-      <div>Tax: ₹${Number(full.tax).toLocaleString('en-IN',{maximumFractionDigits:2})}</div>
-      <div style="font-weight:600">Total: ₹${Number(full.total).toLocaleString('en-IN',{maximumFractionDigits:2})}</div>
+      <div>Subtotal: ${formatMoney(full.subtotal,'INR')}</div>
+      <div>Tax: ${formatMoney(full.tax,'INR')}</div>
+      <div style="font-weight:600">Total: ${formatMoney(full.total,'INR')}</div>
       ${full.delivery?`<div style="margin-top:10px;padding:10px;background:var(--g5);border-radius:8px">
         <strong>Delivery ${esc(full.delivery.deliveryNumber)}</strong> — ${full.delivery.delivered?'Delivered':'Pending'}
       </div>`:''}
