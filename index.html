@@ -3415,6 +3415,7 @@ body { transition: background .3s ease, color .3s ease; }
       <div id="sitara-po-lines"></div>
       <button type="button" class="btn-sm btn-ghost" onclick="addSitaraPoLine()">+ Add Line</button>
       <div class="form-row full" style="margin-top:10px"><div class="form-group"><label>Notes</label><textarea id="spo-notes"></textarea></div></div>
+      <div class="form-row full"><div class="form-group"><label>Supporting Document (photo or PDF)</label><input type="file" id="spo-attachment" accept="image/*,.pdf"></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('sitara-po-modal')">Cancel</button>
@@ -3440,6 +3441,27 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
+<!-- Sitara Drapes: Orders export (custom date range, XLSX/CSV) -->
+<div class="modal-overlay" id="sitara-export-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h2>Export Orders</h2><button class="modal-close" onclick="closeModal('sitara-export-modal')">×</button></div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;color:var(--g3);margin-bottom:10px">Exports one row per product line. Any status/source/search/product filter currently applied on the Orders page is included automatically — just pick the date range here.</div>
+      <div class="form-row">
+        <div class="form-group"><label>From</label><input type="date" id="sex-from"></div>
+        <div class="form-group"><label>To</label><input type="date" id="sex-to"></div>
+      </div>
+      <div class="form-row full"><div class="form-group"><label>Format</label>
+        <select id="sex-format"><option value="xlsx">Excel (.xlsx)</option><option value="csv">CSV</option></select>
+      </div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('sitara-export-modal')">Cancel</button>
+      <button class="btn btn-primary" id="sex-submit-btn" onclick="submitSitaraOrdersExport()">Download</button>
+    </div>
+  </div>
+</div>
+
 <!-- Sitara Drapes: Add/Edit Expense modal -->
 <div class="modal-overlay" id="sitara-expense-modal">
   <div class="modal" style="max-width:480px">
@@ -3456,6 +3478,10 @@ body { transition: background .3s ease, color .3s ease; }
       </div>
       <div class="form-row full"><div class="form-group"><label>Expense Date</label><input type="date" id="se-date"></div></div>
       <div class="form-row full"><div class="form-group"><label>Description</label><textarea id="se-description" placeholder="Optional notes"></textarea></div></div>
+      <div class="form-row full"><div class="form-group"><label>Bill / Invoice (photo or PDF)</label>
+        <input type="file" id="se-attachment" accept="image/*,.pdf">
+        <div id="se-attachment-current" style="font-size:12px;color:var(--g3);margin-top:4px"></div>
+      </div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('sitara-expense-modal')">Cancel</button>
@@ -16239,6 +16265,7 @@ function sitaraPurchasesTbodyHtml(){
       <td>${po.orderDate?new Date(po.orderDate).toLocaleDateString('en-GB'):(po.createdAt?new Date(po.createdAt).toLocaleDateString('en-GB'):'—')}</td>
       <td><span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;background:${color}22;color:${color};text-transform:capitalize">${esc(po.status||'pending')}</span></td>
       <td>${esc(po.notes||'—')}</td>
+      <td>${po.attachmentUrl?`<a href="${esc(po.attachmentUrl)}" target="_blank" rel="noopener">View document</a>`:''}</td>
       <td>
         <select onchange="updateSitaraPoStatus('${po.id}',this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px">
           ${SITARA_PO_STATUSES.map(s=>`<option value="${s}" ${po.status===s?'selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}
@@ -16246,9 +16273,9 @@ function sitaraPurchasesTbodyHtml(){
         <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraPo('${po.id}')">Delete</button>
       </td>
     </tr>`;
-    const detailRow=isOpen?`<tr><td colspan="6" style="background:var(--g5);padding:14px">${sitaraLineItemsHtml(sitaraPoDetailCache[po.id])}</td></tr>`:'';
+    const detailRow=isOpen?`<tr><td colspan="7" style="background:var(--g5);padding:14px">${sitaraLineItemsHtml(sitaraPoDetailCache[po.id])}</td></tr>`:'';
     return mainRow+detailRow;
-  }).join(''):`<tr><td colspan="6" class="empty-state">${sitaraPOs.length?'No purchase orders match your filters.':'No purchase orders yet.'}</td></tr>`;
+  }).join(''):`<tr><td colspan="7" class="empty-state">${sitaraPOs.length?'No purchase orders match your filters.':'No purchase orders yet.'}</td></tr>`;
 }
 function sitaraPurchasesHtml(){
   return `
@@ -16267,7 +16294,7 @@ function sitaraPurchasesHtml(){
       <button class="btn btn-primary" onclick="openSitaraPoModal()">+ Add Purchase</button>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th></th><th>Weaver</th><th>Order Date</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
+      <thead><tr><th></th><th>Weaver</th><th>Order Date</th><th>Status</th><th>Notes</th><th>Document</th><th>Actions</th></tr></thead>
       <tbody id="sitara-purchases-tbody">${sitaraPurchasesTbodyHtml()}</tbody>
     </table></div>`;
 }
@@ -16366,6 +16393,7 @@ function sitaraProductOptions(){
 function openSitaraPoModal(){
   document.getElementById('spo-date').value='';
   document.getElementById('spo-notes').value='';
+  document.getElementById('spo-attachment').value='';
   document.getElementById('spo-weaver').innerHTML=sitaraWeavers.length?sitaraWeavers.map(w=>`<option value="${w.id}">${esc(w.name)}</option>`).join(''):'<option value="">— No weavers yet. Add one in People. —</option>';
   document.getElementById('sitara-po-lines').innerHTML='';
   sitaraPoLineIdx=0;
@@ -16403,13 +16431,25 @@ async function saveSitaraPo(){
     if(productId&&quantity>0) items.push({productId,quantity,unitPrice});
   });
   if(!items.length){ showToast('Add at least one line item','error'); return; }
-  const payload={
-    weaverId,
-    orderDate: document.getElementById('spo-date').value||undefined,
-    notes: document.getElementById('spo-notes').value.trim()||undefined,
-    items,
-  };
   try{
+    let attachmentUrl,attachmentName;
+    const fileInput=document.getElementById('spo-attachment');
+    if(fileInput.files&&fileInput.files[0]){
+      const form=new FormData();
+      form.append('file',fileInput.files[0]);
+      const upRes=await fetch('/api/upload',{method:'POST',body:form});
+      const upData=await upRes.json();
+      if(!upRes.ok) throw new Error(upData.error||'Could not upload the document.');
+      attachmentUrl=upData.url;
+      attachmentName=upData.name;
+    }
+    const payload={
+      weaverId,
+      orderDate: document.getElementById('spo-date').value||undefined,
+      notes: document.getElementById('spo-notes').value.trim()||undefined,
+      attachmentUrl, attachmentName,
+      items,
+    };
     const r=await fetch('/api/sitara/purchase-orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(!r.ok){ const d=await r.json(); throw new Error(d.error); }
     closeModal('sitara-po-modal');
@@ -16534,7 +16574,10 @@ function renderSitaraOrders(){
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div style="font-size:13px;color:var(--g3)" id="sitara-orders-count">${sitaraOrdersCountHtml(list)}</div>
-      <button class="btn btn-primary" onclick="openSitaraOrderModal()">+ Add Order</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="openSitaraExportModal()">Export</button>
+        <button class="btn btn-primary" onclick="openSitaraOrderModal()">+ Add Order</button>
+      </div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
       <input type="text" placeholder="Search order #, customer, or email…" value="${esc(sitaraOrderFilters.search)}" oninput="setSitaraOrderFilter('search',this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;min-width:220px">
@@ -16594,6 +16637,45 @@ function setSitaraOrderFilter(key,val){
   }else{
     renderSitaraOrders();
   }
+}
+function openSitaraExportModal(){
+  document.getElementById('sex-from').value=sitaraOrderFilters.dateFrom||'';
+  document.getElementById('sex-to').value=sitaraOrderFilters.dateTo||'';
+  document.getElementById('sex-format').value='xlsx';
+  document.getElementById('sitara-export-modal').classList.add('open');
+}
+async function submitSitaraOrdersExport(){
+  const btn=document.getElementById('sex-submit-btn');
+  const createdFrom=document.getElementById('sex-from').value;
+  const createdTo=document.getElementById('sex-to').value;
+  const format=document.getElementById('sex-format').value;
+  const params=new URLSearchParams();
+  if(createdFrom) params.set('createdFrom',createdFrom);
+  if(createdTo) params.set('createdTo',createdTo);
+  if(sitaraOrderFilters.status) params.set('status',sitaraOrderFilters.status);
+  if(sitaraOrderFilters.source) params.set('source',sitaraOrderFilters.source);
+  if(sitaraOrderFilters.search) params.set('search',sitaraOrderFilters.search);
+  if(sitaraOrderFilters.productId) params.set('productId',sitaraOrderFilters.productId);
+  params.set('format',format);
+  btn.disabled=true;
+  const origLabel=btn.textContent;
+  btn.textContent='Preparing…';
+  try{
+    const r=await fetch('/api/sitara/orders/export?'+params.toString());
+    if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not generate the export.'); }
+    const blob=await r.blob();
+    const fromLabel=createdFrom||'all';
+    const toLabel=createdTo||'all';
+    const filename=`Sitara_Orders_${fromLabel}_to_${toLabel}.${format}`;
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+    URL.revokeObjectURL(url);
+    closeModal('sitara-export-modal');
+    showToast('Export downloaded ✓','success');
+  }catch(e){ showToast(e.message,'error'); }
+  btn.disabled=false;
+  btn.textContent=origLabel;
 }
 async function toggleSitaraOrderExpand(id){
   sitaraExpandedOrderId = sitaraExpandedOrderId===id ? null : id;
@@ -16770,11 +16852,12 @@ function sitaraExpensesTbodyHtml(list){
     <td>${esc(e.category||'—')}</td>
     <td>${esc(e.description||'—')}</td>
     <td>${sitaraInr(e.amount)}</td>
+    <td>${e.attachmentUrl?`<a href="${esc(e.attachmentUrl)}" target="_blank" rel="noopener">View receipt</a>`:''}</td>
     <td>
       <button class="btn-sm btn-ghost" onclick="openSitaraExpenseModal('${e.id}')">Edit</button>
       <button class="btn-sm btn-ghost" style="color:var(--red)" onclick="deleteSitaraExpense('${e.id}')">Delete</button>
     </td>
-  </tr>`).join(''):`<tr><td colspan="6" class="empty-state">${sitaraExpenses.length?'No expenses match your filters.':'No expenses yet.'}</td></tr>`;
+  </tr>`).join(''):`<tr><td colspan="7" class="empty-state">${sitaraExpenses.length?'No expenses match your filters.':'No expenses yet.'}</td></tr>`;
 }
 function renderSitaraExpenses(){
   const ca=document.getElementById('content-area');
@@ -16799,7 +16882,7 @@ function renderSitaraExpenses(){
     </div>
     <div style="font-size:13px;color:var(--g3);margin-bottom:10px" id="sitara-expenses-summary">${sitaraExpensesSummaryHtml(list)}</div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th>Amount</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Date</th><th>Vendor</th><th>Category</th><th>Description</th><th>Amount</th><th>Receipt</th><th>Actions</th></tr></thead>
       <tbody id="sitara-expenses-tbody">${sitaraExpensesTbodyHtml(list)}</tbody>
     </table></div>`;
 }
@@ -16822,6 +16905,10 @@ function openSitaraExpenseModal(id){
   document.getElementById('se-amount').value=e?.amount??'';
   document.getElementById('se-date').value=e?.expenseDate?String(e.expenseDate).slice(0,10):'';
   document.getElementById('se-description').value=e?.description||'';
+  document.getElementById('se-attachment').value='';
+  document.getElementById('sitara-expense-modal').dataset.attachmentUrl=e?.attachmentUrl||'';
+  document.getElementById('sitara-expense-modal').dataset.attachmentName=e?.attachmentName||'';
+  document.getElementById('se-attachment-current').innerHTML=e?.attachmentUrl?`Current: <a href="${esc(e.attachmentUrl)}" target="_blank" rel="noopener">${esc(e.attachmentName||'View file')}</a>`:'';
   document.getElementById('sitara-expense-modal').classList.add('open');
 }
 async function saveSitaraExpense(){
@@ -16833,12 +16920,24 @@ async function saveSitaraExpense(){
   if(!category){ showToast('Category is required','error'); return; }
   const amount=Number(document.getElementById('se-amount').value||0);
   if(!amount||amount<=0){ showToast('Enter a valid amount','error'); return; }
-  const payload={
-    vendorId, category, amount,
-    description: document.getElementById('se-description').value.trim()||undefined,
-    expenseDate: document.getElementById('se-date').value||undefined,
-  };
   try{
+    let attachmentUrl=modal.dataset.attachmentUrl||undefined;
+    let attachmentName=modal.dataset.attachmentName||undefined;
+    const fileInput=document.getElementById('se-attachment');
+    if(fileInput.files&&fileInput.files[0]){
+      const form=new FormData();
+      form.append('file',fileInput.files[0]);
+      const upRes=await fetch('/api/upload',{method:'POST',body:form});
+      const upData=await upRes.json();
+      if(!upRes.ok) throw new Error(upData.error||'Could not upload the receipt.');
+      attachmentUrl=upData.url;
+      attachmentName=upData.name;
+    }
+    const payload={
+      vendorId, category, amount, attachmentUrl, attachmentName,
+      description: document.getElementById('se-description').value.trim()||undefined,
+      expenseDate: document.getElementById('se-date').value||undefined,
+    };
     const r=id
       ? await fetch(`/api/sitara/expenses/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       : await fetch('/api/sitara/expenses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
