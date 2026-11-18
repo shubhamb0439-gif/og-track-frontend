@@ -3745,6 +3745,10 @@ body { transition: background .3s ease, color .3s ease; }
         <label id="inv-ep-items-count" style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items</label>
         <input type="text" id="inv-ep-items-search" placeholder="Search items by name or code…" oninput="setInvEpItemsSearch(this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin:8px 0;box-sizing:border-box">
         <div id="inv-ep-items"></div>
+        <div id="inv-ep-new-items" style="margin-top:8px"></div>
+        <div style="display:flex;justify-content:flex-end;margin:2px 0 6px">
+          <button type="button" class="btn-sm btn-primary" onclick="addInvEpNewLineAndFocus()">+ Add Item</button>
+        </div>
       </div>
       <div style="margin-top:10px">
         <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Receipts</label>
@@ -13766,6 +13770,9 @@ async function openInvPurchaseEditModal(id){
   if(invEditPurchaseId!==id) return;
   document.getElementById('inv-ep-items-count').textContent=`Items (${lines.length})`;
   document.getElementById('inv-ep-items-search').value='';
+  // Reset any not-yet-saved "+ Add Item" rows from a previous open.
+  invEpNewLineIdx=0;
+  document.getElementById('inv-ep-new-items').innerHTML='';
   // Numbers are fixed reference tags assigned once at render time, never
   // renumbered by the search filter below — searching only shows/hides
   // rows (never rebuilds them, which would wipe out any Quantity Received/
@@ -13898,6 +13905,75 @@ function invEpUpdateLineDerived(inputEl){
     pill.innerHTML=`<div style="padding:8px 12px;background:#F39C1222;border-radius:6px;color:#F39C12;font-weight:600">Partially Received (${pct}%)</div>`;
   }
 }
+// ── Edit Purchase modal: "+ Add Item" (add a brand-new line to an existing
+// PO) — same item-picker + quantity/cost row UI as the Make Purchase modal's
+// own addInvPoLine, just its own id/function namespace (inv-ep-new-line-*)
+// so it never collides with that modal's invPoLineIdx/invPoActivePickerIdx
+// state. New rows live in #inv-ep-new-items, separate from the already-
+// saved lines in #inv-ep-items, and are sent as new lines via
+// POST /purchases/:id/items on Save — never mixed into the existing lines'
+// own PATCH/receive-lines calls.
+let invEpNewLineIdx=0;
+let invEpNewActivePickerIdx=null;
+function addInvEpNewLineAndFocus(){
+  addInvEpNewLine();
+  const idx=invEpNewLineIdx-1;
+  const row=document.getElementById(`inv-ep-new-line-${idx}`);
+  document.getElementById(`inv-ep-new-line-item-search-${idx}`)?.focus({preventScroll:true});
+  row?.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function invEpNewRenderItemOptions(idx,search){
+  invEpNewActivePickerIdx=idx;
+  const q=(search||'').trim().toLowerCase();
+  const items=invItems.filter(i=>{
+    if(!q) return true;
+    return (i.name||'').toLowerCase().includes(q) || (i.itemCode||'').toLowerCase().includes(q) || (i.displayName||'').toLowerCase().includes(q);
+  });
+  const optionsEl=document.getElementById(`inv-ep-new-line-item-options-${idx}`);
+  optionsEl.style.display='';
+  mfgRenderItemPickerResults(optionsEl, items, 'invEpNewPickItem');
+}
+function invEpNewPickItem(itemId){
+  const idx=invEpNewActivePickerIdx;
+  if(idx==null) return;
+  const item=invItemRecord(itemId);
+  document.getElementById(`inv-ep-new-line-item-${idx}`).value=itemId;
+  document.getElementById(`inv-ep-new-line-item-search-${idx}`).value=item?mfgItemOptionLabel(item):'';
+  const optionsEl=document.getElementById(`inv-ep-new-line-item-options-${idx}`);
+  optionsEl.innerHTML='';
+  optionsEl.style.display='none';
+}
+function addInvEpNewLine(){
+  const idx=invEpNewLineIdx++;
+  const row=document.createElement('div');
+  row.id=`inv-ep-new-line-${idx}`;
+  row.style.cssText='padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:#27AE6008';
+  row.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <label style="font-size:11px;font-weight:600;color:var(--g3);text-transform:uppercase">New Item</label>
+      <button type="button" class="btn-sm btn-ghost" onclick="document.getElementById('inv-ep-new-line-${idx}').remove()" style="color:var(--red)">Remove Item</button>
+    </div>
+    <input type="hidden" id="inv-ep-new-line-item-${idx}" value="">
+    <input type="text" id="inv-ep-new-line-item-search-${idx}" placeholder="Search by item name or code…" autocomplete="off"
+      oninput="invEpNewRenderItemOptions(${idx},this.value)" onfocus="invEpNewRenderItemOptions(${idx},this.value)"
+      style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;margin-bottom:4px">
+    <div id="inv-ep-new-line-item-options-${idx}" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;display:none"></div>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--g3)">Vendor Code</label>
+      <input type="text" id="inv-ep-new-line-vcode-${idx}" placeholder="Optional" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Quantity *</label>
+        <input type="number" id="inv-ep-new-line-qty-${idx}" value="1" min="1" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1 1 80px"><label style="font-size:11px;color:var(--g3)">Lead Time</label>
+        <input type="number" id="inv-ep-new-line-leadtime-${idx}" value="0" min="0" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Unit Cost *</label>
+        <input type="number" id="inv-ep-new-line-cost-${idx}" value="0" min="0" step="0.01" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Freight Charges <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input type="number" id="inv-ep-new-line-freight-${idx}" value="0" min="0" step="0.01" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+      <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Import Charges <span style="font-weight:400;text-transform:none">(optional)</span></label>
+        <input type="number" id="inv-ep-new-line-import-${idx}" value="0" min="0" step="0.01" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
+    </div>`;
+  document.getElementById('inv-ep-new-items').appendChild(row);
+}
 async function saveInvPurchaseEdit(){
   if(!invEditPurchaseId) return;
   const poNumber=document.getElementById('inv-ep-po').value.trim()||null;
@@ -13926,6 +14002,28 @@ async function saveInvPurchaseEdit(){
   }
   try{
     await fetch(`/api/inventory/purchases/${invEditPurchaseId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({poNumber,vendorId,orderDate,invoiceNumber,receivedDate,currency})});
+
+    // Brand-new lines added via "+ Add Item" above — sent as a fresh POST,
+    // never mixed into the existing lines' own PATCH/receive-lines calls
+    // below. A PO this adds an unreceived item to may move from "Received"
+    // back to "Partial" server-side; the loadInvData()+renderView() at the
+    // end of this function already picks that up for the status badge.
+    const newLines=[];
+    document.querySelectorAll('#inv-ep-new-items > div').forEach(row=>{
+      const idx=row.id.split('-').pop();
+      const itemId=document.getElementById(`inv-ep-new-line-item-${idx}`)?.value;
+      const qty=Number(document.getElementById(`inv-ep-new-line-qty-${idx}`)?.value||0);
+      const vendorItemCode=document.getElementById(`inv-ep-new-line-vcode-${idx}`)?.value.trim()||undefined;
+      const leadTimeDays=Number(document.getElementById(`inv-ep-new-line-leadtime-${idx}`)?.value||0)||undefined;
+      const cost=Number(document.getElementById(`inv-ep-new-line-cost-${idx}`)?.value||0);
+      const freightCost=Number(document.getElementById(`inv-ep-new-line-freight-${idx}`)?.value||0)||undefined;
+      const importCharges=Number(document.getElementById(`inv-ep-new-line-import-${idx}`)?.value||0)||undefined;
+      if(itemId&&qty>0) newLines.push({itemId,quantityOrdered:qty,unitCost:cost,vendorItemCode,leadTimeDays,freightCost,importCharges});
+    });
+    if(newLines.length){
+      const r=await fetch(`/api/inventory/purchases/${invEditPurchaseId}/items`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:newLines})});
+      if(!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||'Could not add the new item(s) to this purchase.'); }
+    }
 
     const lineUpdates=[];
     const receiveUpdates=[];
