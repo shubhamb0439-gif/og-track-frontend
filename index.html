@@ -4305,6 +4305,29 @@ body { transition: background .3s ease, color .3s ease; }
   </div>
 </div>
 
+<!-- Import Purchases Modal -->
+<div class="modal-overlay" id="inv-purchase-import-modal">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-header">
+      <h2>Import Purchases</h2>
+      <button class="modal-close" onclick="closeModal('inv-purchase-import-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--g3);margin-bottom:12px">Import purchase orders from an Excel file. Rows that share the same PO Number are combined into one purchase order.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-ghost" type="button" onclick="downloadInvPurchaseImportTemplate()">⬇ Download Template</button>
+        <button class="btn btn-primary" type="button" onclick="document.getElementById('inv-purchase-import-file').click()">Choose File</button>
+        <input type="file" id="inv-purchase-import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleInvPurchaseImport(this)">
+      </div>
+      <div id="inv-purchase-import-preview"></div>
+    </div>
+    <div class="modal-footer" id="inv-purchase-import-footer">
+      <button class="btn btn-ghost" onclick="closeModal('inv-purchase-import-modal')">Cancel</button>
+      <button class="btn btn-primary" id="inv-purchase-import-confirm-btn" disabled onclick="confirmInvPurchaseImport()">Confirm Import</button>
+    </div>
+  </div>
+</div>
+
 <!-- Font Picker Panel -->
 <div class="font-picker-panel" id="font-picker-panel">
   <div class="font-picker-header">Choose Font</div>
@@ -13535,7 +13558,10 @@ function renderInvPurchases(){
   ca.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <h1 style="font-size:22px;font-weight:700">Purchases</h1>
-      <button class="btn btn-primary" onclick="openInvPoModal()">+ Make Purchase</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="openInvPurchaseImportModal()">⬆ Import</button>
+        <button class="btn btn-primary" onclick="openInvPoModal()">+ Make Purchase</button>
+      </div>
     </div>
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       ${invSearchInput(invPurchaseFilters.search,'invSetPurchaseFilter_search','Search purchases...')}
@@ -13749,6 +13775,225 @@ async function saveInvPurchase(){
     invPurchaseLinesBulkLoaded=false;
     renderView();
   }catch(e){ showToast(e.message,'error'); }
+}
+
+// ── Import Purchases from Excel ──────────────────────────────────────────────
+const INV_IMPORT_HEADER_MAP={
+  ponumber:'poNumber', vendorcode:'vendorCode', purchasedate:'purchaseDate',
+  currency:'currency', invoicenumber:'invoiceNumber', itemcode:'itemCode',
+  quantity:'quantity', unitcost:'unitCost', vendoritemcode:'vendorItemCode',
+  leadtimedays:'leadTimeDays', freightcharges:'freightCharges', importcharges:'importCharges'
+};
+const INV_IMPORT_REQUIRED=['poNumber','vendorCode','purchaseDate','itemCode','quantity','unitCost'];
+let invImportRows=[];
+
+function openInvPurchaseImportModal(){
+  invImportRows=[];
+  document.getElementById('inv-purchase-import-file').value='';
+  document.getElementById('inv-purchase-import-preview').innerHTML='';
+  setInvPurchaseImportConfirmEnabled(false,'Confirm Import');
+  document.getElementById('inv-purchase-import-modal').classList.add('open');
+}
+
+function downloadInvPurchaseImportTemplate(){
+  const headers=['PO Number','Vendor Code','Purchase Date','Currency','Invoice Number','Item Code','Quantity','Unit Cost','Vendor Item Code','Lead Time (days)','Freight Charges','Import Charges'];
+  const sample=['PO-1001','VEND-01','2026-11-18','INR','INV-2001','ITM-001',10,250.5,'VND-ITM-01',7,500,0];
+  const ws=XLSX.utils.aoa_to_sheet([headers,sample]);
+  ws['!cols']=headers.map(()=>({wch:18}));
+
+  const instructions=[
+    ['Column','Required','Description'],
+    ['PO Number','Yes','Purchase order number. Rows with the same PO Number are combined into one purchase order.'],
+    ['Vendor Code','Yes',"The vendor's code as set up in Vendors. Must match an existing vendor (name also accepted if unique)."],
+    ['Purchase Date','Yes','Date of the purchase order, e.g. 2026-11-18 or 18/11/2026.'],
+    ['Currency','No','3-letter currency code, e.g. INR, USD. Must be the same for every row of a PO.'],
+    ['Invoice Number','No','Vendor invoice number, if any. Must be the same for every row of a PO.'],
+    ['Item Code','Yes','The item\'s code as set up in Items. Must match an existing item (name also accepted if unique).'],
+    ['Quantity','Yes','Quantity ordered for this item. Must be greater than 0.'],
+    ['Unit Cost','Yes','Cost per unit for this item. Must be 0 or more.'],
+    ['Vendor Item Code','No',"The vendor's own code/SKU for this item, if different from your Item Code."],
+    ['Lead Time (days)','No','Expected lead time in days for this item. Whole number, 0 or more.'],
+    ['Freight Charges','No','Freight charge for this line. 0 or more.'],
+    ['Import Charges','No','Import/customs charge for this line. 0 or more.'],
+  ];
+  const wsInstr=XLSX.utils.aoa_to_sheet(instructions);
+  wsInstr['!cols']=[{wch:18},{wch:10},{wch:70}];
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Purchases');
+  XLSX.utils.book_append_sheet(wb,wsInstr,'Instructions');
+  XLSX.writeFile(wb,'purchase_import_template.xlsx');
+}
+
+function invImportNormalizeHeader(h){ return String(h||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+function invImportFormatDate(v){
+  if(v===''||v===undefined||v===null) return '';
+  if(v instanceof Date && !isNaN(v)){
+    const y=v.getUTCFullYear(), m=String(v.getUTCMonth()+1).padStart(2,'0'), d=String(v.getUTCDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/); // DD/MM/YYYY
+  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return s; // leave as-is; the backend will reject it if it's not a valid date
+}
+
+function invImportNumberOrUndefined(v){
+  if(v===''||v===undefined||v===null) return undefined;
+  const n=Number(String(v).replace(/,/g,'').trim());
+  return isNaN(n)?undefined:n;
+}
+
+function handleInvPurchaseImport(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
+      if(!allRows.length){ showToast('No data found in the file','alert'); input.value=''; return; }
+
+      const normHeaders=allRows[0].map(invImportNormalizeHeader);
+      const colFor={};
+      normHeaders.forEach((nh,idx)=>{ const field=INV_IMPORT_HEADER_MAP[nh]; if(field&&!(field in colFor)) colFor[field]=idx; });
+
+      const missing=INV_IMPORT_REQUIRED.filter(f=>!(f in colFor));
+      if(missing.length){
+        renderInvPurchaseImportMissingHeaders(missing);
+        input.value='';
+        return;
+      }
+
+      const rows=[];
+      allRows.slice(1).forEach((row,i)=>{
+        if(row.every(v=>v===''||v===undefined||v===null)) return; // skip fully empty rows
+        const get=(field)=>{ const idx=colFor[field]; if(idx===undefined) return ''; const v=row[idx]; return v===undefined||v===null?'':v; };
+        rows.push({
+          rowNumber: i+2,
+          poNumber: String(get('poNumber')).trim(),
+          vendorCode: String(get('vendorCode')).trim(),
+          purchaseDate: invImportFormatDate(get('purchaseDate')),
+          currency: String(get('currency')).trim(),
+          invoiceNumber: String(get('invoiceNumber')).trim(),
+          itemCode: String(get('itemCode')).trim(),
+          quantity: invImportNumberOrUndefined(get('quantity')),
+          unitCost: invImportNumberOrUndefined(get('unitCost')),
+          vendorItemCode: String(get('vendorItemCode')).trim(),
+          leadTimeDays: invImportNumberOrUndefined(get('leadTimeDays')),
+          freightCharges: invImportNumberOrUndefined(get('freightCharges')),
+          importCharges: invImportNumberOrUndefined(get('importCharges')),
+        });
+      });
+
+      if(!rows.length){ showToast('No data rows found after the header row','alert'); input.value=''; return; }
+
+      invImportRows=rows;
+      invPurchaseImportDryRun();
+    }catch(err){
+      showToast('Failed to read file: '+err.message,'alert');
+      console.error(err);
+    }
+    input.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function setInvPurchaseImportConfirmEnabled(on,label){
+  const btn=document.getElementById('inv-purchase-import-confirm-btn');
+  if(!btn) return;
+  btn.disabled=!on;
+  btn.textContent=label||'Confirm Import';
+}
+
+function renderInvPurchaseImportMissingHeaders(missing){
+  document.getElementById('inv-purchase-import-preview').innerHTML=`
+    <div style="background:var(--red-light);border:1px solid var(--red);border-radius:8px;padding:12px;font-size:13px;color:var(--red)">
+      Missing required column${missing.length!==1?'s':''}: <strong>${esc(missing.join(', '))}</strong>. Fix the file's header row and choose it again.
+    </div>`;
+  setInvPurchaseImportConfirmEnabled(false);
+}
+
+function invPurchaseImportGroupRows(){
+  const groups=new Map();
+  for(const row of invImportRows){
+    if(!row.poNumber) continue;
+    const key=row.poNumber.trim().toLowerCase();
+    if(!groups.has(key)) groups.set(key,{poNumber:row.poNumber,vendorCode:row.vendorCode,purchaseDate:row.purchaseDate,count:0});
+    groups.get(key).count++;
+  }
+  return [...groups.values()];
+}
+
+async function invPurchaseImportDryRun(){
+  document.getElementById('inv-purchase-import-preview').innerHTML='<div class="loading">Checking file…</div>';
+  setInvPurchaseImportConfirmEnabled(false);
+  try{
+    const r=await fetch('/api/inventory/purchases/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dryRun:true,rows:invImportRows})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){ showToast(d.error||'Import check failed','alert'); document.getElementById('inv-purchase-import-preview').innerHTML=''; return; }
+    renderInvPurchaseImportPreview(d);
+  }catch(err){
+    showToast('Import check failed: '+err.message,'alert');
+    document.getElementById('inv-purchase-import-preview').innerHTML='';
+  }
+}
+
+function renderInvPurchaseImportPreview(d){
+  const errors=d.errors||[];
+  const previewEl=document.getElementById('inv-purchase-import-preview');
+  if(!d.valid||errors.length){
+    previewEl.innerHTML=`
+      <div style="font-size:13px;color:var(--red);margin-bottom:10px;font-weight:600">${errors.length} error${errors.length!==1?'s':''} found — fix the file and choose it again</div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
+      <table class="import-table">
+        <thead><tr><th>Row</th><th>Column</th><th>Problem</th></tr></thead>
+        <tbody>${errors.map(e=>`<tr><td>${e.rowNumber??'—'}</td><td>${esc(e.column||'—')}</td><td>${esc(e.message||'')}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+    setInvPurchaseImportConfirmEnabled(false);
+    return;
+  }
+  const groups=invPurchaseImportGroupRows();
+  const poCount=d.summary?.purchases??groups.length;
+  const lineCount=d.summary?.lines??invImportRows.length;
+  previewEl.innerHTML=`
+    <div class="import-summary">
+      <span class="import-sum-pill" style="background:#e8f5e9;color:#2e7d32">✓ ${poCount} purchase order${poCount!==1?'s':''}, ${lineCount} item${lineCount!==1?'s':''} found</span>
+    </div>
+    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
+    <table class="import-table">
+      <thead><tr><th>PO Number</th><th>Vendor</th><th>Date</th><th>Items</th></tr></thead>
+      <tbody>${groups.map(g=>`<tr><td>${esc(g.poNumber)}</td><td>${esc(g.vendorCode)}</td><td>${esc(g.purchaseDate)}</td><td style="text-align:center">${g.count}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  setInvPurchaseImportConfirmEnabled(true);
+}
+
+async function confirmInvPurchaseImport(){
+  if(!invImportRows.length) return;
+  setInvPurchaseImportConfirmEnabled(false,'Importing…');
+  try{
+    const r=await fetch('/api/inventory/purchases/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dryRun:false,rows:invImportRows})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||(d.errors&&d.errors.length)){
+      renderInvPurchaseImportPreview(d.errors?d:{valid:false,errors:[{rowNumber:'',column:'',message:d.error||'Import failed'}]});
+      return;
+    }
+    const count=d.created?.length??d.summary?.purchases??0;
+    closeModal('inv-purchase-import-modal');
+    showToast(`Imported ${count} purchase order${count!==1?'s':''} ✓`,'success');
+    invPurchaseLinesCache={}; invPurchaseLinesCacheGen++;
+    invPurchaseLinesBulkLoaded=false;
+    await loadInvData();
+    renderView();
+  }catch(err){
+    showToast('Import failed: '+err.message,'alert');
+    setInvPurchaseImportConfirmEnabled(true);
+  }
 }
 
 // ── Edit Purchase modal (vendor/PO/date + per-line receiving) ───────────────
