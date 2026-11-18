@@ -13999,21 +13999,59 @@ async function loadInvIssues(){
   if(tbody) tbody.innerHTML=invIssuesTableHtml();
 }
 function invIssuesTableHtml(){
-  const rows=[
+  const raw=[
     ...(Array.isArray(invIssues)?invIssues.map(r=>({...r,direction:'Outward',date:r.issueDate})):[]),
     ...(Array.isArray(invReturns)?invReturns.map(r=>({...r,direction:'Inward',date:r.returnDate})):[]),
-  ].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
-  if(!rows.length){
-    return `<tr><td colspan="6" class="empty-state">No stock movements match your filters.</td></tr>`;
+  ];
+  // Rows sharing a real batchId came from one multi-item submission — group
+  // them into a single history entry (one Delete button for the whole
+  // transaction). A row with no batchId is its own standalone entry.
+  const groups=[];
+  const byBatch=new Map();
+  for(const r of raw){
+    if(r.batchId){
+      const key=r.direction+':'+r.batchId;
+      let g=byBatch.get(key);
+      if(!g){ g={direction:r.direction,batchId:r.batchId,date:r.date,customerName:r.customerName,details:r.details,items:[]}; byBatch.set(key,g); groups.push(g); }
+      g.items.push(r);
+    } else {
+      groups.push({direction:r.direction,batchId:null,date:r.date,customerName:r.customerName,details:r.details,items:[r]});
+    }
   }
-  return rows.map(r=>`<tr>
-    <td>${r.date?new Date(r.date).toLocaleDateString('en-GB'):'—'}</td>
-    <td><span class="badge" style="background:${r.direction==='Outward'?'#C0392B15;color:#C0392B':'#27AE6015;color:#27AE60'}">${r.direction}</span></td>
-    <td>${esc(r.itemName||'—')}${r.itemCode?`<div style="font-size:11px;color:var(--g3)">${esc(r.itemCode)}</div>`:''}</td>
-    <td style="text-align:center">${r.quantity}</td>
-    <td>${esc(r.customerName||'—')}</td>
-    <td>${esc(r.details||'—')}</td>
-  </tr>`).join('');
+  groups.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+  if(!groups.length){
+    return `<tr><td colspan="7" class="empty-state">No stock movements match your filters.</td></tr>`;
+  }
+  return groups.map(g=>{
+    const itemsHtml=g.items.map(it=>`${esc(it.itemName||'—')}${it.itemCode?' ('+esc(it.itemCode)+')':''} × ${it.quantity}`).join('<br>');
+    const totalQty=g.items.reduce((s,it)=>s+Number(it.quantity||0),0);
+    const deleteArgs=g.batchId?`'${g.direction}','batch','${g.batchId}'`:`'${g.direction}','single','${g.items[0].id}'`;
+    return `<tr>
+      <td>${g.date?new Date(g.date).toLocaleDateString('en-GB'):'—'}</td>
+      <td><span class="badge" style="background:${g.direction==='Outward'?'#C0392B15;color:#C0392B':'#27AE6015;color:#27AE60'}">${g.direction}</span></td>
+      <td>${itemsHtml}</td>
+      <td style="text-align:center">${totalQty}</td>
+      <td>${esc(g.customerName||'—')}</td>
+      <td>${esc(g.details||'—')}</td>
+      <td><button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:#C0392B" onclick="deleteInvTransaction(${deleteArgs})">Delete</button></td>
+    </tr>`;
+  }).join('');
+}
+async function deleteInvTransaction(direction,mode,idOrBatchId){
+  if(!confirm('Are you sure you want to delete this transaction? This will reverse the stock change it made.')) return;
+  const base=direction==='Outward'?'/api/inventory/issues':'/api/inventory/returns';
+  const url=mode==='batch'?`${base}/batch/${idOrBatchId}`:`${base}/${idOrBatchId}`;
+  try{
+    const r=await fetch(url,{method:'DELETE'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.error||'Could not delete this transaction.');
+    showToast('Transaction deleted ✓','success');
+    await loadInvData(); // item stock (and the summary tile) changed
+    await loadInvIssues();
+    renderView();
+  }catch(e){
+    showToast(e.message,'error');
+  }
 }
 function invSetIssueFilter(key,val){
   invIssueFilters[key]=val;
@@ -14063,7 +14101,7 @@ function renderInvIssues(){
       </div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Date</th><th>Direction</th><th>Item</th><th>Quantity</th><th>Customer</th><th>Details</th></tr></thead>
+      <thead><tr><th>Date</th><th>Direction</th><th>Item</th><th>Quantity</th><th>Customer</th><th>Details</th><th>Actions</th></tr></thead>
       <tbody id="inv-issues-tbody">${invIssuesTableHtml()}</tbody>
     </table></div>`;
 }
