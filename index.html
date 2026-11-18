@@ -2831,6 +2831,10 @@ body { transition: background .3s ease, color .3s ease; }
   transition:opacity .3s ease;
 }
 #hexagon-overlay.active{ opacity:var(--hex-overlay-opacity, 0.06); }
+/* Make Purchase modal: hide number spinners on item fields */
+#inv-po-lines input[type=number]::-webkit-outer-spin-button,
+#inv-po-lines input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+#inv-po-lines input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
 </style>
 <!-- Premium UI layer — presentation only, loaded after the base styles above -->
 <link rel="stylesheet" href="/css/og-ui.css">
@@ -3702,9 +3706,11 @@ body { transition: background .3s ease, color .3s ease; }
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px">
         <label style="font-size:12px;font-weight:600;color:var(--g3);text-transform:uppercase;letter-spacing:.5px">Items</label>
-        <button class="btn-sm btn-primary" onclick="addInvPoLine()">+ Add Item</button>
       </div>
       <div id="inv-po-lines"></div>
+      <div style="display:flex;justify-content:flex-end;margin:2px 0 6px">
+        <button type="button" class="btn-sm btn-primary" onclick="addInvPoLineAndFocus()">+ Add Item</button>
+      </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;background:var(--g5);border-radius:8px;padding:10px 14px;margin-top:10px">
         <span>Total Purchase Cost:</span>
@@ -13591,7 +13597,35 @@ function openInvPoModal(prefillItemId){
   invPoLineIdx=0;
   addInvPoLine(prefillItemId);
   updateInvPoTotal();
+  invPoBindWheelGuard();
   document.getElementById('inv-po-modal').classList.add('open');
+}
+// Mouse wheel over an item's number input must never change its value —
+// cancel the browser's default and scroll the modal body instead. Delegated
+// on the lines container (bound once) so dynamically added items are covered.
+function invPoBindWheelGuard(){
+  const lines=document.getElementById('inv-po-lines');
+  if(lines.dataset.wheelGuard) return;
+  lines.dataset.wheelGuard='1';
+  lines.addEventListener('wheel',e=>{
+    if(!(e.target instanceof HTMLInputElement) || e.target.type!=='number') return;
+    e.preventDefault();
+    const body=lines.closest('.modal-body');
+    if(!body) return;
+    const unit=e.deltaMode===1?16:e.deltaMode===2?body.clientHeight:1;
+    body.scrollBy({top:e.deltaY*unit,left:e.deltaX*unit});
+  },{passive:false});
+}
+// "+ Add Item" button (below the list): append a line, scroll it into view,
+// and focus its item search field.
+function addInvPoLineAndFocus(){
+  addInvPoLine();
+  const row=document.getElementById(`inv-po-line-${invPoLineIdx-1}`);
+  if(!row) return;
+  // Focus first (this opens the item picker dropdown), then scroll so the
+  // whole, now-taller card ends up in view.
+  document.getElementById(`inv-po-line-item-search-${invPoLineIdx-1}`)?.focus({preventScroll:true});
+  row.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 // Pre-fills Currency from the selected vendor's own currency — still
 // freely changeable afterward for this specific PO.
