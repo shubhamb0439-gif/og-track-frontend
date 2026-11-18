@@ -13632,7 +13632,7 @@ function invPurchaseDetailHtml(purchase){
   if(!lines) return '<div style="font-size:13px;color:var(--g3)">Loading…</div>';
   const prefix=purchase.currency?purchase.currency+' ':'₹';
   return `
-    <div style="font-weight:600;margin-bottom:8px">Purchase Items</div>
+    <div style="font-weight:600;margin-bottom:8px">Purchase Items <span style="font-weight:500;color:var(--g3)">(${lines.length} item${lines.length!==1?'s':''})</span></div>
     <table style="width:100%;font-size:13px">
       <thead><tr><th style="text-align:left">Item</th><th>Vendor Code</th><th>Ordered</th><th>Received</th><th>Remaining</th><th>Unit Cost</th><th>Total Cost</th><th>Lead Time</th><th>Status</th></tr></thead>
       <tbody>${lines.map(l=>`<tr>
