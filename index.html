@@ -2845,6 +2845,23 @@ body { transition: background .3s ease, color .3s ease; }
 [data-theme="dark"] .import-warn-box{border-color:#8a6d1f;background:rgba(240,180,41,.08);}
 [data-theme="dark"] .import-pill-ok{background:rgba(46,125,50,.2);color:#81c784;}
 [data-theme="dark"] .import-pill-skip{background:#2a2a2a;color:#bbb;}
+/* Purchases import: "not found" fix cards */
+.imp-fix-card{border:1px solid var(--border);border-left-width:3px;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--white);}
+.imp-fix-card:last-child{margin-bottom:0;}
+.imp-fix-card.st-pending{border-left-color:#f0b429;}
+.imp-fix-card.st-use{border-left-color:#2e7d32;}
+.imp-fix-card.st-no{border-left-color:var(--red);}
+.imp-fix-card.st-skip{border-left-color:#888;}
+.imp-fix-sug{display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin:4px 0;cursor:pointer;font-size:13px;}
+.imp-fix-sug input{margin:0;flex-shrink:0;}
+.imp-fix-sug.sel{border-color:#2e7d32;background:#e8f5e9;}
+.imp-fix-status{font-size:12px;margin-top:8px;font-weight:500;}
+.imp-fix-status.ok{color:#2e7d32;}
+.imp-fix-status.err{color:var(--red);}
+.imp-fix-status.skip{color:#9a6700;}
+[data-theme="dark"] .imp-fix-sug.sel{border-color:#66bb6a;background:rgba(46,125,50,.2);}
+[data-theme="dark"] .imp-fix-status.ok{color:#81c784;}
+[data-theme="dark"] .imp-fix-status.skip{color:#f5c451;}
 </style>
 <!-- Premium UI layer — presentation only, loaded after the base styles above -->
 <link rel="stylesheet" href="/css/og-ui.css">
@@ -13877,6 +13894,7 @@ const INV_IMPORT_CONFIGS={
     ],
     sample:['PO-1001','VEND-01','2026-11-18','INR','INV-2001','ITM-001',10,250.5,'VND-ITM-01',7,500,0],
     renderPreview:d=>renderInvPurchaseImportPreview(d),
+    onRowsLoaded:rows=>invPoFixReset(rows),
     onSuccess:async d=>{
       const count=d.created?.length??d.summary?.purchases??0;
       closeModal('inv-import-modal');
@@ -14056,6 +14074,7 @@ function handleInvImportFile(input){
       if(!rows.length){ showToast('No data rows found after the header row','alert'); input.value=''; return; }
 
       invImportRows=rows;
+      if(cfg.onRowsLoaded) cfg.onRowsLoaded(rows);
       invImportDryRun();
     }catch(err){
       showToast('Failed to read file: '+err.message,'alert');
@@ -14183,17 +14202,202 @@ function invPurchaseImportGroupRows(){
   return [...groups.values()];
 }
 
-function renderInvPurchaseImportPreview(d){
-  const errors=d.errors||[];
+// ── Purchases: fix "not found" Item/Vendor codes inside the modal ───────────
+// The backend's dry run returns "not found" errors for itemCode/vendorCode
+// with { value, suggestions:[{id,code,name,score}] }. They are grouped by
+// column + Excel value; the user's choice per group (use a suggestion / leave
+// as error / skip rows) is applied to a copy of the ORIGINAL parsed rows and
+// the dry run is re-run. Groups are remembered across re-runs so a resolved
+// one stays visible and can still be changed.
+let invPoFixOriginalRows=[];   // rows exactly as read from the Excel file
+let invPoFixGroups=[];         // [{key,field,label,value,rows:Set,suggestions,sel,choice,code,name}]
+let invPoFixSeq=0;             // ignores out-of-order re-check responses
+
+function invPoFixReset(rows){
+  invPoFixOriginalRows=rows.map(r=>({...r}));
+  invPoFixGroups=[];
+  invPoFixSeq++;
+}
+function invPoFixField(column){
+  const c=invImportNormalizeHeader(column);
+  return c==='itemcode'?'itemCode':c==='vendorcode'?'vendorCode':null;
+}
+function invPoFixIsNotFound(e){
+  return !!(e && typeof e==='object' && invPoFixField(e.column) &&
+    (Array.isArray(e.suggestions) || /not\s*found/i.test(e.message||'')));
+}
+// Adds this response's "not found" errors to the remembered groups.
+function invPoFixMerge(errors){
+  for(const e of errors){
+    if(!invPoFixIsNotFound(e)) continue;
+    const field=invPoFixField(e.column);
+    const orig=invPoFixOriginalRows.find(r=>r.rowNumber===e.rowNumber);
+    const value=String(e.value??orig?.[field]??'').trim();
+    const key=field+'\u0000'+value;
+    let g=invPoFixGroups.find(x=>x.key===key);
+    if(!g){
+      g={key,field,label:field==='itemCode'?'Item Code':'Vendor Code',value,rows:new Set(),
+         suggestions:[],sel:0,choice:null,code:null,name:null};
+      invPoFixGroups.push(g);
+    }
+    if(e.rowNumber!=null&&e.rowNumber!=='') g.rows.add(Number(e.rowNumber));
+    if(!g.suggestions.length&&Array.isArray(e.suggestions)) g.suggestions=e.suggestions.filter(s=>s&&s.code);
+  }
+}
+// Rebuilds invImportRows from the original rows + the user's choices.
+function invPoFixApply(){
+  const skipped=new Set();
+  invPoFixGroups.filter(g=>g.choice==='skip').forEach(g=>g.rows.forEach(n=>skipped.add(n)));
+  const uses=invPoFixGroups.filter(g=>g.choice==='use');
+  invImportRows=invPoFixOriginalRows.filter(r=>!skipped.has(r.rowNumber)).map(r=>{
+    const row={...r};
+    uses.forEach(g=>{ if(g.rows.has(r.rowNumber)) row[g.field]=g.code; });
+    return row;
+  });
+}
+function invPoFixRowsText(g){
+  const nums=[...g.rows].sort((a,b)=>a-b);
+  return (nums.length===1?'Row ':'Rows ')+nums.join(', ');
+}
+function invPoFixSelect(gi,si){
+  const g=invPoFixGroups[gi]; if(!g) return;
+  g.sel=si;
+  document.querySelectorAll(`#inv-po-fix-card-${gi} .imp-fix-sug`).forEach((el,i)=>el.classList.toggle('sel',i===si));
+}
+function invPoFixChoose(gi,choice){
+  const g=invPoFixGroups[gi]; if(!g) return;
+  if(choice==='use'){
+    const s=g.suggestions[g.sel]; if(!s) return;
+    g.code=s.code; g.name=s.name||'';
+  }
+  g.choice=choice;
+  invPoFixRecheck();
+}
+function invPoFixAcceptAll(){
+  const targets=invPoFixGroups.filter(g=>g.suggestions.length&&g.choice!=='use'&&g.choice!=='skip');
+  if(!targets.length){ showToast('No remaining values with a suggested match','alert'); return; }
+  if(!confirm(`This will apply the best match to ${targets.length} item${targets.length!==1?'s':''}. Please review the list before confirming.`)) return;
+  targets.forEach(g=>{ g.sel=0; g.code=g.suggestions[0].code; g.name=g.suggestions[0].name||''; g.choice='use'; });
+  invPoFixRecheck();
+}
+// Re-runs the dry run with the corrected rows, keeping the modal's scroll.
+async function invPoFixRecheck(){
+  invPoFixApply();
+  const seq=++invPoFixSeq;
+  setInvImportConfirmEnabled(false);
+  const statusEl=document.getElementById('inv-po-fix-status');
+  if(statusEl) statusEl.textContent='Re-checking…';
   const previewEl=document.getElementById('inv-import-preview');
-  if(!d.valid||errors.length){
+  const modalEl=previewEl.closest('.modal');
+  const keepScroll=()=>{ const st=modalEl?.scrollTop; return ()=>{ if(modalEl) modalEl.scrollTop=st; }; };
+  if(!invImportRows.length){
+    const restore=keepScroll();
+    renderInvPurchaseImportPreview({valid:false,errors:[{rowNumber:'',column:'',message:'All rows are skipped — nothing left to import.'}]});
+    restore();
+    return;
+  }
+  try{
+    const r=await fetch(INV_IMPORT_CONFIGS.purchases.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dryRun:true,rows:invImportRows})});
+    const d=await r.json().catch(()=>({}));
+    if(seq!==invPoFixSeq) return;
+    if(!r.ok){ showToast(d.error||'Import check failed','alert'); if(statusEl) statusEl.textContent='Re-check failed — try again'; return; }
+    const restore=keepScroll();
+    renderInvPurchaseImportPreview(d);
+    restore();
+  }catch(err){
+    if(seq!==invPoFixSeq) return;
+    showToast('Import check failed: '+err.message,'alert');
+    if(statusEl) statusEl.textContent='Re-check failed — try again';
+  }
+}
+function invPoFixHasChanges(){ return invPoFixGroups.some(g=>g.choice==='use'||g.choice==='skip'); }
+
+function invPoFixSectionHtml(){
+  if(!invPoFixGroups.length) return '';
+  const pending=invPoFixGroups.filter(g=>!g.choice).length;
+  const cards=invPoFixGroups.map((g,gi)=>{
+    const n=g.rows.size;
+    const missingNote=g.field==='itemCode'
+      ?`this item will be missing from its PO`
+      :`the items on ${n!==1?'these rows':'this row'} will be missing from their PO`;
+    let status='';
+    if(g.choice==='use') status=`<div class="imp-fix-status ok">✓ Using <strong>${esc(g.code)}</strong>${g.name?' — '+esc(g.name):''} on ${n} row${n!==1?'s':''}</div>`;
+    else if(g.choice==='no') status=`<div class="imp-fix-status err">Left as an error — fix it in the Excel file.</div>`;
+    else if(g.choice==='skip') status=`<div class="imp-fix-status skip">Skipped: ${n} row${n!==1?'s':''} won't be imported — ${missingNote}.</div>`;
+    const sugs=g.suggestions.length
+      ?`<div style="font-size:12px;color:var(--g3);margin:6px 0 2px">Did you mean:</div>
+        ${g.suggestions.map((s,si)=>`<label class="imp-fix-sug${si===g.sel?' sel':''}">
+          <input type="radio" name="inv-po-fix-${gi}" ${si===g.sel?'checked':''} onchange="invPoFixSelect(${gi},${si})">
+          <span><strong>${esc(s.code)}</strong>${s.name?' — '+esc(s.name):''}</span></label>`).join('')}`
+      :`<div style="font-size:12px;color:var(--g3);margin:6px 0">No similar ${g.field==='itemCode'?'items':'vendors'} found.</div>`;
+    return `<div class="imp-fix-card st-${g.choice||'pending'}" id="inv-po-fix-card-${gi}">
+      <div style="font-size:13px"><span style="color:var(--g3)">${esc(g.label)} not found:</span> <strong>'${esc(g.value)}'</strong></div>
+      <div style="font-size:12px;color:var(--g3);margin-top:2px">${esc(invPoFixRowsText(g))}</div>
+      ${sugs}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${g.suggestions.length?`<button type="button" class="btn-sm btn-primary" onclick="invPoFixChoose(${gi},'use')">Yes, use this</button>`:''}
+        <button type="button" class="btn-sm btn-ghost" onclick="invPoFixChoose(${gi},'no')">No</button>
+        <button type="button" class="btn-sm btn-ghost" onclick="invPoFixChoose(${gi},'skip')">Skip these rows</button>
+      </div>
+      ${status}
+    </div>`;
+  }).join('');
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600">${invPoFixGroups.length} value${invPoFixGroups.length!==1?'s':''} not found${pending?` — ${pending} need${pending===1?'s':''} a decision`:''}
+        <span id="inv-po-fix-status" style="font-weight:400;color:var(--g3);margin-left:6px"></span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${invPoFixGroups.some(g=>g.suggestions.length)?`<button type="button" class="btn-sm btn-primary" onclick="invPoFixAcceptAll()">Accept all best matches</button>`:''}
+        ${invPoFixHasChanges()?`<button type="button" class="btn-sm btn-ghost" onclick="invPoFixDownloadCorrected()">⬇ Download corrected file</button>`:''}
+      </div>
+    </div>
+    <div class="import-scroll" style="max-height:380px;padding:8px;margin-bottom:12px">${cards}</div>`;
+}
+// Amber review list of what the user changed.
+function invPoFixResolvedHtml(){
+  const lines=[];
+  invPoFixGroups.forEach(g=>{
+    const nums=[...g.rows].sort((a,b)=>a-b);
+    if(g.choice==='use') nums.forEach(n=>lines.push({n,t:`Row ${n}: '${g.value}' → ${g.code} (chosen by you)`}));
+    if(g.choice==='skip') nums.forEach(n=>lines.push({n,t:`Row ${n}: '${g.value}' skipped — row not imported${g.field==='itemCode'?', item will be missing from its PO':''}`}));
+  });
+  if(!lines.length) return '';
+  lines.sort((a,b)=>a.n-b.n);
+  return `
+    <div class="import-warn-title">${lines.length} row${lines.length!==1?'s':''} changed by you — review before Confirm Import</div>
+    <div class="import-scroll import-warn-box" style="max-height:200px;padding:8px 12px;margin-bottom:12px;font-size:12px;line-height:1.7">
+      ${lines.map(l=>`<div>${esc(l.t)}</div>`).join('')}
+    </div>`;
+}
+// Saves the corrected rows (chosen codes filled in, skipped rows removed).
+function invPoFixDownloadCorrected(){
+  invPoFixApply();
+  const fields=INV_IMPORT_CONFIGS.purchases.fields;
+  const aoa=[fields.map(f=>f.header),...invImportRows.map(r=>fields.map(f=>r[f.field]===undefined||r[f.field]===null?'':r[f.field]))];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=fields.map(()=>({wch:18}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Purchases');
+  XLSX.writeFile(wb,'purchase_import_corrected.xlsx');
+}
+
+function renderInvPurchaseImportPreview(d){
+  const allErrors=d.errors||[];
+  invPoFixMerge(allErrors);
+  // "not found" errors are shown as fix cards; everything else stays in the table.
+  const errors=invPoFixGroups.length?allErrors.filter(e=>!invPoFixIsNotFound(e)):allErrors;
+  const fixHtml=invPoFixSectionHtml();
+  const resolvedHtml=invPoFixResolvedHtml();
+  const previewEl=document.getElementById('inv-import-preview');
+  if(!d.valid||allErrors.length){
     previewEl.innerHTML=`
-      <div style="font-size:13px;color:var(--red);margin-bottom:10px;font-weight:600">${errors.length} error${errors.length!==1?'s':''} found — fix the file and choose it again</div>
-      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
+      <div style="font-size:13px;color:var(--red);margin-bottom:10px;font-weight:600">${allErrors.length} error${allErrors.length!==1?'s':''} found — ${fixHtml?'fix them below, or fix the file and choose it again':'fix the file and choose it again'}</div>
+      ${fixHtml}${errors.length?`
+      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px${fixHtml?';margin-bottom:12px':''}">
       <table class="import-table">
         <thead><tr><th>Row</th><th>Column</th><th>Problem</th></tr></thead>
         <tbody>${errors.map(e=>`<tr><td>${e.rowNumber??'—'}</td><td>${esc(e.column||'—')}</td><td>${esc(e.message||'')}</td></tr>`).join('')}</tbody>
-      </table></div>`;
+      </table></div>`:''}${resolvedHtml}`;
     setInvImportConfirmEnabled(false);
     return;
   }
@@ -14204,6 +14408,7 @@ function renderInvPurchaseImportPreview(d){
     <div class="import-summary">
       <span class="import-sum-pill" style="background:#e8f5e9;color:#2e7d32">✓ ${poCount} purchase order${poCount!==1?'s':''}, ${lineCount} item${lineCount!==1?'s':''} found</span>
     </div>
+    ${fixHtml}${resolvedHtml}
     <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
     <table class="import-table">
       <thead><tr><th>PO Number</th><th>Vendor</th><th>Date</th><th>Items</th></tr></thead>
