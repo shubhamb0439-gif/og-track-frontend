@@ -13518,7 +13518,7 @@ function invPurchasesTableHtml(){
     : list.map(p=>{
         const isOpen=invExpandedPurchases.has(p.id);
         const totalQty=invPurchaseLinesCache[p.id]?.reduce((s,l)=>s+Number(l.quantityOrdered),0);
-        const totalCost=invPurchaseLinesCache[p.id]?.reduce((s,l)=>s+Number(l.quantityOrdered)*Number(l.unitCost),0);
+        const totalCost=invPurchaseLinesCache[p.id]?.reduce((s,l)=>s+Number(l.quantityOrdered)*Number(l.unitCost)+Number(l.freightCost||0),0);
         const mainRow=`<tr>
           <td>
             <div style="display:flex;align-items:center;gap:4px;margin-left:-6px">
@@ -13608,7 +13608,7 @@ function invPurchaseDetailHtml(purchase){
         <td style="text-align:center;color:#27AE60">${l.quantityReceived}</td>
         <td style="text-align:center">${(l.quantityOrdered-l.quantityReceived).toFixed(2)}</td>
         <td>${prefix}${Number(l.unitCost).toLocaleString('en-IN')}</td>
-        <td>${prefix}${Number(l.unitCost*l.quantityOrdered).toLocaleString('en-IN')}</td>
+        <td>${prefix}${(Number(l.unitCost)*Number(l.quantityOrdered)+Number(l.freightCost||0)).toLocaleString('en-IN')}</td>
         <td>${l.leadTimeDays!=null?l.leadTimeDays+'d':'—'}</td>
         <td>${l.quantityReceived>=l.quantityOrdered?'<span style="color:#27AE60">Complete</span>':l.quantityReceived>0?'<span style="color:#2980B9">Partial</span>':'<span style="color:#F39C12">Pending</span>'}</td>
       </tr>`).join('')}</tbody>
@@ -13733,11 +13733,9 @@ function updateInvPoTotal(){
     const qty=Number(document.getElementById(`inv-po-line-qty-${idx}`)?.value||0);
     const cost=Number(document.getElementById(`inv-po-line-cost-${idx}`)?.value||0);
     const freight=Number(document.getElementById(`inv-po-line-freight-${idx}`)?.value||0);
-    const importCh=Number(document.getElementById(`inv-po-line-import-${idx}`)?.value||0);
-    // Freight/import are flat charges for the whole line, not per-unit —
-    // matches how the backend's landed-cost calc already treats them
-    // (unitCost*qty + freightCost + importCharges, divided back per unit).
-    const lineTotal=(qty*cost)+freight+importCh;
+    // Line total = Quantity × Unit Cost + Freight (flat per line, not per
+    // unit). Import Charges are still saved but not included in the total.
+    const lineTotal=(qty*cost)+freight;
     total+=lineTotal;
     const totalEl=document.getElementById(`inv-po-line-total-${idx}`);
     if(totalEl) totalEl.textContent=prefix+lineTotal.toLocaleString('en-IN',{minimumFractionDigits:2});
@@ -13827,11 +13825,20 @@ function downloadInvPurchaseImportTemplate(){
 
 function invImportNormalizeHeader(h){ return String(h||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
-function invImportFormatDate(v){
+// Builds "YYYY-MM-DD" from the calendar date exactly as shown in Excel, with
+// no Date object / UTC conversion involved (avoids the IST off-by-one-day bug).
+function invImportFormatDate(v,date1904){
   if(v===''||v===undefined||v===null) return '';
+  const pad=n=>String(n).padStart(2,'0');
+  if(typeof v==='number' && isFinite(v)){
+    // Real Excel date cell → raw serial number; decode it with SheetJS.
+    const dc=XLSX.SSF.parse_date_code(v,{date1904:!!date1904});
+    if(dc && dc.y) return `${dc.y}-${pad(dc.m)}-${pad(dc.d)}`;
+    return String(v);
+  }
   if(v instanceof Date && !isNaN(v)){
-    const y=v.getUTCFullYear(), m=String(v.getUTCMonth()+1).padStart(2,'0'), d=String(v.getUTCDate()).padStart(2,'0');
-    return `${y}-${m}-${d}`;
+    // Fallback only: read in local time (how SheetJS builds Dates).
+    return `${v.getFullYear()}-${pad(v.getMonth()+1)}-${pad(v.getDate())}`;
   }
   const s=String(v).trim();
   let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -13839,6 +13846,12 @@ function invImportFormatDate(v){
   m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/); // DD/MM/YYYY
   if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
   return s; // leave as-is; the backend will reject it if it's not a valid date
+}
+
+// Preview display: "YYYY-MM-DD" → "DD/MM/YYYY" by string split (no Date object).
+function invImportDisplayDate(s){
+  const m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?`${m[3]}/${m[2]}/${m[1]}`:String(s||'');
 }
 
 function invImportNumberOrUndefined(v){
@@ -13854,7 +13867,10 @@ function handleInvPurchaseImport(input){
   reader.onload=function(e){
     try{
       const data=new Uint8Array(e.target.result);
-      const wb=XLSX.read(data,{type:'array',cellDates:true});
+      // No cellDates: date cells stay as raw Excel serial numbers, which
+      // invImportFormatDate decodes without any timezone conversion.
+      const wb=XLSX.read(data,{type:'array'});
+      const date1904=!!wb.Workbook?.WBProps?.date1904;
       const ws=wb.Sheets[wb.SheetNames[0]];
       const allRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
       if(!allRows.length){ showToast('No data found in the file','alert'); input.value=''; return; }
@@ -13878,7 +13894,7 @@ function handleInvPurchaseImport(input){
           rowNumber: i+2,
           poNumber: String(get('poNumber')).trim(),
           vendorCode: String(get('vendorCode')).trim(),
-          purchaseDate: invImportFormatDate(get('purchaseDate')),
+          purchaseDate: invImportFormatDate(get('purchaseDate'),date1904),
           currency: String(get('currency')).trim(),
           invoiceNumber: String(get('invoiceNumber')).trim(),
           itemCode: String(get('itemCode')).trim(),
@@ -13968,7 +13984,7 @@ function renderInvPurchaseImportPreview(d){
     <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
     <table class="import-table">
       <thead><tr><th>PO Number</th><th>Vendor</th><th>Date</th><th>Items</th></tr></thead>
-      <tbody>${groups.map(g=>`<tr><td>${esc(g.poNumber)}</td><td>${esc(g.vendorCode)}</td><td>${esc(g.purchaseDate)}</td><td style="text-align:center">${g.count}</td></tr>`).join('')}</tbody>
+      <tbody>${groups.map(g=>`<tr><td>${esc(g.poNumber)}</td><td>${esc(g.vendorCode)}</td><td>${esc(invImportDisplayDate(g.purchaseDate))}</td><td style="text-align:center">${g.count}</td></tr>`).join('')}</tbody>
     </table></div>`;
   setInvPurchaseImportConfirmEnabled(true);
 }
@@ -14038,7 +14054,7 @@ async function openInvPurchaseEditModal(id){
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Unit Cost</label><input type="number" class="inv-ep-line-cost" value="${l.unitCost}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Freight Charges <span style="font-weight:400;text-transform:none">(optional)</span></label><input type="number" class="inv-ep-line-freight" value="${l.freightCost||0}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
         <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Import Charges <span style="font-weight:400;text-transform:none">(optional)</span></label><input type="number" class="inv-ep-line-import" value="${l.importCharges||0}" min="0" step="0.01" oninput="invEpUpdateLineDerived(this)" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px"></div>
-        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Subtotal</label><div class="inv-ep-line-subtotal" style="padding:6px;background:var(--g5);border-radius:6px">${p.currency?p.currency+' ':'₹'}${(l.quantityOrdered*l.unitCost).toFixed(2)}</div></div>
+        <div style="flex:1 1 90px"><label style="font-size:11px;color:var(--g3)">Subtotal</label><div class="inv-ep-line-subtotal" style="padding:6px;background:var(--g5);border-radius:6px">${p.currency?p.currency+' ':'₹'}${(Number(l.quantityOrdered)*Number(l.unitCost)+Number(l.freightCost||0)).toFixed(2)}</div></div>
       </div>
       <div class="inv-ep-line-status-pill"></div>
     </div>`).join('');
@@ -14139,7 +14155,8 @@ function invEpUpdateLineDerived(inputEl){
   row.querySelector('.inv-ep-line-received').value=received;
   row.querySelector('.inv-ep-line-remaining').textContent=(ordered-received).toFixed(2);
   const _epCurrency=document.getElementById('inv-ep-currency').value;
-  row.querySelector('.inv-ep-line-subtotal').textContent=(_epCurrency?_epCurrency+' ':'₹')+(ordered*cost).toFixed(2);
+  const freight=Number(row.querySelector('.inv-ep-line-freight')?.value||0);
+  row.querySelector('.inv-ep-line-subtotal').textContent=(_epCurrency?_epCurrency+' ':'₹')+(ordered*cost+freight).toFixed(2);
   const pill=row.querySelector('.inv-ep-line-status-pill');
   if(received<=0){
     pill.innerHTML=`<div style="padding:8px 12px;background:var(--g5);border-radius:6px;color:var(--g3);font-weight:600">Not Received</div>`;
