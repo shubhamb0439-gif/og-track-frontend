@@ -2862,6 +2862,21 @@ body { transition: background .3s ease, color .3s ease; }
 [data-theme="dark"] .imp-fix-sug.sel{border-color:#66bb6a;background:rgba(46,125,50,.2);}
 [data-theme="dark"] .imp-fix-status.ok{color:#81c784;}
 [data-theme="dark"] .imp-fix-status.skip{color:#f5c451;}
+/* Fix panel: scroll box with sticky header, collapse animation, Resolved list */
+.imp-fix-wrap{position:relative;max-height:420px;margin-bottom:12px;}
+.imp-fix-head{position:sticky;top:0;z-index:2;background:var(--white);border-bottom:1px solid var(--border);padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+.imp-fix-pending{padding:8px;}
+.imp-fix-card.collapsing{overflow:hidden;opacity:0;margin-bottom:0;padding-top:0;padding-bottom:0;border-width:0;transition:height .2s ease,opacity .15s ease,margin .2s ease,padding .2s ease;}
+.imp-fix-done{margin:8px;padding:10px 12px;border-radius:8px;background:#e8f5e9;color:#2e7d32;font-size:13px;}
+.imp-fix-done.has-errors{background:var(--red-light);color:var(--red);}
+.imp-fix-resolved{border-top:1px solid var(--border);}
+.imp-fix-res-toggle{display:block;width:100%;background:none;border:0;text-align:left;padding:8px 10px;font:inherit;font-size:13px;font-weight:600;color:inherit;cursor:pointer;}
+.imp-fix-res-line{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:5px 10px;font-size:12px;border-top:1px dashed var(--g5);}
+.imp-fix-undo{background:none;border:0;padding:0;font:inherit;font-size:12px;color:#2980B9;text-decoration:underline;cursor:pointer;flex-shrink:0;}
+[data-theme="dark"] .imp-fix-done{background:rgba(46,125,50,.2);color:#81c784;}
+[data-theme="dark"] .imp-fix-done.has-errors{background:var(--red-light);color:#ff8a80;}
+[data-theme="dark"] .imp-fix-undo{color:#5dade2;}
+@media (prefers-reduced-motion: reduce){ .imp-fix-card.collapsing{transition:none;} }
 </style>
 <!-- Premium UI layer — presentation only, loaded after the base styles above -->
 <link rel="stylesheet" href="/css/og-ui.css">
@@ -14217,6 +14232,7 @@ function invPoFixReset(rows){
   invPoFixOriginalRows=rows.map(r=>({...r}));
   invPoFixGroups=[];
   invPoFixSeq++;
+  invPoFixResolvedOpen=false;
 }
 function invPoFixField(column){
   const c=invImportNormalizeHeader(column);
@@ -14271,6 +14287,7 @@ function invPoFixChoose(gi,choice){
     g.code=s.code; g.name=s.name||'';
   }
   g.choice=choice;
+  invPoFixCollapseCards([gi]);
   invPoFixRecheck();
 }
 function invPoFixAcceptAll(){
@@ -14278,6 +14295,15 @@ function invPoFixAcceptAll(){
   if(!targets.length){ showToast('No remaining values with a suggested match','alert'); return; }
   if(!confirm(`This will apply the best match to ${targets.length} item${targets.length!==1?'s':''}. Please review the list before confirming.`)) return;
   targets.forEach(g=>{ g.sel=0; g.code=g.suggestions[0].code; g.name=g.suggestions[0].name||''; g.choice='use'; });
+  invPoFixCollapseCards(targets.map(g=>invPoFixGroups.indexOf(g)));
+  invPoFixRecheck();
+}
+// Undo: move a decided value back to the pending list.
+function invPoFixUndo(gi){
+  const g=invPoFixGroups[gi]; if(!g) return;
+  g.choice=null; g.code=null; g.name=null;
+  invPoFixSync();
+  invPoFixScrollToCard(document.getElementById(`inv-po-fix-card-${gi}`));
   invPoFixRecheck();
 }
 // Re-runs the dry run with the corrected rows, keeping the modal's scroll.
@@ -14312,46 +14338,133 @@ async function invPoFixRecheck(){
 }
 function invPoFixHasChanges(){ return invPoFixGroups.some(g=>g.choice==='use'||g.choice==='skip'); }
 
-function invPoFixSectionHtml(){
-  if(!invPoFixGroups.length) return '';
-  const pending=invPoFixGroups.filter(g=>!g.choice).length;
-  const cards=invPoFixGroups.map((g,gi)=>{
-    const n=g.rows.size;
-    const missingNote=g.field==='itemCode'
-      ?`this item will be missing from its PO`
-      :`the items on ${n!==1?'these rows':'this row'} will be missing from their PO`;
-    let status='';
-    if(g.choice==='use') status=`<div class="imp-fix-status ok">✓ Using <strong>${esc(g.code)}</strong>${g.name?' — '+esc(g.name):''} on ${n} row${n!==1?'s':''}</div>`;
-    else if(g.choice==='no') status=`<div class="imp-fix-status err">Left as an error — fix it in the Excel file.</div>`;
-    else if(g.choice==='skip') status=`<div class="imp-fix-status skip">Skipped: ${n} row${n!==1?'s':''} won't be imported — ${missingNote}.</div>`;
-    const sugs=g.suggestions.length
-      ?`<div style="font-size:12px;color:var(--g3);margin:6px 0 2px">Did you mean:</div>
-        ${g.suggestions.map((s,si)=>`<label class="imp-fix-sug${si===g.sel?' sel':''}">
-          <input type="radio" name="inv-po-fix-${gi}" ${si===g.sel?'checked':''} onchange="invPoFixSelect(${gi},${si})">
-          <span><strong>${esc(s.code)}</strong>${s.name?' — '+esc(s.name):''}</span></label>`).join('')}`
-      :`<div style="font-size:12px;color:var(--g3);margin:6px 0">No similar ${g.field==='itemCode'?'items':'vendors'} found.</div>`;
-    return `<div class="imp-fix-card st-${g.choice||'pending'}" id="inv-po-fix-card-${gi}">
-      <div style="font-size:13px"><span style="color:var(--g3)">${esc(g.label)} not found:</span> <strong>'${esc(g.value)}'</strong></div>
-      <div style="font-size:12px;color:var(--g3);margin-top:2px">${esc(invPoFixRowsText(g))}</div>
-      ${sugs}
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-        ${g.suggestions.length?`<button type="button" class="btn-sm btn-primary" onclick="invPoFixChoose(${gi},'use')">Yes, use this</button>`:''}
-        <button type="button" class="btn-sm btn-ghost" onclick="invPoFixChoose(${gi},'no')">No</button>
-        <button type="button" class="btn-sm btn-ghost" onclick="invPoFixChoose(${gi},'skip')">Skip these rows</button>
-      </div>
-      ${status}
-    </div>`;
-  }).join('');
-  return `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-      <div style="font-size:13px;font-weight:600">${invPoFixGroups.length} value${invPoFixGroups.length!==1?'s':''} not found${pending?` — ${pending} need${pending===1?'s':''} a decision`:''}
-        <span id="inv-po-fix-status" style="font-weight:400;color:var(--g3);margin-left:6px"></span></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${invPoFixGroups.some(g=>g.suggestions.length)?`<button type="button" class="btn-sm btn-primary" onclick="invPoFixAcceptAll()">Accept all best matches</button>`:''}
-        ${invPoFixHasChanges()?`<button type="button" class="btn-sm btn-ghost" onclick="invPoFixDownloadCorrected()">⬇ Download corrected file</button>`:''}
-      </div>
+// ── Fix panel: persistent DOM so re-checks never rebuild the cards ──────────
+// #inv-po-fix is a scroll box: sticky header (counts + buttons), the pending
+// cards, an "all resolved" note and a collapsible "Resolved (X)" list. Cards
+// are added/removed individually by invPoFixSync(); re-checks only refresh
+// the parts above (#inv-po-top) and below (#inv-po-rest) the panel.
+let invPoFixResolvedOpen=false;
+
+function invPoFixCardHtml(g,gi){
+  const sugs=g.suggestions.length
+    ?`<div style="font-size:12px;color:var(--g3);margin:6px 0 2px">Did you mean:</div>
+      ${g.suggestions.map((s,si)=>`<label class="imp-fix-sug${si===g.sel?' sel':''}">
+        <input type="radio" name="inv-po-fix-${gi}" ${si===g.sel?'checked':''} onchange="invPoFixSelect(${gi},${si})">
+        <span><strong>${esc(s.code)}</strong>${s.name?' — '+esc(s.name):''}</span></label>`).join('')}`
+    :`<div style="font-size:12px;color:var(--g3);margin:6px 0">No similar ${g.field==='itemCode'?'items':'vendors'} found.</div>`;
+  return `<div class="imp-fix-card st-pending" id="inv-po-fix-card-${gi}" data-gi="${gi}">
+    <div style="font-size:13px"><span style="color:var(--g3)">${esc(g.label)} not found:</span> <strong>'${esc(g.value)}'</strong></div>
+    <div style="font-size:12px;color:var(--g3);margin-top:2px">${esc(invPoFixRowsText(g))}</div>
+    ${sugs}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      ${g.suggestions.length?`<button type="button" class="btn-sm btn-primary" onclick="invPoFixChoose(${gi},'use')">Yes, use this</button>`:''}
+      <button type="button" class="btn-sm btn-ghost" onclick="invPoFixChoose(${gi},'no')">No</button>
+      <button type="button" class="btn-sm btn-ghost" onclick="invPoFixChoose(${gi},'skip')">Skip these rows</button>
     </div>
-    <div class="import-scroll" style="max-height:380px;padding:8px;margin-bottom:12px">${cards}</div>`;
+  </div>`;
+}
+
+// One compact line per decided value for the Resolved list.
+function invPoFixResolvedLine(g){
+  const rows=invPoFixRowsText(g);
+  if(g.choice==='use') return `${rows}: '${g.value}' → ${g.code} (chosen)`;
+  if(g.choice==='skip') return `${rows}: '${g.value}' skipped${g.field==='itemCode'?' — item will be missing from its PO':''}`;
+  return `${rows}: '${g.value}' left as error — fix it in the Excel file`;
+}
+
+// Builds the panel skeleton once (or again after a new file is chosen).
+function invPoFixEnsureLayout(previewEl){
+  if(previewEl.querySelector('#inv-po-fix')) return;
+  previewEl.innerHTML=`
+    <div id="inv-po-top"></div>
+    <div id="inv-po-fix" class="import-scroll imp-fix-wrap">
+      <div class="imp-fix-head" id="inv-po-fix-head">
+        <div style="font-size:13px;font-weight:600"><span id="inv-po-fix-count"></span>
+          <span id="inv-po-fix-status" style="font-weight:400;color:var(--g3);margin-left:6px"></span></div>
+        <div id="inv-po-fix-actions" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+      <div id="inv-po-fix-pending" class="imp-fix-pending"></div>
+      <div id="inv-po-fix-done" class="imp-fix-done" style="display:none"></div>
+      <div id="inv-po-fix-resolved" class="imp-fix-resolved"></div>
+    </div>
+    <div id="inv-po-rest"></div>`;
+}
+
+// Brings the panel in line with the groups' state without touching the
+// scroll position: adds missing pending cards (in order), removes decided
+// ones (unless they are mid-animation), and refreshes header + Resolved.
+function invPoFixSync(){
+  const pendingEl=document.getElementById('inv-po-fix-pending');
+  if(!pendingEl) return;
+  invPoFixGroups.forEach((g,gi)=>{
+    const card=document.getElementById(`inv-po-fix-card-${gi}`);
+    if(!g.choice && !card){
+      const tmp=document.createElement('div');
+      tmp.innerHTML=invPoFixCardHtml(g,gi).trim();
+      const after=[...pendingEl.children].find(c=>Number(c.dataset.gi)>gi);
+      pendingEl.insertBefore(tmp.firstElementChild,after||null);
+    }else if(g.choice && card && !card.classList.contains('collapsing')){
+      card.remove();
+    }
+  });
+  const total=invPoFixGroups.length;
+  const pending=invPoFixGroups.filter(g=>!g.choice).length;
+  const decided=invPoFixGroups.map((g,gi)=>({g,gi})).filter(x=>x.g.choice);
+  document.getElementById('inv-po-fix-count').textContent=
+    `${total} value${total!==1?'s':''} not found — ${pending?`${pending} need${pending===1?'s':''} a decision`:'all decided'}`;
+  document.getElementById('inv-po-fix-actions').innerHTML=
+    (invPoFixGroups.some(g=>g.suggestions.length&&g.choice!=='use'&&g.choice!=='skip')?`<button type="button" class="btn-sm btn-primary" onclick="invPoFixAcceptAll()">Accept all best matches</button>`:'')+
+    (invPoFixHasChanges()?`<button type="button" class="btn-sm btn-ghost" onclick="invPoFixDownloadCorrected()">⬇ Download corrected file</button>`:'');
+  pendingEl.style.display=pendingEl.children.length?'':'none';
+  const doneEl=document.getElementById('inv-po-fix-done');
+  const noCount=invPoFixGroups.filter(g=>g.choice==='no').length;
+  doneEl.style.display=pending?'none':'';
+  doneEl.classList.toggle('has-errors',noCount>0);
+  doneEl.textContent=noCount
+    ?`All items decided — ${noCount} left as error${noCount!==1?'s':''} (fix ${noCount!==1?'them':'it'} in the Excel file, or Undo to pick a match). Confirm Import stays disabled until no errors remain.`
+    :'All items resolved — review the Resolved list, then click Confirm Import.';
+  const resEl=document.getElementById('inv-po-fix-resolved');
+  resEl.style.display=decided.length?'':'none';
+  resEl.innerHTML=`
+    <button type="button" class="imp-fix-res-toggle" onclick="invPoFixToggleResolved()" aria-expanded="${invPoFixResolvedOpen}">
+      ${invPoFixResolvedOpen?'▾':'▸'} Resolved (${decided.length})</button>
+    ${invPoFixResolvedOpen?decided.map(({g,gi})=>`<div class="imp-fix-res-line">
+      <span>${esc(invPoFixResolvedLine(g))}</span>
+      <button type="button" class="imp-fix-undo" onclick="invPoFixUndo(${gi})">Undo</button></div>`).join(''):''}`;
+}
+function invPoFixToggleResolved(){
+  invPoFixResolvedOpen=!invPoFixResolvedOpen;
+  invPoFixSync();
+}
+
+// Scrolls the panel so `card` sits right under the sticky header.
+function invPoFixScrollToCard(card){
+  const wrap=document.getElementById('inv-po-fix');
+  if(!wrap) return;
+  if(!card){ wrap.scrollTop=0; return; }
+  const head=document.getElementById('inv-po-fix-head');
+  wrap.scrollTop=Math.max(0,card.offsetTop-(head?.offsetHeight||0)-8);
+}
+
+// Collapses the decided cards with a short animation, then removes them and
+// brings the next undecided card to the top of the list area.
+function invPoFixCollapseCards(gis){
+  const cards=gis.map(gi=>document.getElementById(`inv-po-fix-card-${gi}`)).filter(Boolean);
+  const firstGi=Math.min(...gis);
+  const finish=()=>{
+    cards.forEach(c=>c.remove());
+    invPoFixSync();
+    const pendingCards=[...(document.getElementById('inv-po-fix-pending')?.children||[])];
+    const next=pendingCards.find(c=>Number(c.dataset.gi)>firstGi)||pendingCards[0]||null;
+    invPoFixScrollToCard(next);
+  };
+  const reduce=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if(!cards.length||reduce){ finish(); return; }
+  // Mark as collapsing first so the live-count sync below keeps them.
+  cards.forEach(c=>{ c.style.height=c.offsetHeight+'px'; c.classList.add('collapsing'); });
+  invPoFixSync(); // counts + Resolved list update right away
+  cards.forEach(c=>{ void c.offsetHeight; c.style.height='0px'; }); // animate to 0
+  setTimeout(finish,220);
 }
 // Amber review list of what the user changed.
 function invPoFixResolvedHtml(){
@@ -14384,37 +14497,69 @@ function invPoFixDownloadCorrected(){
 function renderInvPurchaseImportPreview(d){
   const allErrors=d.errors||[];
   invPoFixMerge(allErrors);
-  // "not found" errors are shown as fix cards; everything else stays in the table.
-  const errors=invPoFixGroups.length?allErrors.filter(e=>!invPoFixIsNotFound(e)):allErrors;
-  const fixHtml=invPoFixSectionHtml();
-  const resolvedHtml=invPoFixResolvedHtml();
   const previewEl=document.getElementById('inv-import-preview');
-  if(!d.valid||allErrors.length){
-    previewEl.innerHTML=`
-      <div style="font-size:13px;color:var(--red);margin-bottom:10px;font-weight:600">${allErrors.length} error${allErrors.length!==1?'s':''} found — ${fixHtml?'fix them below, or fix the file and choose it again':'fix the file and choose it again'}</div>
-      ${fixHtml}${errors.length?`
-      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px${fixHtml?';margin-bottom:12px':''}">
+  if(!invPoFixGroups.length){
+    // No "not found" values: original preview, unchanged.
+    const errors=allErrors;
+    if(!d.valid||allErrors.length){
+      previewEl.innerHTML=`
+      <div style="font-size:13px;color:var(--red);margin-bottom:10px;font-weight:600">${allErrors.length} error${allErrors.length!==1?'s':''} found — fix the file and choose it again</div>
+      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
       <table class="import-table">
         <thead><tr><th>Row</th><th>Column</th><th>Problem</th></tr></thead>
         <tbody>${errors.map(e=>`<tr><td>${e.rowNumber??'—'}</td><td>${esc(e.column||'—')}</td><td>${esc(e.message||'')}</td></tr>`).join('')}</tbody>
-      </table></div>`:''}${resolvedHtml}`;
-    setInvImportConfirmEnabled(false);
+      </table></div>`;
+      setInvImportConfirmEnabled(false);
+      return;
+    }
+    previewEl.innerHTML=`
+    <div class="import-summary">
+      <span class="import-sum-pill" style="background:#e8f5e9;color:#2e7d32">✓ ${invPurchaseImportSummaryText(d)}</span>
+    </div>
+    ${invPurchaseImportPoTableHtml()}`;
+    setInvImportConfirmEnabled(true);
     return;
   }
+  // "Not found" values exist: keep the fix panel's DOM (cards, scroll,
+  // Resolved open/closed) and only refresh what's above and below it.
+  invPoFixEnsureLayout(previewEl);
+  const errors=allErrors.filter(e=>!invPoFixIsNotFound(e)); // other errors stay in the table
+  const resolvedHtml=invPoFixResolvedHtml();
+  const hasErrors=!d.valid||allErrors.length>0;
+  const topEl=document.getElementById('inv-po-top');
+  const restEl=document.getElementById('inv-po-rest');
+  if(hasErrors){
+    topEl.innerHTML=`<div style="font-size:13px;color:var(--red);margin-bottom:10px;font-weight:600">${allErrors.length} error${allErrors.length!==1?'s':''} found — fix them below, or fix the file and choose it again</div>`;
+    restEl.innerHTML=(errors.length?`
+      <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px;margin-bottom:12px">
+      <table class="import-table">
+        <thead><tr><th>Row</th><th>Column</th><th>Problem</th></tr></thead>
+        <tbody>${errors.map(e=>`<tr><td>${e.rowNumber??'—'}</td><td>${esc(e.column||'—')}</td><td>${esc(e.message||'')}</td></tr>`).join('')}</tbody>
+      </table></div>`:'')+resolvedHtml;
+  }else{
+    topEl.innerHTML=`<div class="import-summary">
+      <span class="import-sum-pill" style="background:#e8f5e9;color:#2e7d32">✓ ${invPurchaseImportSummaryText(d)}</span>
+    </div>`;
+    restEl.innerHTML=resolvedHtml+invPurchaseImportPoTableHtml();
+  }
+  const statusEl=document.getElementById('inv-po-fix-status');
+  if(statusEl) statusEl.textContent='';
+  invPoFixSync();
+  setInvImportConfirmEnabled(!hasErrors);
+}
+function invPurchaseImportSummaryText(d){
   const groups=invPurchaseImportGroupRows();
   const poCount=d.summary?.purchases??groups.length;
   const lineCount=d.summary?.lines??invImportRows.length;
-  previewEl.innerHTML=`
-    <div class="import-summary">
-      <span class="import-sum-pill" style="background:#e8f5e9;color:#2e7d32">✓ ${poCount} purchase order${poCount!==1?'s':''}, ${lineCount} item${lineCount!==1?'s':''} found</span>
-    </div>
-    ${fixHtml}${resolvedHtml}
-    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
+  return `${poCount} purchase order${poCount!==1?'s':''}, ${lineCount} item${lineCount!==1?'s':''} found`;
+}
+function invPurchaseImportPoTableHtml(){
+  const groups=invPurchaseImportGroupRows();
+  return `<div style="max-height:320px;overflow-y:auto;border:1px solid var(--g5);border-radius:8px">
     <table class="import-table">
       <thead><tr><th>PO Number</th><th>Vendor</th><th>Date</th><th>Items</th></tr></thead>
       <tbody>${groups.map(g=>`<tr><td>${esc(g.poNumber)}</td><td>${esc(g.vendorCode)}</td><td>${esc(invImportDisplayDate(g.purchaseDate))}</td><td style="text-align:center">${g.count}</td></tr>`).join('')}</tbody>
     </table></div>`;
-  setInvImportConfirmEnabled(true);
 }
 
 // ── Edit Purchase modal (vendor/PO/date + per-line receiving) ───────────────
